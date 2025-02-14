@@ -1,0 +1,60 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: GroundUp.api/Dockerfile
+    ports:
+      - "5000:8080"
+      - "5001:8081"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      DOTNET_RUNNING_IN_CONTAINER: true
+      DOTNET_RUNNING_IN_DOCKER: true
+      MYSQL_SERVER: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ef:
+        condition: service_completed_successfully  # API starts only after migrations finish
+    entrypoint: ["/app/startup.sh"]
+
+#   ef:
+#     build:
+#       context: .
+#       dockerfile: GroundUp.api/Dockerfile
+#       target: build  # Use SDK for migrations
+#     environment:
+#       MYSQL_SERVER: mysql
+#       MYSQL_PORT: 3306
+#       MYSQL_USER: ${MYSQL_USER}
+#       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+#       MYSQL_DATABASE: ${MYSQL_DATABASE}
+#     entrypoint: ["/bin/sh", "-c", "dotnet ef database update"]
+#     depends_on:
+#       mysql:
+#         condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    container_name: GroundUp-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  db_data:
