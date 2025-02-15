@@ -18,8 +18,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      ef:
-        condition: service_completed_successfully  # API starts only after migrations finish
+      # ef:
+      #   condition: service_completed_successfully  # API starts only after migrations finish
     entrypoint: ["/app/startup.sh"]
 
 #   ef:
