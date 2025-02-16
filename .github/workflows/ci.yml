@@ -1,0 +1,95 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - qa
+      - staging
+      - production
+  pull_request:
+    branches: [main]
+    types:
+      - opened
+      - synchronize
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.404'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Build Solution (Once)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Cache Build Output
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/bin
+            **/obj
+          key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dotnet-build-
+
+  unit-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Restore Cached Build
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/bin
+            **/obj
+          key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
+
+      - name: Run Unit Tests (Parallel)
+        run: dotnet test GroundUp.api.Tests.Unit --configuration Release --no-build --logger trx --results-directory TestResults
+
+  integration-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_pass
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u test_user -ptest_pass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Restore Cached Build
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/bin
+            **/obj
+          key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
+
+      - name: Run Integration Tests (Sequential)
+        run: dotnet test GroundUp.api.Tests.Integration --configuration Release --no-build --logger trx --results-directory TestResults
