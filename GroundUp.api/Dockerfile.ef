@@ -1,0 +1,23 @@
+# Use .NET SDK as the base image (EF requires SDK, not runtime)
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /app
+
+# Install EF Core CLI globally
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+# Copy project files
+COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
+WORKDIR /app/GroundUp.api
+RUN dotnet restore "GroundUp.api.csproj"
+
+# Copy source code
+COPY GroundUp.api/. .
+
+# Build and Publish the project
+WORKDIR /app/GroundUp.api
+RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish
+
+# Run EF migrations directly
+CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj"]
+
