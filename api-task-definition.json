@@ -1,0 +1,66 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "groundup-api",
+      "image": "556582471566.dkr.ecr.us-east-1.amazonaws.com/groundup-api",
+      "memory": 512,
+      "cpu": 256,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080
+        },
+        {
+          "containerPort": 8081,
+          "hostPort": 8081
+        }
+      ],
+      "environment": [
+        {
+          "name": "ASPNETCORE_ENVIRONMENT",
+          "value": "Production"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MYSQL_SERVER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:556582471566:secret:GroundUpQADBCreds-N1IZEo:host::"
+        },
+        {
+          "name": "MYSQL_PORT",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:556582471566:secret:GroundUpQADBCreds-N1IZEo:port::"
+        },
+        {
+          "name": "MYSQL_USER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:556582471566:secret:GroundUpQADBCreds-N1IZEo:username::"
+        },
+        {
+          "name": "MYSQL_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:556582471566:secret:GroundUpQADBCreds-N1IZEo:password::"
+        },
+        {
+          "name": "MYSQL_DATABASE",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:556582471566:secret:GroundUpQADBCreds-N1IZEo:dbname::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/groundup",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "family": "groundup-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::556582471566:role/groundupECSExecutionRole",
+  "taskRoleArn": "arn:aws:iam::556582471566:role/groundupECSExecutionRole"
+}

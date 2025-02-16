@@ -1,0 +1,16 @@
+project_name = "my-project"
+ecr_repository_name = "my-project"
+ecs_cluster_name = "my-project-cluster"
+log_group_name    = "/ecs/my-project"
+mysql_secrets_arn = "arn:aws:secretsmanager:us-east-1:556582471566:secret:MyProjectDBCreds-eRKJ29"
+terraform_state_bucket   = "my-project-terraform-state"
+
+terraform_state_key      = "terraform.tfstate"
+terraform_dynamodb_table = "terraform-lock"
+
+aws_region   = "us-east-1"
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["us-east-1a", "us-east-1b"]
+
+ecs_task_cpu    = 256
+ecs_task_memory = 512

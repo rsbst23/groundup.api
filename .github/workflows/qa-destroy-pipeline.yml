@@ -1,0 +1,117 @@
+name: Destroy QA Environment
+
+on:
+  workflow_dispatch:  # Allows manual execution
+
+env:
+  AWS_ROLE_TO_ASSUME: arn:aws:iam::556582471566:role/github-actions-role
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_AUDIENCE: sts.amazonaws.com
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+  TF_VAR_project_name: ground-up-qa
+  TF_VAR_ecs_cluster_name: ground-up-qa-cluster
+  TF_VAR_ecr_repository_name: ground-up-qa
+  TF_VAR_log_group_name: "/ecs/ground-up-qa"
+  TF_VAR_mysql_secrets_arn: "arn:aws:secretsmanager:us-east-1:556582471566:secret:GroundUpQADBCreds-N1IZEo"
+  TF_VAR_terraform_state_bucket: "rsbst23-ground-up-qa-terraform-state"
+  TF_VAR_terraform_state_key: "terraform.tfstate"
+  TF_VAR_terraform_dynamodb_table: "terraform-lock"
+  TF_VAR_vpc_cidr: "10.0.0.0/16"
+  TF_VAR_availability_zones: '["us-east-1a", "us-east-1b"]'
+  TF_VAR_ecs_task_cpu: 256
+  TF_VAR_ecs_task_memory: 512
+  TF_VAR_dockerfile_path: GroundUp.api/Dockerfile
+  TF_VAR_dockerfile_ef_path: GroundUp.api/Dockerfile.ef
+  TF_VAR_backend_bucket: rsbst23-ground-up-qa-terraform-state
+  TF_VAR_backend_key: terraform.state
+  TF_VAR_backend_region: "us-east-1"
+  TF_VAR_backend_encrypt: true
+  TF_VAR_backend_dynamodb_table: terraform-lock
+  TF_VAR_api_desired_count: 0
+  TF_VAR_mysql_desired_count: 0
+
+jobs:
+  destroy-environment:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::556582471566:role/github-actions-role
+          aws-region: ${{ secrets.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Initialize Terraform Backend
+        run: |
+          terraform init -reconfigure -force-copy \
+            -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
+            -backend-config="key=${{ env.TF_VAR_backend_key }}" \
+            -backend-config="region=${{ env.TF_VAR_backend_region }}" \
+            -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
+            -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
+        working-directory: terraform
+
+      - name: Set ECS Desired Count to 0 (Direct AWS CLI)
+        run: |
+          echo "Setting desired count to 0 for all ECS services..."
+          SERVICES=$(aws ecs list-services --cluster ${{ env.TF_VAR_ecs_cluster_name }} --query "serviceArns[]" --output text)
+
+          for SERVICE in $SERVICES; do
+            echo "Updating $SERVICE to desired count 0..."
+            aws ecs update-service --cluster ${{ env.TF_VAR_ecs_cluster_name }} --service $SERVICE --desired-count 0 || true
+          done
+
+          echo "Waiting for tasks to stop..."
+          sleep 30  # Allow time for tasks to stop
+        shell: bash
+
+      - name: Plan Terraform Before Destroy
+        run: |
+          echo "Running Terraform Plan..."
+          terraform plan
+        working-directory: terraform
+
+      - name: Remove the Terraform Lock Table from State
+        run: |
+          set -e
+          echo "Checking if the Terraform lock table exists in the state..."
+    
+          if terraform state list | grep -q "aws_dynamodb_table.terraform_lock"; then
+            echo "Removing the Terraform lock table from state..."
+            terraform state rm aws_dynamodb_table.terraform_lock || echo "Warning: Failed to remove table, but continuing..."
+          else
+            echo "Terraform lock table not found in state. Skipping removal."
+          fi
+        working-directory: terraform
+
+      - name: Debug Terraform State Before Destroy
+        run: |
+          echo "Checking Terraform state..."
+          terraform state list
+        working-directory: terraform
+
+      - name: Destroy Terraform Infrastructure
+        run: |
+          echo "Destroying Terraform infrastructure..."
+          terraform destroy -auto-approve
+        working-directory: terraform
+
+      - name: Add the Terraform Lock Table Back into State
+        run: terraform import aws_dynamodb_table.terraform_lock terraform-lock
+        working-directory: terraform

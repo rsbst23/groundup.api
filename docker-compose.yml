@@ -22,25 +22,25 @@ services:
       #   condition: service_completed_successfully  # API starts only after migrations finish
     entrypoint: ["/app/startup.sh"]
 
-#   ef:
-#     build:
-#       context: .
-#       dockerfile: GroundUp.api/Dockerfile
-#       target: build  # Use SDK for migrations
-#     environment:
-#       MYSQL_SERVER: mysql
-#       MYSQL_PORT: 3306
-#       MYSQL_USER: ${MYSQL_USER}
-#       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-#       MYSQL_DATABASE: ${MYSQL_DATABASE}
-#     entrypoint: ["/bin/sh", "-c", "dotnet ef database update"]
-#     depends_on:
-#       mysql:
-#         condition: service_healthy
+  ef:
+    build:
+      context: .
+      dockerfile: GroundUp.api/Dockerfile
+      target: build  # Use SDK for migrations
+    environment:
+      MYSQL_SERVER: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    entrypoint: ["/bin/sh", "-c", "dotnet ef database update"]
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   mysql:
     image: mysql:8.0
-    container_name: GroundUp-mysql
+    container_name: groundup-mysql
     ports:
       - "3306:3306"
     environment:
