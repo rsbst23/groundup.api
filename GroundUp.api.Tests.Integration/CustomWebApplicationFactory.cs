@@ -13,31 +13,29 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 
 
-    public class CustomWebApplicationFactory : WebApplicationFactory<Program>
+public class CustomWebApplicationFactory : WebApplicationFactory<Program>
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        builder.ConfigureServices(services =>
         {
-            //builder.ConfigureServices(services =>
-            //{
-            //    // Remove existing database context (if any)
-            //    var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-            //    if (descriptor != null)
-            //    {
-            //        services.Remove(descriptor);
-            //    }
+            // Remove existing database context (if any)
+            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
 
-            //    // Add in-memory database for testing
-            //    services.AddDbContext<ApplicationDbContext>(options =>
-            //    {
-            //        options.UseInMemoryDatabase("TestDb");
-            //    });
+            // Add in-memory database for testing
+            services.AddDbContext<ApplicationDbContext>(options =>
+            {
+                options.UseInMemoryDatabase("TestDb");
+            });
 
-            //    // Ensure the database is created
-            //    using var scope = services.BuildServiceProvider().CreateScope();
-            //    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            //    db.Database.EnsureCreated();
-            //});
-        }
+            // Ensure the database is created
+            using var scope = services.BuildServiceProvider().CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Database.EnsureCreated();
+        });
     }
-
-
+}
