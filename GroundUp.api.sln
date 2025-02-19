@@ -9,6 +9,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroundUp.api.Tests.Unit", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroundUp.api.Tests.Integration", "GroundUp.api.Tests.Integration\GroundUp.api.Tests.Integration.csproj", "{6878B6F3-D1D1-40BC-9A64-2533696E24CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.core", "GroundUp.core\GroundUp.core.csproj", "{0EB812DE-603C-461C-8BAE-226E9E5994B4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.infrastructure", "GroundUp.infrastructure\GroundUp.infrastructure.csproj", "{0D25ED00-32B1-4D26-A297-8CF66586D1F5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{6878B6F3-D1D1-40BC-9A64-2533696E24CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6878B6F3-D1D1-40BC-9A64-2533696E24CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6878B6F3-D1D1-40BC-9A64-2533696E24CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0EB812DE-603C-461C-8BAE-226E9E5994B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0EB812DE-603C-461C-8BAE-226E9E5994B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0EB812DE-603C-461C-8BAE-226E9E5994B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0EB812DE-603C-461C-8BAE-226E9E5994B4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D25ED00-32B1-4D26-A297-8CF66586D1F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D25ED00-32B1-4D26-A297-8CF66586D1F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D25ED00-32B1-4D26-A297-8CF66586D1F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D25ED00-32B1-4D26-A297-8CF66586D1F5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

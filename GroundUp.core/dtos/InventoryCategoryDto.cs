@@ -1,0 +1,8 @@
+﻿namespace GroundUp.core.dtos
+{
+    public class InventoryCategoryDto
+    {
+        public int Id { get; set; }
+        public required string Name { get; set; }
+    }
+}

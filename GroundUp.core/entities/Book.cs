@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace GroundUp.api.models.entities
+namespace GroundUp.core.entities
 {
     public class Book
     {
