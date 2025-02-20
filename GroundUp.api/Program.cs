@@ -2,7 +2,6 @@ using GroundUp.core.interfaces;
 using GroundUp.infrastructure.data;
 using GroundUp.infrastructure.mappings;
 using GroundUp.infrastructure.repositories;
-using GroundUp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using GroundUp.infrastructure.extensions;
 

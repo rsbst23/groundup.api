@@ -1,8 +1,9 @@
-﻿using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+﻿using GroundUp.core.interfaces;
+using GroundUp.core.dtos;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
-namespace GroundUp.Api.Controllers
+namespace GroundUp.api.Controllers
 {
     [Route("api/inventory-categories")]
     [ApiController]
@@ -15,17 +16,17 @@ namespace GroundUp.Api.Controllers
             _inventoryCategoryRepository = inventoryCategoryRepository;
         }
 
-        // GET: api/inventory-categories
+        // GET: api/inventory-categories (Paginated)
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<InventoryCategoryDto>>> GetInventoryCategories()
+        public async Task<ActionResult<PaginatedResponse<InventoryCategoryDto>>> Get([FromQuery] FilterParams filterParams)
         {
-            var categories = await _inventoryCategoryRepository.GetAllAsync();
+            var categories = await _inventoryCategoryRepository.GetAllAsync(filterParams);
             return Ok(categories);
         }
 
         // GET: api/inventory-categories/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<InventoryCategoryDto>> GetInventoryCategory(int id)
+        public async Task<ActionResult<InventoryCategoryDto>> GetById(int id)
         {
             var category = await _inventoryCategoryRepository.GetByIdAsync(id);
             if (category == null)
@@ -37,7 +38,7 @@ namespace GroundUp.Api.Controllers
 
         // POST: api/inventory-categories
         [HttpPost]
-        public async Task<ActionResult<InventoryCategoryDto>> CreateInventoryCategory([FromBody] InventoryCategoryDto inventoryCategoryDto)
+        public async Task<ActionResult<InventoryCategoryDto>> Create([FromBody] InventoryCategoryDto inventoryCategoryDto)
         {
             if (inventoryCategoryDto == null)
             {
@@ -45,19 +46,19 @@ namespace GroundUp.Api.Controllers
             }
 
             var createdCategory = await _inventoryCategoryRepository.AddAsync(inventoryCategoryDto);
-            return CreatedAtAction(nameof(GetInventoryCategory), new { id = createdCategory.Id }, createdCategory);
+            return CreatedAtAction(nameof(GetById), new { id = createdCategory.Id }, createdCategory);
         }
 
         // PUT: api/inventory-categories/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateInventoryCategory(int id, [FromBody] InventoryCategoryDto inventoryCategoryDto)
+        public async Task<IActionResult> Update(int id, [FromBody] InventoryCategoryDto inventoryCategoryDto)
         {
             if (id != inventoryCategoryDto.Id)
             {
                 return BadRequest("ID mismatch.");
             }
 
-            var updatedCategory = await _inventoryCategoryRepository.UpdateAsync(inventoryCategoryDto);
+            var updatedCategory = await _inventoryCategoryRepository.UpdateAsync(id, inventoryCategoryDto);
             if (updatedCategory == null)
             {
                 return NotFound();
@@ -68,7 +69,7 @@ namespace GroundUp.Api.Controllers
 
         // DELETE: api/inventory-categories/{id}
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteInventoryCategory(int id)
+        public async Task<IActionResult> Delete(int id)
         {
             var existingCategory = await _inventoryCategoryRepository.GetByIdAsync(id);
             if (existingCategory == null)

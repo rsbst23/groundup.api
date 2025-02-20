@@ -26,6 +26,20 @@ namespace GroundUp.Tests.Integration
             items[1].Name.Should().Be("The Great Gatsby");
         }
 
+        // Get item by ID (NEWLY ADDED)
+        [Fact]
+        public async Task Get_InventoryItemById_ReturnsCorrectItem()
+        {
+            var response = await _client.GetAsync("/api/inventory-items/1");
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<InventoryItemDto>(content);
+
+            result.Should().NotBeNull();
+            result.Name.Should().Be("Laptop");
+        }
+
         [Fact]
         public async Task Post_CreateInventoryItem_ReturnsCreatedItem()
         {
@@ -48,6 +62,33 @@ namespace GroundUp.Tests.Integration
 
             createdItem.Should().NotBeNull();
             createdItem.Name.Should().Be("Smartphone");
+        }
+
+        // Update existing item (NEWLY ADDED)
+        [Fact]
+        public async Task Put_UpdateInventoryItem_ReturnsNoContent()
+        {
+            var updatedItem = new
+            {
+                Id = 1,
+                Name = "Updated Laptop",
+                PurchasePrice = 1099.99m,
+                Condition = "Like New",
+                InventoryCategoryId = 1,
+                PurchaseDate = "2024-02-21T00:00:00Z"
+            };
+
+            var jsonContent = new StringContent(JsonConvert.SerializeObject(updatedItem), Encoding.UTF8, "application/json");
+
+            var response = await _client.PutAsync("/api/inventory-items/1", jsonContent);
+            response.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+
+            // Verify the update
+            var getResponse = await _client.GetAsync("/api/inventory-items/1");
+            var getContent = await getResponse.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<InventoryItemDto>(getContent);
+
+            result.Name.Should().Be("Updated Laptop");
         }
 
         [Fact]
