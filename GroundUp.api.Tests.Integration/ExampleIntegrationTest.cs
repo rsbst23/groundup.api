@@ -1,23 +1,13 @@
-using System.Net.Http;
-using System.Threading.Tasks;
-using Xunit;
-using GroundUp.api;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 using FluentAssertions;
+using GroundUp.Tests.Integration;
 using Newtonsoft.Json;
 using System.Text;
 
 namespace GroundUp.api.Tests.Integration
 {
-    public class ExampleIntegrationTest : IClassFixture<CustomWebApplicationFactory>
+    public class ExampleIntegrationTest : BaseIntegrationTest
     {
-        private readonly HttpClient _client;
-
-        public ExampleIntegrationTest(CustomWebApplicationFactory factory)
-        {
-            _client = factory.CreateClient(); // This spins up a real test server
-        }
+        public ExampleIntegrationTest(CustomWebApplicationFactory factory) : base(factory) { }
 
         [Fact]
         public async Task Get_Endpoint_ReturnsSuccessAndExpectedContent()

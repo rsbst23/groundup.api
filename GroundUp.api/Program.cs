@@ -16,7 +16,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
         new MySqlServerVersion(new Version(9, 1, 0)),
-        mysqlOptions => mysqlOptions.EnableRetryOnFailure()
+        mysqlOptions =>
+        {
+            mysqlOptions.MigrationsAssembly("GroundUp.Infrastructure");
+            mysqlOptions.EnableRetryOnFailure();
+        }
     ));
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
