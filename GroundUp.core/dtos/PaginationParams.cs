@@ -13,6 +13,5 @@
         }
 
         public string? SortBy { get; set; } = "Id"; // Default sorting column
-        public bool Descending { get; set; } = false; // Sort order
     }
 }
