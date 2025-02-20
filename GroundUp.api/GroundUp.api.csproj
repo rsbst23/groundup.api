@@ -23,4 +23,13 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="models\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GroundUp.core\GroundUp.core.csproj" />
+    <ProjectReference Include="..\GroundUp.infrastructure\GroundUp.infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

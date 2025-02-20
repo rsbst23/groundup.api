@@ -1,5 +1,5 @@
-﻿using GroundUp.api.models.entities;
-using Microsoft.AspNetCore.Http;
+﻿using GroundUp.core.entities;
+using GroundUp.infrastructure.data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,6 +1,10 @@
-using DotNetEnv;
-using GroundUp.api;
+using GroundUp.core.interfaces;
+using GroundUp.infrastructure.data;
+using GroundUp.infrastructure.mappings;
+using GroundUp.infrastructure.repositories;
+using GroundUp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using GroundUp.infrastructure.extensions;
 
 DotNetEnv.Env.Load();
 
@@ -15,6 +19,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         mysqlOptions => mysqlOptions.EnableRetryOnFailure()
     ));
 
+builder.Services.AddAutoMapper(typeof(MappingProfile));
+
 // Enable CORS
 builder.Services.AddCors(options =>
 {
@@ -23,6 +29,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddApplicationServices(); // Auto-register validators
+builder.Services.AddInfrastructureServices(); // Auto-register repositories
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
