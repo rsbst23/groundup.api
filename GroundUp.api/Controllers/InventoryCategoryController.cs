@@ -18,67 +18,74 @@ namespace GroundUp.api.Controllers
 
         // GET: api/inventory-categories (Paginated)
         [HttpGet]
-        public async Task<ActionResult<PaginatedResponse<InventoryCategoryDto>>> Get([FromQuery] FilterParams filterParams)
+        public async Task<ActionResult<ApiResponse<PaginatedData<InventoryCategoryDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var categories = await _inventoryCategoryRepository.GetAllAsync(filterParams);
-            return Ok(categories);
+            var result = await _inventoryCategoryRepository.GetAllAsync(filterParams);
+            return Ok(result);
         }
 
         // GET: api/inventory-categories/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<InventoryCategoryDto>> GetById(int id)
+        public async Task<ActionResult<ApiResponse<InventoryCategoryDto>>> GetById(int id)
         {
-            var category = await _inventoryCategoryRepository.GetByIdAsync(id);
-            if (category == null)
+            var result = await _inventoryCategoryRepository.GetByIdAsync(id);
+            if (!result.Success)
             {
-                return NotFound();
+                return NotFound(result);
             }
-            return Ok(category);
+            return Ok(result);
         }
 
         // POST: api/inventory-categories
         [HttpPost]
-        public async Task<ActionResult<InventoryCategoryDto>> Create([FromBody] InventoryCategoryDto inventoryCategoryDto)
+        public async Task<ActionResult<ApiResponse<InventoryCategoryDto>>> Create([FromBody] InventoryCategoryDto inventoryCategoryDto)
         {
             if (inventoryCategoryDto == null)
             {
-                return BadRequest("Invalid inventory category data.");
+                return BadRequest(new ApiResponse<InventoryCategoryDto>(default, false, "Invalid inventory category data."));
             }
 
-            var createdCategory = await _inventoryCategoryRepository.AddAsync(inventoryCategoryDto);
-            return CreatedAtAction(nameof(GetById), new { id = createdCategory.Id }, createdCategory);
+            var result = await _inventoryCategoryRepository.AddAsync(inventoryCategoryDto);
+
+            if (!result.Success)
+            {
+                return BadRequest(result); // Return error details if creation fails
+            }
+
+            return CreatedAtAction(nameof(GetById), new { id = result.Data?.Id }, result);
         }
 
         // PUT: api/inventory-categories/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] InventoryCategoryDto inventoryCategoryDto)
+        public async Task<ActionResult<ApiResponse<InventoryCategoryDto>>> Update(int id, [FromBody] InventoryCategoryDto inventoryCategoryDto)
         {
             if (id != inventoryCategoryDto.Id)
             {
-                return BadRequest("ID mismatch.");
+                return BadRequest(new ApiResponse<InventoryCategoryDto>(default, false, "ID mismatch."));
             }
 
-            var updatedCategory = await _inventoryCategoryRepository.UpdateAsync(id, inventoryCategoryDto);
-            if (updatedCategory == null)
+            var result = await _inventoryCategoryRepository.UpdateAsync(id, inventoryCategoryDto);
+
+            if (!result.Success)
             {
-                return NotFound();
+                return NotFound(result);
             }
 
-            return NoContent();
+            return Ok(result); // Ensure response always contains ApiResponse<T>
         }
 
         // DELETE: api/inventory-categories/{id}
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var existingCategory = await _inventoryCategoryRepository.GetByIdAsync(id);
-            if (existingCategory == null)
+            var result = await _inventoryCategoryRepository.DeleteAsync(id);
+
+            if (!result.Success)
             {
-                return NotFound();
+                return NotFound(result);
             }
 
-            await _inventoryCategoryRepository.DeleteAsync(id);
-            return NoContent();
+            return Ok(result); // Return ApiResponse<bool> instead of empty response
         }
     }
 }

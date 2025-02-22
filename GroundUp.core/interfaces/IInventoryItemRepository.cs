@@ -4,10 +4,10 @@ namespace GroundUp.core.interfaces
 {
     public interface IInventoryItemRepository
     {
-        Task<PaginatedResponse<InventoryItemDto>> GetAllAsync(FilterParams filterParams);
-        Task<InventoryItemDto?> GetByIdAsync(int id);
-        Task<InventoryItemDto> AddAsync(InventoryItemDto inventoryItem);
-        Task<InventoryItemDto?> UpdateAsync(int id, InventoryItemDto inventoryItem);
-        Task<bool> DeleteAsync(int id);
+        Task<ApiResponse<PaginatedData<InventoryItemDto>>> GetAllAsync(FilterParams filterParams);
+        Task<ApiResponse<InventoryItemDto>> GetByIdAsync(int id);
+        Task<ApiResponse<InventoryItemDto>> AddAsync(InventoryItemDto dto);
+        Task<ApiResponse<InventoryItemDto>> UpdateAsync(int id, InventoryItemDto dto);
+        Task<ApiResponse<bool>> DeleteAsync(int id);
     }
 }

@@ -17,7 +17,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         new MySqlServerVersion(new Version(9, 1, 0)),
         mysqlOptions =>
         {
-            mysqlOptions.MigrationsAssembly("GroundUp.Infrastructure");
+            mysqlOptions.MigrationsAssembly("GroundUp.infrastructure");
             mysqlOptions.EnableRetryOnFailure();
         }
     ));

@@ -1,6 +1,7 @@
 ﻿using GroundUp.core.interfaces;
 using GroundUp.core.dtos;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace GroundUp.api.Controllers
 {
@@ -17,35 +18,35 @@ namespace GroundUp.api.Controllers
 
         // GET: api/inventory-items (Paginated)
         [HttpGet]
-        public async Task<ActionResult<PaginatedResponse<InventoryItemDto>>> Get([FromQuery] FilterParams filterParams)
+        public async Task<ActionResult<ApiResponse<PaginatedData<InventoryItemDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var items = await _inventoryItemRepository.GetAllAsync(filterParams);
-            return Ok(items);
+            var result = await _inventoryItemRepository.GetAllAsync(filterParams);
+            return Ok(result);
         }
 
         // GET: api/inventory-items/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<InventoryItemDto>> GetById(int id)
+        public async Task<ActionResult<ApiResponse<InventoryItemDto>>> GetById(int id)
         {
-            var item = await _inventoryItemRepository.GetByIdAsync(id);
-            if (item == null)
+            var result = await _inventoryItemRepository.GetByIdAsync(id);
+            if (!result.Success)
             {
-                return NotFound();
+                return NotFound(result);
             }
-            return Ok(item);
+            return Ok(result);
         }
 
         // POST: api/inventory-items
         [HttpPost]
-        public async Task<ActionResult<InventoryItemDto>> Create([FromBody] InventoryItemDto inventoryItemDto)
+        public async Task<ActionResult<ApiResponse<InventoryItemDto>>> Create([FromBody] InventoryItemDto inventoryItemDto)
         {
             if (inventoryItemDto == null)
             {
-                return BadRequest("Invalid inventory item data.");
+                return BadRequest(new ApiResponse<InventoryItemDto>(default, false, "Invalid inventory category data."));
             }
 
-            var createdItem = await _inventoryItemRepository.AddAsync(inventoryItemDto);
-            return CreatedAtAction(nameof(GetById), new { id = createdItem.Id }, createdItem);
+            var result = await _inventoryItemRepository.AddAsync(inventoryItemDto);
+            return CreatedAtAction(nameof(GetById), new { id = result.Data?.Id }, result);
         }
 
         // PUT: api/inventory-items/{id}
@@ -54,13 +55,13 @@ namespace GroundUp.api.Controllers
         {
             if (id != inventoryItemDto.Id)
             {
-                return BadRequest("ID mismatch.");
+                return BadRequest(new ApiResponse<InventoryItemDto>(default, false, "ID mismatch."));
             }
 
-            var updatedItem = await _inventoryItemRepository.UpdateAsync(id, inventoryItemDto);
-            if (updatedItem == null)
+            var result = await _inventoryItemRepository.UpdateAsync(id, inventoryItemDto);
+            if (!result.Success)
             {
-                return NotFound();
+                return NotFound(result);
             }
 
             return NoContent();
@@ -70,13 +71,12 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var existingItem = await _inventoryItemRepository.GetByIdAsync(id);
-            if (existingItem == null)
+            var result = await _inventoryItemRepository.DeleteAsync(id);
+            if (!result.Success)
             {
-                return NotFound();
+                return NotFound(result);
             }
 
-            await _inventoryItemRepository.DeleteAsync(id);
             return NoContent();
         }
     }
