@@ -6,30 +6,32 @@ WORKDIR /src
 RUN dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-# Copy the full solution and project files FIRST (to leverage Docker caching)
+# Copy solution and project files first (for better caching)
 COPY GroundUp.sln .
 COPY GroundUp.api/GroundUp.api.csproj GroundUp.api/
 COPY GroundUp.core/GroundUp.core.csproj GroundUp.core/
 COPY GroundUp.infrastructure/GroundUp.infrastructure.csproj GroundUp.infrastructure/
 
-# Restore dependencies (before copying all source files)
-WORKDIR /src/GroundUp.api
+# Log: Show contents after copying project files
+RUN echo "Checking contents of /src after copying .csproj files:" && ls -la /src
+RUN echo "Checking contents of /src/GroundUp.api:" && ls -la /src/GroundUp.api
+RUN echo "Checking contents of /src/GroundUp.core:" && ls -la /src/GroundUp.core
+RUN echo "Checking contents of /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
+
+# Restore dependencies **for the entire solution**
+WORKDIR /src
 RUN dotnet restore || (echo "dotnet restore failed!" && exit 1)
 
-# Now, copy the full source code AFTER restore to optimize caching
+# Now, copy all source code after restore
 COPY . .
 
-# Ensure all expected files exist (debugging step)
-RUN echo "Checking contents of /src:"
-RUN ls -la /src
-RUN echo "Checking contents of /src/GroundUp.api:"
-RUN ls -la /src/GroundUp.api
-RUN echo "Checking contents of /src/GroundUp.core:"
-RUN ls -la /src/GroundUp.core
-RUN echo "Checking contents of /src/GroundUp.infrastructure:"
-RUN ls -la /src/GroundUp.infrastructure
+# Log: Show contents after full source code is copied
+RUN echo "Checking contents of /src after copying full source code:" && ls -la /src
+RUN echo "Checking contents of /src/GroundUp.api:" && ls -la /src/GroundUp.api
+RUN echo "Checking contents of /src/GroundUp.core:" && ls -la /src/GroundUp.core
+RUN echo "Checking contents of /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
 
-# Build and publish
+# Build and Publish
 WORKDIR /src/GroundUp.api
 RUN dotnet build -c Release -o /app/build || (echo "dotnet build failed!" && exit 1)
 RUN dotnet publish -c Release -o /app/publish || (echo "dotnet publish failed!" && exit 1)
@@ -46,8 +48,7 @@ ENV PATH="${PATH}:/root/.dotnet/tools"
 COPY --from=build /app/publish .
 
 # Verify that all required files are present before running migrations
-RUN echo "Checking contents of /app before running EF migrations:"
-RUN ls -la /app
+RUN echo "Checking contents of /app before running EF migrations:" && ls -la /app
 
 # Run EF migrations directly
 CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj", "--verbose"]
