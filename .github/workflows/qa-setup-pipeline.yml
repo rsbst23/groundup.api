@@ -192,7 +192,6 @@ jobs:
           echo "Building EF Migrations Docker image..."
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f $TF_VAR_dockerfile_ef_path --build-arg BUILD_CONTEXT="." .
 
-
           echo "Tagging EF Migrations Docker image..."
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 

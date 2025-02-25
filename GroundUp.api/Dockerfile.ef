@@ -6,8 +6,13 @@ WORKDIR /src
 RUN dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-# Copy the full source code BEFORE restoring dependencies
-COPY . .
+# Copy the solution file
+COPY GroundUp.sln .
+
+# Copy all projects (API, Core, and Infrastructure) **BEFORE** restore
+COPY GroundUp.api/ GroundUp.api/
+COPY GroundUp.core/ GroundUp.core/
+COPY GroundUp.infrastructure/ GroundUp.infrastructure/
 
 # Set working directory for API project
 WORKDIR /src/GroundUp.api
