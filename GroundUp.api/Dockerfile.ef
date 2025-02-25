@@ -2,53 +2,76 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Install EF Core CLI globally
-RUN dotnet tool install --global dotnet-ef
-ENV PATH="${PATH}:/root/.dotnet/tools"
+# Enable detailed logging
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV DOTNET_NOLOGO=true
+ENV DOTNET_VERBOSITY=diagnostic
 
-# Copy solution and project files first (for better caching)
+# Log: Start of build
+RUN echo "Starting EF Migrations Build..."
+
+# Install EF Core CLI globally
+RUN echo "Installing EF Core CLI..."
+RUN dotnet tool install --global dotnet-ef || (echo "Failed to install EF Core CLI!" && exit 1)
+ENV PATH="${PATH}:/root/.dotnet/tools"
+RUN echo "EF Core CLI installed successfully!"
+
+# Log: Copying project files
+RUN echo "Copying solution and project files..."
 COPY GroundUp.sln .
 COPY GroundUp.api/GroundUp.api.csproj GroundUp.api/
 COPY GroundUp.core/GroundUp.core.csproj GroundUp.core/
 COPY GroundUp.infrastructure/GroundUp.infrastructure.csproj GroundUp.infrastructure/
 
-# Log: Show contents after copying project files
-RUN echo "Checking contents of /src after copying .csproj files:" && ls -la /src
-RUN echo "Checking contents of /src/GroundUp.api:" && ls -la /src/GroundUp.api
-RUN echo "Checking contents of /src/GroundUp.core:" && ls -la /src/GroundUp.core
-RUN echo "Checking contents of /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
+# Log: Verify copied files
+RUN echo "Checking /src after copying project files:" && ls -la /src
+RUN echo "Checking /src/GroundUp.api:" && ls -la /src/GroundUp.api
+RUN echo "Checking /src/GroundUp.core:" && ls -la /src/GroundUp.core
+RUN echo "Checking /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
 
 # Restore dependencies **for the entire solution**
 WORKDIR /src
+RUN echo "Running dotnet restore for the entire solution..."
 RUN dotnet restore || (echo "dotnet restore failed!" && exit 1)
+RUN echo "dotnet restore completed successfully!"
 
-# Now, copy all source code after restore
+# Log: Copying full source code **after restore**
+RUN echo "Copying full source code..."
 COPY . .
 
-# Log: Show contents after full source code is copied
-RUN echo "Checking contents of /src after copying full source code:" && ls -la /src
-RUN echo "Checking contents of /src/GroundUp.api:" && ls -la /src/GroundUp.api
-RUN echo "Checking contents of /src/GroundUp.core:" && ls -la /src/GroundUp.core
-RUN echo "Checking contents of /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
+# Log: Verify all source files exist
+RUN echo "Checking /src after full source copy:" && ls -la /src
+RUN echo "Checking /src/GroundUp.api:" && ls -la /src/GroundUp.api
+RUN echo "Checking /src/GroundUp.core:" && ls -la /src/GroundUp.core
+RUN echo "Checking /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
 
-# Build and Publish
+# Build the project
 WORKDIR /src/GroundUp.api
+RUN echo "Running dotnet build..."
 RUN dotnet build -c Release -o /app/build || (echo "dotnet build failed!" && exit 1)
+RUN echo "dotnet build completed successfully!"
+
+# Publish the project
+RUN echo "Running dotnet publish..."
 RUN dotnet publish -c Release -o /app/publish || (echo "dotnet publish failed!" && exit 1)
+RUN echo "dotnet publish completed successfully!"
 
 # Final image for running migrations
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS final
 WORKDIR /app
 
-# Install EF Core CLI in the final image
-RUN dotnet tool install --global dotnet-ef
+# Log: Installing EF Core CLI again in final image
+RUN echo "Installing EF CLI in final image..."
+RUN dotnet tool install --global dotnet-ef || (echo "Failed to install EF CLI in final image!" && exit 1)
 ENV PATH="${PATH}:/root/.dotnet/tools"
+RUN echo "EF CLI installed successfully in final image!"
 
-# Copy published output
+# Log: Copy published output
+RUN echo "Copying published output..."
 COPY --from=build /app/publish .
 
-# Verify that all required files are present before running migrations
-RUN echo "Checking contents of /app before running EF migrations:" && ls -la /app
+# Log: Verify final files before running migrations
+RUN echo "Checking /app before running EF migrations..." && ls -la /app
 
-# Run EF migrations directly
-CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj", "--verbose"]
+# Run EF migrations with logging
+CMD echo "Running EF Migrations..." && dotnet ef database update --project "/app/GroundUp.api/GroundUp.api.csproj" --verbose
