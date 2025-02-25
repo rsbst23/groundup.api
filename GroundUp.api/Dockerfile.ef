@@ -16,30 +16,30 @@ RUN dotnet tool install --global dotnet-ef || (echo "Failed to install EF Core C
 ENV PATH="${PATH}:/root/.dotnet/tools"
 RUN echo "EF Core CLI installed successfully!"
 
-# Log: Copying project files
+# Copy solution and project files before restore
 RUN echo "Copying solution and project files..."
 COPY GroundUp.sln .
 COPY GroundUp.api/GroundUp.api.csproj GroundUp.api/
 COPY GroundUp.core/GroundUp.core.csproj GroundUp.core/
 COPY GroundUp.infrastructure/GroundUp.infrastructure.csproj GroundUp.infrastructure/
 
-# Log: Verify copied files
+# Verify copied files before restore
 RUN echo "Checking /src after copying project files:" && ls -la /src
 RUN echo "Checking /src/GroundUp.api:" && ls -la /src/GroundUp.api
 RUN echo "Checking /src/GroundUp.core:" && ls -la /src/GroundUp.core
 RUN echo "Checking /src/GroundUp.infrastructure:" && ls -la /src/GroundUp.infrastructure
 
-# Restore dependencies **for the entire solution**
+# Run dotnet restore from the solution root
 WORKDIR /src
 RUN echo "Running dotnet restore for the entire solution..."
 RUN dotnet restore || (echo "dotnet restore failed!" && exit 1)
 RUN echo "dotnet restore completed successfully!"
 
-# Log: Copying full source code **after restore**
+# Copy full source code after restore
 RUN echo "Copying full source code..."
 COPY . .
 
-# Log: Verify all source files exist
+# Verify all source files exist before build
 RUN echo "Checking /src after full source copy:" && ls -la /src
 RUN echo "Checking /src/GroundUp.api:" && ls -la /src/GroundUp.api
 RUN echo "Checking /src/GroundUp.core:" && ls -la /src/GroundUp.core
@@ -60,17 +60,17 @@ RUN echo "dotnet publish completed successfully!"
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS final
 WORKDIR /app
 
-# Log: Installing EF Core CLI again in final image
+# Install EF CLI in the final image
 RUN echo "Installing EF CLI in final image..."
 RUN dotnet tool install --global dotnet-ef || (echo "Failed to install EF CLI in final image!" && exit 1)
 ENV PATH="${PATH}:/root/.dotnet/tools"
 RUN echo "EF CLI installed successfully in final image!"
 
-# Log: Copy published output
+# Copy published output
 RUN echo "Copying published output..."
 COPY --from=build /app/publish .
 
-# Log: Verify final files before running migrations
+# Verify final files before running migrations
 RUN echo "Checking /app before running EF migrations..." && ls -la /app
 
 # Run EF migrations with logging

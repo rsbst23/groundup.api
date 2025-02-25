@@ -160,13 +160,17 @@ jobs:
           audience: ${{ env.AWS_AUDIENCE }}
 
       - name: Debug AWS Credentials
-        run: aws sts get-caller-identity
+        run: |
+          echo "Fetching AWS identity..."
+          aws sts get-caller-identity
+          echo "AWS credentials successfully configured."
 
       - name: Login to Amazon ECR
         id: login-ecr
         run: |
           echo "Logging in to Amazon ECR..."
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+          echo "Amazon ECR login successful!"
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
@@ -178,26 +182,37 @@ jobs:
           echo "Building API Docker image..."
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f $TF_VAR_dockerfile_path .
 
+          echo "Listing Docker images to verify build success:"
+          docker images | grep "$ECR_REGISTRY/$ECR_REPOSITORY"
+
           echo "Tagging API Docker image..."
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 
           echo "Pushing API Docker image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || (echo "API Image Push Failed!" && exit 1)
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} || (echo "API Image Push Failed!" && exit 1)
+
+          echo "API Docker image successfully pushed to ECR!"
 
       - name: Build, Tag, and Push EF Migrations Image to Amazon ECR
         env:
           ECR_REPOSITORY: ${{ env.TF_VAR_ecr_repository_name }}-ef-migrations
         run: |          
           echo "Building EF Migrations Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f GroundUp.api/Dockerfile.ef .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f GroundUp.api/Dockerfile.ef . || (echo "EF Docker Build Failed!" && exit 1)
+
+          echo "Listing Docker images to verify build success:"
+          docker images | grep "$ECR_REGISTRY/$ECR_REPOSITORY"
 
           echo "Tagging EF Migrations Docker image..."
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 
           echo "Pushing EF Migrations Docker image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || (echo "EF Migrations Image Push Failed!" && exit 1)
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} || (echo "EF Migrations Image Push Failed!" && exit 1)
+
+          echo "EF Migrations Docker image successfully pushed to ECR!"
+
 
   terraform-create-infrastructure:
     runs-on: ubuntu-latest
