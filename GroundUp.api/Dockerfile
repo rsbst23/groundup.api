@@ -10,12 +10,6 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Install dotnet-ef tool globally
-RUN dotnet tool install --global dotnet-ef
-
-# Ensure the dotnet tools path is in the environment PATH
-ENV PATH="$PATH:/root/.dotnet/tools"
-
 # Copy project files and restore dependencies
 COPY GroundUp.sln .
 COPY GroundUp.api/GroundUp.api.csproj GroundUp.api/
@@ -28,12 +22,12 @@ RUN dotnet restore "GroundUp.api/GroundUp.api.csproj"
 COPY . .
 
 WORKDIR "/src/GroundUp.api"
-RUN dotnet build "GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Publish application
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Final image to run the application
 FROM base AS final
@@ -49,5 +43,5 @@ USER root
 RUN chmod +x /app/startup.sh
 USER app
 
-# Set the entrypoint to run EF migrations
-ENTRYPOINT ["dotnet", "ef", "database", "update"]
+# Use `startup.sh` as the entrypoint instead of directly running the .NET app
+ENTRYPOINT ["/app/startup.sh"]
