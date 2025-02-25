@@ -22,18 +22,19 @@ COPY . .
 WORKDIR /src/GroundUp.api
 RUN dotnet build "GroundUp.api.csproj" -c Release -o /app/build
 
-# Publish the application
-RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+# Publish the application (ensuring all dependencies are included)
+RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish /p:UseAppHost=false --self-contained false -r linux-x64
 
 # Final image to run EF migrations
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS final
 WORKDIR /app
 
+# Install EF Core CLI in the final image too
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
 # Copy published output
 COPY --from=build /app/publish .
-
-# Ensure correct permissions (if needed)
-RUN chmod +x /app
 
 # Run EF migrations directly using the published app
 CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj"]
