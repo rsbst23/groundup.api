@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 using GroundUp.core.dtos;
+using GroundUp.core.interfaces;
 using GroundUp.infrastructure.data;
 using GroundUp.infrastructure.utilities;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using System.Linq.Expressions;
 
 namespace GroundUp.infrastructure.repositories
@@ -12,12 +14,14 @@ namespace GroundUp.infrastructure.repositories
         protected readonly ApplicationDbContext _context;
         protected readonly IMapper _mapper;
         protected readonly DbSet<T> _dbSet;
+        private readonly ILoggingService _logger;
 
-        public BaseRepository(ApplicationDbContext context, IMapper mapper)
+        public BaseRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
         {
             _context = context;
             _mapper = mapper;
             _dbSet = _context.Set<T>();
+            _logger = logger;
         }
 
         // Get All with Pagination and Filtering
@@ -75,11 +79,14 @@ namespace GroundUp.infrastructure.repositories
                 var entity = _mapper.Map<T>(dto);
                 _dbSet.Add(entity);
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Entity {typeof(T).Name} added successfully.");
+
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(entity), true, "Created successfully");
             }
-            catch (Exception ex)
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
             {
-                return new ApiResponse<TDto>(default, false, "An error occurred while adding the entity.", new List<string> { ex.Message });
+                return new ApiResponse<TDto>(default, false, "A record with this name already exists.");
             }
         }
 
@@ -97,6 +104,10 @@ namespace GroundUp.infrastructure.repositories
                 _mapper.Map(dto, existingEntity);
                 await _context.SaveChangesAsync();
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(existingEntity), true, "Updated successfully");
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                return new ApiResponse<TDto>(default, false, "A record with this name already exists.");
             }
             catch (Exception ex)
             {
@@ -183,5 +194,16 @@ namespace GroundUp.infrastructure.repositories
 
             return query;
         }
+
+        private bool IsUniqueConstraintViolation(DbUpdateException ex)
+        {
+            if (ex.InnerException is MySqlException mySqlEx)
+            {
+                return mySqlEx.Number == 1062; // 1062 = Duplicate entry (unique constraint violation)
+            }
+
+            return false;
+        }
+
     }
 }

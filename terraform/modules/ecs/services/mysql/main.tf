@@ -23,6 +23,13 @@ resource "aws_ecs_task_definition" "mysql" {
         }
       ]
 
+      environment = [
+        {
+          name      = "CLOUDWATCH_LOG_GROUP"
+          valueFrom = "${var.cloudwatch_logs_name}"
+        }
+      ]
+
       secrets = [
         {
           name      = "MYSQL_ROOT_PASSWORD"
