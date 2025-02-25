@@ -190,7 +190,7 @@ jobs:
           ECR_REPOSITORY: ${{ env.TF_VAR_ecr_repository_name }}-ef-migrations
         run: |          
           echo "Building EF Migrations Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f $TF_VAR_dockerfile_ef_path .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f GroundUp.api/Dockerfile.ef .
 
           echo "Tagging EF Migrations Docker image..."
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
