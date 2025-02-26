@@ -4,6 +4,7 @@ using GroundUp.infrastructure.data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroundUp.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250221232850_AddCreatedDateToInventoryCategory")]
+    partial class AddCreatedDateToInventoryCategory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -82,8 +85,7 @@ namespace GroundUp.api.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -93,13 +95,13 @@ namespace GroundUp.api.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5933),
+                            CreatedDate = new DateTime(2025, 2, 21, 23, 28, 47, 718, DateTimeKind.Utc).AddTicks(5384),
                             Name = "Electronics"
                         },
                         new
                         {
                             Id = 2,
-                            CreatedDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5939),
+                            CreatedDate = new DateTime(2025, 2, 21, 23, 28, 47, 718, DateTimeKind.Utc).AddTicks(5388),
                             Name = "Books"
                         });
                 });
@@ -142,7 +144,7 @@ namespace GroundUp.api.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5963),
+                            PurchaseDate = new DateTime(2025, 2, 21, 23, 28, 47, 718, DateTimeKind.Utc).AddTicks(5412),
                             PurchasePrice = 999.99m
                         },
                         new
@@ -151,7 +153,7 @@ namespace GroundUp.api.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5965),
+                            PurchaseDate = new DateTime(2025, 2, 21, 23, 28, 47, 718, DateTimeKind.Utc).AddTicks(5414),
                             PurchasePrice = 12.99m
                         });
                 });

@@ -8,8 +8,8 @@ namespace GroundUp.infrastructure.repositories
 {
     public class InventoryCategoryRepository : BaseRepository<InventoryCategory, InventoryCategoryDto>, IInventoryCategoryRepository
     {
-        public InventoryCategoryRepository(ApplicationDbContext context, IMapper mapper)
-            : base(context, mapper) { }
+        public InventoryCategoryRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
+            : base(context, mapper, logger) { }
 
         // Any additional entity-specific methods can go here
     }

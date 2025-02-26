@@ -6,18 +6,28 @@ WORKDIR /app
 RUN dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-# Copy project files
+# Copy all project files at once to maintain structure
 COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
-WORKDIR /app/GroundUp.api
-RUN dotnet restore "GroundUp.api.csproj"
+COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
+COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-# Copy source code
-COPY GroundUp.api/. .
+# Copy the rest of the source code (important for dependencies)
+COPY . .
+
+# Print directory contents for debugging
+RUN echo "Project structure inside container:" && ls -R /app
+
+# Set working directory for the API project
+WORKDIR /app/GroundUp.api
+
+# Restore dependencies
+RUN echo "Running dotnet restore..." && dotnet restore "GroundUp.api.csproj"
+
+# Verify dependencies were restored
+RUN echo "Checking project references after restore..." && ls -R /app
 
 # Build and Publish the project
-WORKDIR /app/GroundUp.api
-RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish
+RUN echo "Building the project..." && dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish
 
 # Run EF migrations directly
 CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj"]
-

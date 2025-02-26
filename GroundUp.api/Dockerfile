@@ -11,8 +11,12 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # Copy project files and restore dependencies
-COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
-RUN dotnet restore "./GroundUp.api/./GroundUp.api.csproj"
+COPY GroundUp.sln .
+COPY GroundUp.api/GroundUp.api.csproj GroundUp.api/
+COPY GroundUp.core/GroundUp.core.csproj GroundUp.core/
+COPY GroundUp.infrastructure/GroundUp.infrastructure.csproj GroundUp.infrastructure/
+
+RUN dotnet restore "GroundUp.api/GroundUp.api.csproj"
 
 # Copy remaining source code
 COPY . .

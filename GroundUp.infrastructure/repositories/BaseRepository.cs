@@ -1,10 +1,11 @@
 ﻿using AutoMapper;
 using GroundUp.core.dtos;
+using GroundUp.core.interfaces;
 using GroundUp.infrastructure.data;
 using GroundUp.infrastructure.utilities;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace GroundUp.infrastructure.repositories
 {
@@ -13,83 +14,163 @@ namespace GroundUp.infrastructure.repositories
         protected readonly ApplicationDbContext _context;
         protected readonly IMapper _mapper;
         protected readonly DbSet<T> _dbSet;
+        private readonly ILoggingService _logger;
 
-        public BaseRepository(ApplicationDbContext context, IMapper mapper)
+        public BaseRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
         {
             _context = context;
             _mapper = mapper;
             _dbSet = _context.Set<T>();
+            _logger = logger;
         }
 
-        // Generic Get All with Filtering, Sorting & Pagination
-        public async Task<PaginatedResponse<TDto>> GetAllAsync(FilterParams filterParams)
+        // Get All with Pagination and Filtering
+        public async Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
         {
-            var query = _dbSet.AsQueryable();
+            try
+            {
+                var query = _dbSet.AsQueryable();
 
-            // Apply Filters
-            query = ApplyFilters(query, filterParams);
+                // Apply filters and sorting
+                query = ApplyFilters(query, filterParams);
+                query = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
 
-            // Apply Sorting
-            query = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+                // Apply Pagination
+                var totalRecords = await query.CountAsync();
+                var pagedItems = await query
+                    .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
+                    .Take(filterParams.PageSize)
+                    .ToListAsync();
 
-            // Apply Pagination
-            return await ApplyPagination(query, filterParams);
+                var mappedItems = _mapper.Map<List<TDto>>(pagedItems);
+                var paginatedData = new PaginatedData<TDto>(mappedItems, filterParams.PageNumber, filterParams.PageSize, totalRecords);             
+
+                return new ApiResponse<PaginatedData<TDto>>(paginatedData);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<PaginatedData<TDto>>(default, false, "An error occurred while retrieving data.", new List<string> { ex.Message });
+            }
         }
 
-        // Generic Get By ID
-        public async Task<TDto?> GetByIdAsync(int id)
+        // Get by ID
+        public async Task<ApiResponse<TDto>> GetByIdAsync(int id)
         {
-            var entity = await _dbSet.FindAsync(id);
-            return entity == null ? default(TDto) : _mapper.Map<TDto>(entity);
+            try
+            {
+                var entity = await _dbSet.FindAsync(id);
+                if (entity == null)
+                {
+                    return new ApiResponse<TDto>(default, false, "Item not found");
+                }
+                return new ApiResponse<TDto>(_mapper.Map<TDto>(entity));
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TDto>(default, false, "An error occurred while retrieving the item.", new List<string> { ex.Message });
+            }
         }
 
-        // Generic Add
-        public async Task<TDto> AddAsync(TDto dto)
+        // Add new entity
+        public async Task<ApiResponse<TDto>> AddAsync(TDto dto)
         {
-            var entity = _mapper.Map<T>(dto);
-            _dbSet.Add(entity);
-            await _context.SaveChangesAsync();
-            return _mapper.Map<TDto>(entity);
+            try
+            {
+                var entity = _mapper.Map<T>(dto);
+                _dbSet.Add(entity);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Entity {typeof(T).Name} added successfully.");
+
+                return new ApiResponse<TDto>(_mapper.Map<TDto>(entity), true, "Created successfully");
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                return new ApiResponse<TDto>(default, false, "A record with this name already exists.");
+            }
         }
 
-        // Generic Update
-        public async Task<TDto?> UpdateAsync(int id, TDto dto)
+        // Update existing entity
+        public async Task<ApiResponse<TDto>> UpdateAsync(int id, TDto dto)
         {
-            var existingEntity = await _dbSet.FindAsync(id);
-            if (existingEntity == null) return default(TDto);
+            try
+            {
+                var existingEntity = await _dbSet.FindAsync(id);
+                if (existingEntity == null)
+                {
+                    return new ApiResponse<TDto>(default, false, "Item not found");
+                }
 
-            _mapper.Map(dto, existingEntity);
-            await _context.SaveChangesAsync();
-
-            return _mapper.Map<TDto>(existingEntity);
+                _mapper.Map(dto, existingEntity);
+                await _context.SaveChangesAsync();
+                return new ApiResponse<TDto>(_mapper.Map<TDto>(existingEntity), true, "Updated successfully");
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                return new ApiResponse<TDto>(default, false, "A record with this name already exists.");
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TDto>(default, false, "An error occurred while updating the entity.", new List<string> { ex.Message });
+            }
         }
 
-        // Generic Delete
-        public async Task<bool> DeleteAsync(int id)
+        // Delete entity
+        public async Task<ApiResponse<bool>> DeleteAsync(int id)
         {
-            var entity = await _dbSet.FindAsync(id);
-            if (entity == null) return false;
+            try
+            {
+                var entity = await _dbSet.FindAsync(id);
+                if (entity == null)
+                {
+                    return new ApiResponse<bool>(false, false, "Item not found");
+                }
 
-            _dbSet.Remove(entity);
-            await _context.SaveChangesAsync();
-            return true;
+                _dbSet.Remove(entity);
+                await _context.SaveChangesAsync();
+                return new ApiResponse<bool>(true, true, "Deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<bool>(false, false, "An error occurred while deleting the entity.", new List<string> { ex.Message });
+            }
         }
 
         // Apply Filters Dynamically
         private IQueryable<T> ApplyFilters(IQueryable<T> query, FilterParams filterParams)
         {
+            var entityType = typeof(T);
+
+            // Normalize Exact Match Filters
             foreach (var filter in filterParams.Filters ?? new Dictionary<string, string>())
             {
-                var property = typeof(T).GetProperty(filter.Key);
+                var property = entityType.GetProperties()
+                    .FirstOrDefault(p => string.Equals(p.Name, filter.Key, StringComparison.OrdinalIgnoreCase));
+
                 if (property != null)
                 {
                     query = query.Where(ExpressionHelper.BuildPredicate<T>(property, filter.Value));
                 }
             }
 
+            // Normalize "Contains" Filters (for partial text search)
+            foreach (var filter in filterParams.ContainsFilters ?? new Dictionary<string, string>())
+            {
+                var property = entityType.GetProperties()
+                    .FirstOrDefault(p => string.Equals(p.Name, filter.Key, StringComparison.OrdinalIgnoreCase));
+
+                if (property != null)
+                {
+                    query = query.Where(ExpressionHelper.BuildContainsPredicate<T>(property, filter.Value));
+                }
+            }
+
+            // Normalize Min/Max Range Filters
             foreach (var filter in filterParams.MinFilters ?? new Dictionary<string, string>())
             {
-                var property = typeof(T).GetProperty(filter.Key);
+                var property = entityType.GetProperties()
+                    .FirstOrDefault(p => string.Equals(p.Name, filter.Key, StringComparison.OrdinalIgnoreCase));
+
                 if (property != null)
                 {
                     query = query.Where(property.PropertyType == typeof(DateTime)
@@ -100,7 +181,9 @@ namespace GroundUp.infrastructure.repositories
 
             foreach (var filter in filterParams.MaxFilters ?? new Dictionary<string, string>())
             {
-                var property = typeof(T).GetProperty(filter.Key);
+                var property = entityType.GetProperties()
+                    .FirstOrDefault(p => string.Equals(p.Name, filter.Key, StringComparison.OrdinalIgnoreCase));
+
                 if (property != null)
                 {
                     query = query.Where(property.PropertyType == typeof(DateTime)
@@ -109,35 +192,18 @@ namespace GroundUp.infrastructure.repositories
                 }
             }
 
-            foreach (var filter in filterParams.MultiValueFilters ?? new Dictionary<string, string>())
-            {
-                var property = typeof(T).GetProperty(filter.Key);
-                if (property != null)
-                {
-                    string[] values = filter.Value.Split(',');
-                    query = query.Where(ExpressionHelper.BuildMultiValuePredicate<T>(property, values));
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(filterParams.SearchTerm))
-            {
-                query = query.Where(ExpressionHelper.BuildSearchPredicate<T>(filterParams.SearchTerm));
-            }
-
             return query;
         }
 
-        // Apply Pagination Logic
-        private async Task<PaginatedResponse<TDto>> ApplyPagination(IQueryable<T> query, FilterParams filterParams)
+        private bool IsUniqueConstraintViolation(DbUpdateException ex)
         {
-            var totalRecords = await query.CountAsync();
-            var pagedItems = await query
-                .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
-                .Take(filterParams.PageSize)
-                .ToListAsync();
+            if (ex.InnerException is MySqlException mySqlEx)
+            {
+                return mySqlEx.Number == 1062; // 1062 = Duplicate entry (unique constraint violation)
+            }
 
-            var mappedItems = _mapper.Map<List<TDto>>(pagedItems);
-            return new PaginatedResponse<TDto>(mappedItems, filterParams.PageNumber, filterParams.PageSize, totalRecords);
+            return false;
         }
+
     }
 }

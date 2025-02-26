@@ -18,6 +18,10 @@ resource "aws_ecs_task_definition" "ef_migrations" {
         {
           name  = "ASPNETCORE_ENVIRONMENT"
           value = "Production"
+        },
+        {
+          name      = "CLOUDWATCH_LOG_GROUP"
+          valueFrom = "${var.cloudwatch_logs_name}"
         }
       ]
 
