@@ -15,16 +15,15 @@ COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
 COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-# Restore only the main API project (not test projects)
+# Restore only main projects (NOT TEST PROJECTS)
 WORKDIR /src/GroundUp.api
-RUN dotnet restore "./GroundUp.api.csproj"
+RUN dotnet restore "./GroundUp.api.csproj" --disable-parallel
 
-# Copy the remaining application source code
+# Copy the entire application source code
 COPY . .
 
 # Build the API project (EXCLUDES TEST PROJECTS)
-WORKDIR "/src/GroundUp.api"
-RUN dotnet build "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./GroundUp.api.csproj" -c Release -o /app/build
 
 # Publish the application
 FROM build AS publish
