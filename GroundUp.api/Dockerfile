@@ -10,19 +10,19 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copy project files and restore dependencies
+# Copy only the main application and dependencies (EXCLUDING TEST PROJECTS)
 COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
 COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-# Restore dependencies
+# Restore only the main API project (not test projects)
 WORKDIR /src/GroundUp.api
 RUN dotnet restore "./GroundUp.api.csproj"
 
-# Copy all source code
+# Copy the remaining application source code
 COPY . .
 
-# Build the application
+# Build the API project (EXCLUDES TEST PROJECTS)
 WORKDIR "/src/GroundUp.api"
 RUN dotnet build "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
