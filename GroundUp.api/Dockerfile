@@ -1,4 +1,4 @@
-# Use ASP.NET 8.0 base image
+# Use ASP.NET 8.0 base image for runtime
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 USER app
 WORKDIR /app
@@ -17,10 +17,14 @@ COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infras
 
 # Restore only the necessary dependencies (EXCLUDING TESTS)
 WORKDIR /src/GroundUp.api
-RUN dotnet restore "./GroundUp.api.csproj" --disable-parallel
+RUN dotnet restore "./GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
 
-# Copy the entire application source code
+# Copy the entire application source code (EXCLUDING TESTS)
 COPY . .
+
+# Remove any test projects from the workspace before building
+RUN rm -rf /src/GroundUp.api/GroundUp.api.Tests.Integration
+RUN rm -rf /src/GroundUp.api/GroundUp.api.Tests.Unit
 
 # Build & Publish the API project (EXCLUDES TEST PROJECTS)
 RUN dotnet publish "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
