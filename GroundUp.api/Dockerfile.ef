@@ -6,21 +6,25 @@ WORKDIR /app
 RUN dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-# Copy project files
+# Copy only the necessary project files (EXCLUDING TEST PROJECTS)
 COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
 COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-# Restore dependencies
+# Restore dependencies (EXCLUDES TESTS)
 WORKDIR /app/GroundUp.api
-RUN dotnet restore "GroundUp.api.csproj"
+RUN dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
 
-# Copy source code
+# Copy the full source code
 COPY . .
 
-# Build and Publish the project
-WORKDIR /app/GroundUp.api
-RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish
+# Remove test projects before building
+RUN rm -rf /app/GroundUp.api/GroundUp.api.Tests.*
+RUN rm -rf /app/GroundUp.core/GroundUp.core.Tests.*
+RUN rm -rf /app/GroundUp.infrastructure/GroundUp.infrastructure.Tests.*
+
+# Build and Publish the project (EXCLUDING TEST PROJECTS)
+RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Run EF migrations directly
 CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj"]
