@@ -11,25 +11,27 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # Copy project files and restore dependencies
-COPY GroundUp.sln .
-COPY GroundUp.api/GroundUp.api.csproj GroundUp.api/
-COPY GroundUp.core/GroundUp.core.csproj GroundUp.core/
-COPY GroundUp.infrastructure/GroundUp.infrastructure.csproj GroundUp.infrastructure/
+COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
+COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
+COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-RUN dotnet restore "GroundUp.api/GroundUp.api.csproj"
+# Restore dependencies
+WORKDIR /src/GroundUp.api
+RUN dotnet restore "./GroundUp.api.csproj"
 
-# Copy remaining source code
+# Copy all source code
 COPY . .
 
+# Build the application
 WORKDIR "/src/GroundUp.api"
 RUN dotnet build "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-# Publish application
+# Publish the application
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# Final image to run the application
+# Final runtime image
 FROM base AS final
 WORKDIR /app
 
