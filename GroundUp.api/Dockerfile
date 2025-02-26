@@ -10,24 +10,19 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copy only the main application and dependencies (EXCLUDING TEST PROJECTS)
+# Copy only the main application project files (EXCLUDING TEST PROJECTS)
 COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
 COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-# Restore only main projects (NOT TEST PROJECTS)
+# Restore only the necessary dependencies (EXCLUDING TESTS)
 WORKDIR /src/GroundUp.api
 RUN dotnet restore "./GroundUp.api.csproj" --disable-parallel
 
 # Copy the entire application source code
 COPY . .
 
-# Build the API project (EXCLUDES TEST PROJECTS)
-RUN dotnet build "./GroundUp.api.csproj" -c Release -o /app/build
-
-# Publish the application
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
+# Build & Publish the API project (EXCLUDES TEST PROJECTS)
 RUN dotnet publish "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Final runtime image
@@ -35,7 +30,7 @@ FROM base AS final
 WORKDIR /app
 
 # Copy published output
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 
 # Copy startup script
 COPY ["GroundUp.api/startup.sh", "/app/startup.sh"]
