@@ -2,25 +2,30 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
+# Earliest logging statement possible
+RUN echo "Starting EF Migration Container Build..."
+
 # Install EF Core CLI globally
-RUN dotnet tool install --global dotnet-ef
+RUN echo "Installing dotnet-ef tool..." && dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
 # Copy project files
+RUN echo "Copying project files..."
 COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
 COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
-# Restore dependencies (EXCLUDES TESTS)
+# Restore dependencies
 WORKDIR /app/GroundUp.api
-RUN dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
+RUN echo "Running dotnet restore..." && dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
 
-# Copy source code
+# Copy full source code
+RUN echo "Copying source code..."
 COPY . .
 
 # Build and Publish the project
 WORKDIR /app/GroundUp.api
-RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish --self-contained false
+RUN echo "Running dotnet publish..." && dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish --self-contained false
 
-# Run EF migrations with explicit connection string and verbose logs
-CMD ["sh", "-c", "dotnet ef database update --project /app/GroundUp.api/GroundUp.api.csproj --connection \"$DB_CONNECTION_STRING\" --verbose"]
+# Run EF migrations with verbose logging
+CMD ["sh", "-c", "echo 'Starting EF Migrations...' && dotnet ef database update --project /app/GroundUp.api/GroundUp.api.csproj --connection \"$DB_CONNECTION_STRING\" --verbose"]
