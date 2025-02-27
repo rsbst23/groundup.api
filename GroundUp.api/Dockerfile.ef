@@ -6,7 +6,7 @@ WORKDIR /app
 RUN dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-# Copy only the necessary project files (EXCLUDING TEST PROJECTS)
+# Copy project files
 COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
 COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
@@ -15,16 +15,12 @@ COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infras
 WORKDIR /app/GroundUp.api
 RUN dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
 
-# Copy the full source code
+# Copy source code
 COPY . .
 
-# Remove test projects before building
-RUN rm -rf /app/GroundUp.api/GroundUp.api.Tests.*
-RUN rm -rf /app/GroundUp.core/GroundUp.core.Tests.*
-RUN rm -rf /app/GroundUp.infrastructure/GroundUp.infrastructure.Tests.*
+# Build and Publish the project
+WORKDIR /app/GroundUp.api
+RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish --self-contained false
 
-# Build and Publish the project (EXCLUDING TEST PROJECTS)
-RUN dotnet publish "GroundUp.api.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-# Run EF migrations directly
-CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj"]
+# Run EF migrations with explicit connection string and verbose logs
+CMD ["sh", "-c", "dotnet ef database update --project /app/GroundUp.api/GroundUp.api.csproj --connection \"$DB_CONNECTION_STRING\" --verbose"]

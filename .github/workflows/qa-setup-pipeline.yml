@@ -37,310 +37,310 @@ env:
   TF_VAR_mysql_desired_count: 1
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+  # build-and-test:
+  #   runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: test_root_pass
-          MYSQL_DATABASE: test_db
-          MYSQL_USER: test_user
-          MYSQL_PASSWORD: test_pass
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -u test_user -ptest_pass"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
+  #   services:
+  #     mysql:
+  #       image: mysql:8.0
+  #       env:
+  #         MYSQL_ROOT_PASSWORD: test_root_pass
+  #         MYSQL_DATABASE: test_db
+  #         MYSQL_USER: test_user
+  #         MYSQL_PASSWORD: test_pass
+  #       ports:
+  #         - 3306:3306
+  #       options: >-
+  #         --health-cmd="mysqladmin ping -h localhost -u test_user -ptest_pass"
+  #         --health-interval=10s
+  #         --health-timeout=5s
+  #         --health-retries=3
 
-    steps:
-      - name: Set up environment variables
-        run: |
-          echo "MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}" >> $GITHUB_ENV
-          echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> $GITHUB_ENV
-          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> $GITHUB_ENV
-          echo "MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}" >> $GITHUB_ENV
+  #   steps:
+  #     - name: Set up environment variables
+  #       run: |
+  #         echo "MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}" >> $GITHUB_ENV
+  #         echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> $GITHUB_ENV
+  #         echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> $GITHUB_ENV
+  #         echo "MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}" >> $GITHUB_ENV
 
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.404'
+  #     - name: Set up .NET
+  #       uses: actions/setup-dotnet@v3
+  #       with:
+  #         dotnet-version: '8.0.404'
 
-      - name: Restore Dependencies
-        run: dotnet restore
+  #     - name: Restore Dependencies
+  #       run: dotnet restore
 
-      - name: Build Application
-        run: dotnet build --configuration Release
+  #     - name: Build Application
+  #       run: dotnet build --configuration Release
 
-      - name: Run Tests
-        run: dotnet test --configuration Release --no-build
+  #     - name: Run Tests
+  #       run: dotnet test --configuration Release --no-build
 
-  terraform-create-ecr:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  # terraform-create-ecr:
+  #   runs-on: ubuntu-latest
+  #   needs: build-and-test
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: ${{ env.AWS_AUDIENCE }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v2
+  #       with:
+  #         role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #         audience: ${{ env.AWS_AUDIENCE }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v2
 
-      - name: Ensure Terraform S3 Backend Exists
-        run: |
-          echo "Checking if Terraform S3 bucket exists: ${{ env.TF_VAR_backend_bucket }}"
+  #     - name: Ensure Terraform S3 Backend Exists
+  #       run: |
+  #         echo "Checking if Terraform S3 bucket exists: ${{ env.TF_VAR_backend_bucket }}"
 
-          if ! aws s3api head-bucket --bucket ${{ env.TF_VAR_backend_bucket }} 2>/dev/null; then
-            echo "Bucket does not exist. Creating ${{ env.TF_VAR_backend_bucket }}..."
+  #         if ! aws s3api head-bucket --bucket ${{ env.TF_VAR_backend_bucket }} 2>/dev/null; then
+  #           echo "Bucket does not exist. Creating ${{ env.TF_VAR_backend_bucket }}..."
 
-            aws s3api create-bucket --bucket ${{ env.TF_VAR_backend_bucket }} \
-              --region ${{ env.TF_VAR_backend_region }} \
-              $( [ "${{ env.TF_VAR_backend_region }}" != "us-east-1" ] && echo "--create-bucket-configuration LocationConstraint=${{ env.TF_VAR_backend_region }}" )
+  #           aws s3api create-bucket --bucket ${{ env.TF_VAR_backend_bucket }} \
+  #             --region ${{ env.TF_VAR_backend_region }} \
+  #             $( [ "${{ env.TF_VAR_backend_region }}" != "us-east-1" ] && echo "--create-bucket-configuration LocationConstraint=${{ env.TF_VAR_backend_region }}" )
 
-            echo "Enabling versioning on S3 bucket..."
-            aws s3api put-bucket-versioning --bucket ${{ env.TF_VAR_backend_bucket }} --versioning-configuration Status=Enabled
+  #           echo "Enabling versioning on S3 bucket..."
+  #           aws s3api put-bucket-versioning --bucket ${{ env.TF_VAR_backend_bucket }} --versioning-configuration Status=Enabled
 
-            echo "Terraform S3 backend setup complete."
-          else
-            echo "S3 bucket already exists: ${{ env.TF_VAR_backend_bucket }}"
-          fi
-        shell: bash
+  #           echo "Terraform S3 backend setup complete."
+  #         else
+  #           echo "S3 bucket already exists: ${{ env.TF_VAR_backend_bucket }}"
+  #         fi
+  #       shell: bash
 
-      - name: Initialize Terraform Backend
-        run: |
-            terraform init -reconfigure -force-copy \
-              -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
-              -backend-config="key=${{ env.TF_VAR_backend_key }}" \
-              -backend-config="region=${{ env.TF_VAR_backend_region }}" \
-              -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
-              -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
-        working-directory: terraform
+  #     - name: Initialize Terraform Backend
+  #       run: |
+  #           terraform init -reconfigure -force-copy \
+  #             -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
+  #             -backend-config="key=${{ env.TF_VAR_backend_key }}" \
+  #             -backend-config="region=${{ env.TF_VAR_backend_region }}" \
+  #             -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
+  #             -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
+  #       working-directory: terraform
 
-      - name: Validate Terraform
-        run: terraform validate
-        working-directory: terraform
+  #     - name: Validate Terraform
+  #       run: terraform validate
+  #       working-directory: terraform
 
-      - name: Apply Terraform for ECR & Logging
-        run: |
-          terraform apply -auto-approve \
-              -target=module.logging \
-              -target=module.ecr
-        working-directory: terraform
+  #     - name: Apply Terraform for ECR & Logging
+  #       run: |
+  #         terraform apply -auto-approve \
+  #             -target=module.logging \
+  #             -target=module.ecr
+  #       working-directory: terraform
 
-  push-to-ecr:
-    runs-on: ubuntu-latest
-    needs: terraform-create-ecr  # Wait for ECR to be created
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  # push-to-ecr:
+  #   runs-on: ubuntu-latest
+  #   needs: terraform-create-ecr  # Wait for ECR to be created
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: ${{ env.AWS_AUDIENCE }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v2
+  #       with:
+  #         role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #         audience: ${{ env.AWS_AUDIENCE }}
 
-      - name: Debug AWS Credentials
-        run: |
-          echo "Fetching AWS identity..."
-          aws sts get-caller-identity
-          echo "AWS credentials successfully configured."
+  #     - name: Debug AWS Credentials
+  #       run: |
+  #         echo "Fetching AWS identity..."
+  #         aws sts get-caller-identity
+  #         echo "AWS credentials successfully configured."
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        run: |
-          echo "Logging in to Amazon ECR..."
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          echo "Amazon ECR login successful!"
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+  #     - name: Login to Amazon ECR
+  #       id: login-ecr
+  #       run: |
+  #         echo "Logging in to Amazon ECR..."
+  #         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+  #         echo "Amazon ECR login successful!"
+  #       env:
+  #         AWS_REGION: ${{ env.AWS_REGION }}
+  #         ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
 
-      - name: Build, Tag, and Push API Image to Amazon ECR
-        env:
-          ECR_REPOSITORY: ${{ env.TF_VAR_ecr_repository_name }}-api
-        run: |          
-          echo "Building API Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f $TF_VAR_dockerfile_path .
+  #     - name: Build, Tag, and Push API Image to Amazon ECR
+  #       env:
+  #         ECR_REPOSITORY: ${{ env.TF_VAR_ecr_repository_name }}-api
+  #       run: |          
+  #         echo "Building API Docker image..."
+  #         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f $TF_VAR_dockerfile_path .
 
-          echo "Listing Docker images to verify build success:"
-          docker images | grep "$ECR_REGISTRY/$ECR_REPOSITORY"
+  #         echo "Listing Docker images to verify build success:"
+  #         docker images | grep "$ECR_REGISTRY/$ECR_REPOSITORY"
 
-          echo "Tagging API Docker image..."
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+  #         echo "Tagging API Docker image..."
+  #         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 
-          echo "Pushing API Docker image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || (echo "API Image Push Failed!" && exit 1)
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} || (echo "API Image Push Failed!" && exit 1)
+  #         echo "Pushing API Docker image to ECR..."
+  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || (echo "API Image Push Failed!" && exit 1)
+  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} || (echo "API Image Push Failed!" && exit 1)
 
-          echo "API Docker image successfully pushed to ECR!"
+  #         echo "API Docker image successfully pushed to ECR!"
 
-      - name: Build, Tag, and Push EF Migrations Image to Amazon ECR
-        env:
-          ECR_REPOSITORY: ${{ env.TF_VAR_ecr_repository_name }}-ef-migrations
-        run: |          
-          echo "Building EF Migrations Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f GroundUp.api/Dockerfile.ef . || (echo "EF Docker Build Failed!" && exit 1)
+  #     - name: Build, Tag, and Push EF Migrations Image to Amazon ECR
+  #       env:
+  #         ECR_REPOSITORY: ${{ env.TF_VAR_ecr_repository_name }}-ef-migrations
+  #       run: |          
+  #         echo "Building EF Migrations Docker image..."
+  #         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest -f GroundUp.api/Dockerfile.ef . || (echo "EF Docker Build Failed!" && exit 1)
 
-          echo "Listing Docker images to verify build success:"
-          docker images | grep "$ECR_REGISTRY/$ECR_REPOSITORY"
+  #         echo "Listing Docker images to verify build success:"
+  #         docker images | grep "$ECR_REGISTRY/$ECR_REPOSITORY"
 
-          echo "Tagging EF Migrations Docker image..."
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+  #         echo "Tagging EF Migrations Docker image..."
+  #         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
 
-          echo "Pushing EF Migrations Docker image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || (echo "EF Migrations Image Push Failed!" && exit 1)
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} || (echo "EF Migrations Image Push Failed!" && exit 1)
+  #         echo "Pushing EF Migrations Docker image to ECR..."
+  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || (echo "EF Migrations Image Push Failed!" && exit 1)
+  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} || (echo "EF Migrations Image Push Failed!" && exit 1)
 
-          echo "EF Migrations Docker image successfully pushed to ECR!"
+  #         echo "EF Migrations Docker image successfully pushed to ECR!"
 
 
-  terraform-create-infrastructure:
-    runs-on: ubuntu-latest
-    needs: push-to-ecr
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  # terraform-create-infrastructure:
+  #   runs-on: ubuntu-latest
+  #   needs: push-to-ecr
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: ${{ env.AWS_AUDIENCE }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v2
+  #       with:
+  #         role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #         audience: ${{ env.AWS_AUDIENCE }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v2
 
-      - name: Initialize Terraform Backend
-        run: |
-            terraform init -reconfigure -force-copy \
-              -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
-              -backend-config="key=${{ env.TF_VAR_backend_key }}" \
-              -backend-config="region=${{ env.TF_VAR_backend_region }}" \
-              -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
-              -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
-        working-directory: terraform
+  #     - name: Initialize Terraform Backend
+  #       run: |
+  #           terraform init -reconfigure -force-copy \
+  #             -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
+  #             -backend-config="key=${{ env.TF_VAR_backend_key }}" \
+  #             -backend-config="region=${{ env.TF_VAR_backend_region }}" \
+  #             -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
+  #             -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
+  #       working-directory: terraform
 
-      - name: Validate Terraform
-        run: terraform validate
-        working-directory: terraform
+  #     - name: Validate Terraform
+  #       run: terraform validate
+  #       working-directory: terraform
 
-      - name: Plan Terraform Changes
-        run: |
-          terraform plan -out=tfplan            
-        working-directory: terraform
+  #     - name: Plan Terraform Changes
+  #       run: |
+  #         terraform plan -out=tfplan            
+  #       working-directory: terraform
 
-      - name: Apply Terraform Infrastructure
-        env:
-          TERRAFORM_TARGETS: >-
-            -target=module.networking
-            -target=module.security
-            -target=module.alb
-            -target=module.service_discovery
-            -target=module.ecs_core
-            -target=module.ef_migrations_task
-        run: |
-          terraform apply -auto-approve $TERRAFORM_TARGETS            
-        working-directory: terraform
+  #     - name: Apply Terraform Infrastructure
+  #       env:
+  #         TERRAFORM_TARGETS: >-
+  #           -target=module.networking
+  #           -target=module.security
+  #           -target=module.alb
+  #           -target=module.service_discovery
+  #           -target=module.ecs_core
+  #           -target=module.ef_migrations_task
+  #       run: |
+  #         terraform apply -auto-approve $TERRAFORM_TARGETS            
+  #       working-directory: terraform
 
-  deploy-mysql:
-    runs-on: ubuntu-latest
-    needs: terraform-create-infrastructure
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  # deploy-mysql:
+  #   runs-on: ubuntu-latest
+  #   needs: terraform-create-infrastructure
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: ${{ env.AWS_AUDIENCE }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v2
+  #       with:
+  #         role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #         audience: ${{ env.AWS_AUDIENCE }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v2
 
-      - name: Initialize Terraform Backend
-        run: |
-            terraform init -reconfigure -force-copy \
-              -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
-              -backend-config="key=${{ env.TF_VAR_backend_key }}" \
-              -backend-config="region=${{ env.TF_VAR_backend_region }}" \
-              -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
-              -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
-        working-directory: terraform
+  #     - name: Initialize Terraform Backend
+  #       run: |
+  #           terraform init -reconfigure -force-copy \
+  #             -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
+  #             -backend-config="key=${{ env.TF_VAR_backend_key }}" \
+  #             -backend-config="region=${{ env.TF_VAR_backend_region }}" \
+  #             -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
+  #             -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
+  #       working-directory: terraform
 
-      - name: Apply Terraform for MySQL Service
-        run: |
-          terraform apply -auto-approve \
-            -target=module.ecs_services_mysql
-        working-directory: terraform
+  #     - name: Apply Terraform for MySQL Service
+  #       run: |
+  #         terraform apply -auto-approve \
+  #           -target=module.ecs_services_mysql
+  #       working-directory: terraform
 
-  deploy-api:
-    runs-on: ubuntu-latest
-    needs: deploy-mysql  # Waits for MySQL to be deployed first
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  # deploy-api:
+  #   runs-on: ubuntu-latest
+  #   needs: deploy-mysql  # Waits for MySQL to be deployed first
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-          audience: ${{ env.AWS_AUDIENCE }}
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v2
+  #       with:
+  #         role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #         audience: ${{ env.AWS_AUDIENCE }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v2
 
-      - name: Initialize Terraform Backend
-        run: |
-            terraform init -reconfigure -force-copy \
-              -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
-              -backend-config="key=${{ env.TF_VAR_backend_key }}" \
-              -backend-config="region=${{ env.TF_VAR_backend_region }}" \
-              -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
-              -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
-        working-directory: terraform
+  #     - name: Initialize Terraform Backend
+  #       run: |
+  #           terraform init -reconfigure -force-copy \
+  #             -backend-config="bucket=${{ env.TF_VAR_backend_bucket }}" \
+  #             -backend-config="key=${{ env.TF_VAR_backend_key }}" \
+  #             -backend-config="region=${{ env.TF_VAR_backend_region }}" \
+  #             -backend-config="encrypt=${{ env.TF_VAR_backend_encrypt }}" \
+  #             -backend-config="dynamodb_table=${{ env.TF_VAR_backend_dynamodb_table }}"
+  #       working-directory: terraform
 
-      - name: Apply Terraform for API Service
-        run: |
-          terraform apply -auto-approve \
-            -target=module.ecs_services_api
-        working-directory: terraform
+  #     - name: Apply Terraform for API Service
+  #       run: |
+  #         terraform apply -auto-approve \
+  #           -target=module.ecs_services_api
+  #       working-directory: terraform
 
   deploy-ef-migrations:
     runs-on: ubuntu-latest
-    needs: deploy-api  # Ensure API is deployed before running migrations
+    #needs: deploy-api  # Ensure API is deployed before running migrations
     permissions:
       id-token: write
       contents: read
