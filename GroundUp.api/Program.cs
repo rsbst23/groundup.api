@@ -12,27 +12,35 @@ using Serilog.Sinks.AwsCloudWatch;
 
 DotNetEnv.Env.Load();
 
-// Create an AWS CloudWatch Logs client
-var cloudWatchClient = new AmazonCloudWatchLogsClient(); // We don't pass in anything because it will use the IAM user and region it is running under
+AmazonCloudWatchLogsClient? cloudWatchClient = null;
 
-// Configure Serilog to use AWS CloudWatch
-// Define CloudWatch sink options
-var cloudWatchSinkOptions = new CloudWatchSinkOptions
+if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AWS_EXECUTION_ENV")))
 {
-    LogGroupName = Environment.GetEnvironmentVariable("CLOUDWATCH_LOG_GROUP") ?? "GroundUpApiLogs",
-    TextFormatter = new JsonFormatter(), // Use JSON for structured logging
-    LogStreamNameProvider = new DefaultLogStreamProvider(), // Default stream provider
-    BatchSizeLimit = 100, // How many logs to send in a batch
-    Period = TimeSpan.FromSeconds(10), // How often logs are sent
-    CreateLogGroup = true // Ensure log group is created
-};
+    cloudWatchClient = new AmazonCloudWatchLogsClient();
+}
+
+// Use Serilog with or without CloudWatch
+var loggerConfig = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .WriteTo.Console();
+
+if (cloudWatchClient != null)
+{
+    var cloudWatchSinkOptions = new CloudWatchSinkOptions
+    {
+        LogGroupName = Environment.GetEnvironmentVariable("CLOUDWATCH_LOG_GROUP") ?? "GroundUpApiLogs",
+        TextFormatter = new JsonFormatter(),
+        LogStreamNameProvider = new DefaultLogStreamProvider(),
+        BatchSizeLimit = 100,
+        Period = TimeSpan.FromSeconds(10),
+        CreateLogGroup = true
+    };
+
+    loggerConfig.WriteTo.AmazonCloudWatch(cloudWatchSinkOptions, cloudWatchClient);
+}
 
 // Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug() // Set minimum log level here instead
-    .WriteTo.Console()
-    .WriteTo.AmazonCloudWatch(cloudWatchSinkOptions, cloudWatchClient)
-    .CreateLogger();
+Log.Logger = loggerConfig.CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
