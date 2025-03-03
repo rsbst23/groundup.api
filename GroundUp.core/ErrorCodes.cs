@@ -8,5 +8,6 @@
         public const string Unauthorized = "ERR_UNAUTHORIZED";
         public const string InternalServerError = "ERR_INTERNAL_SERVER_ERROR";
         public const string IdMismatch = "ERR_ID_MISMATCH";
+        public const string UnhandledException = "ERR_UnhandledException";
     }
 }
