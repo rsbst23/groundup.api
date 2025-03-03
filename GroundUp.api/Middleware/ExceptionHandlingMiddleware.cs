@@ -27,7 +27,7 @@ namespace GroundUp.api.Middleware
                 context.Response.ContentType = "application/json";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-                var response = new ApiResponse<string>(null, false, "An unexpected error occurred. Please try again later.", new List<string> { ex.Message });
+                var response = new ApiResponse<string>(string.Empty, false, "An unexpected error occurred. Please try again later.", new List<string> { ex.Message });
 
                 await context.Response.WriteAsync(JsonSerializer.Serialize(response));
             }

@@ -42,7 +42,7 @@ namespace GroundUp.api.Controllers
         {
             if (inventoryCategoryDto == null)
             {
-                return BadRequest(new ApiResponse<InventoryCategoryDto>(default, false, "Invalid inventory category data."));
+                return BadRequest(new ApiResponse<InventoryCategoryDto>(default!, false, "Invalid inventory category data."));
             }
 
             var result = await _inventoryCategoryRepository.AddAsync(inventoryCategoryDto);
@@ -61,7 +61,7 @@ namespace GroundUp.api.Controllers
         {
             if (id != inventoryCategoryDto.Id)
             {
-                return BadRequest(new ApiResponse<InventoryCategoryDto>(default, false, "ID mismatch."));
+                return BadRequest(new ApiResponse<InventoryCategoryDto>(default!, false, "ID mismatch."));
             }
 
             var result = await _inventoryCategoryRepository.UpdateAsync(id, inventoryCategoryDto);

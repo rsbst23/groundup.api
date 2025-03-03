@@ -49,7 +49,7 @@ namespace GroundUp.infrastructure.repositories
             }
             catch (Exception ex)
             {
-                return new ApiResponse<PaginatedData<TDto>>(default, false, "An error occurred while retrieving data.", new List<string> { ex.Message });
+                return new ApiResponse<PaginatedData<TDto>>(default!, false, "An error occurred while retrieving data.", new List<string> { ex.Message });
             }
         }
 
@@ -61,13 +61,13 @@ namespace GroundUp.infrastructure.repositories
                 var entity = await _dbSet.FindAsync(id);
                 if (entity == null)
                 {
-                    return new ApiResponse<TDto>(default, false, "Item not found");
+                    return new ApiResponse<TDto>(default!, false, "Item not found");
                 }
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(entity));
             }
             catch (Exception ex)
             {
-                return new ApiResponse<TDto>(default, false, "An error occurred while retrieving the item.", new List<string> { ex.Message });
+                return new ApiResponse<TDto>(default!, false, "An error occurred while retrieving the item.", new List<string> { ex.Message });
             }
         }
 
@@ -86,7 +86,7 @@ namespace GroundUp.infrastructure.repositories
             }
             catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
             {
-                return new ApiResponse<TDto>(default, false, "A record with this name already exists.");
+                return new ApiResponse<TDto>(default!, false, "A record with this name already exists.");
             }
         }
 
@@ -98,20 +98,23 @@ namespace GroundUp.infrastructure.repositories
                 var existingEntity = await _dbSet.FindAsync(id);
                 if (existingEntity == null)
                 {
-                    return new ApiResponse<TDto>(default, false, "Item not found");
+                    return new ApiResponse<TDto>(default!, false, "Item not found");
                 }
 
                 _mapper.Map(dto, existingEntity);
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Entity {typeof(T).Name} edited successfully.");
+
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(existingEntity), true, "Updated successfully");
             }
             catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
             {
-                return new ApiResponse<TDto>(default, false, "A record with this name already exists.");
+                return new ApiResponse<TDto>(default!, false, "A record with this name already exists.");
             }
             catch (Exception ex)
             {
-                return new ApiResponse<TDto>(default, false, "An error occurred while updating the entity.", new List<string> { ex.Message });
+                return new ApiResponse<TDto>(default!, false, "An error occurred while updating the entity.", new List<string> { ex.Message });
             }
         }
 
@@ -128,6 +131,9 @@ namespace GroundUp.infrastructure.repositories
 
                 _dbSet.Remove(entity);
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Entity {typeof(T).Name} deleted successfully.");
+
                 return new ApiResponse<bool>(true, true, "Deleted successfully");
             }
             catch (Exception ex)

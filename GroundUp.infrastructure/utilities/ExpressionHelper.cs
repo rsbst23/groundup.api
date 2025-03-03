@@ -13,7 +13,7 @@ namespace GroundUp.infrastructure.utilities
         {
             if (string.IsNullOrWhiteSpace(sortBy))
             {
-                return query.OrderBy(x => EF.Property<object>(x, "Id")); // Default sorting by Id
+                return query.OrderBy(x => EF.Property<object>(x!, "Id")); // Default sorting by Id
             }
 
             bool descending = sortBy.StartsWith("-");
@@ -24,7 +24,7 @@ namespace GroundUp.infrastructure.utilities
 
             if (property == null)
             {
-                return query.OrderBy(x => EF.Property<object>(x, "Id")); // Fallback if property is invalid
+                return query.OrderBy(x => EF.Property<object>(x!, "Id")); // Fallback if property is invalid
             }
 
             var parameter = Expression.Parameter(typeof(T), "x");
@@ -49,6 +49,10 @@ namespace GroundUp.infrastructure.utilities
             {
                 // Case-insensitive exact match for strings
                 var toLowerMethod = typeof(string).GetMethod("ToLower", Type.EmptyTypes);
+                if (toLowerMethod == null)
+                {
+                    throw new InvalidOperationException("ToLower method not found on string type.");
+                }
                 var lowerPropertyAccess = Expression.Call(propertyAccess, toLowerMethod);
                 var lowerFilterValue = Expression.Constant(filterValue.ToLower(), typeof(string));
 
@@ -76,10 +80,18 @@ namespace GroundUp.infrastructure.utilities
             }
 
             var toLowerMethod = typeof(string).GetMethod("ToLower", Type.EmptyTypes);
+            if (toLowerMethod == null)
+            {
+                throw new InvalidOperationException("ToLower method not found on string type.");
+            }
             var lowerPropertyAccess = Expression.Call(propertyAccess, toLowerMethod);
             var lowerFilterValue = Expression.Constant(filterValue.ToLower(), typeof(string));
 
             var methodInfo = typeof(string).GetMethod("Contains", new[] { typeof(string) });
+            if (methodInfo == null)
+            {
+                throw new InvalidOperationException("Contains method not found on string type.");
+            }
 
             var containsExpression = Expression.Call(lowerPropertyAccess, methodInfo, lowerFilterValue);
             return Expression.Lambda<Func<T, bool>>(containsExpression, parameter);
@@ -137,10 +149,13 @@ namespace GroundUp.infrastructure.utilities
 
             var listType = typeof(List<>).MakeGenericType(propertyType);
             var typedValues = Activator.CreateInstance(listType);
-            MethodInfo addMethod = listType.GetMethod("Add");
-            foreach (var convertedValue in convertedValues)
+            MethodInfo? addMethod = listType.GetMethod("Add");
+            if (addMethod != null)
             {
-                addMethod.Invoke(typedValues, new object[] { convertedValue });
+                foreach (var convertedValue in convertedValues)
+                {
+                    addMethod.Invoke(typedValues, new object[] { convertedValue });
+                }
             }
 
             var containsMethod = typeof(Enumerable)
