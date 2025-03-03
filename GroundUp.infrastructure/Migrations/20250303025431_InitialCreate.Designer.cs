@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GroundUp.api.Migrations
+namespace GroundUp.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250223220636_AddUniqueConstraintToInventoryCategory")]
-    partial class AddUniqueConstraintToInventoryCategory
+    [Migration("20250303025431_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -80,8 +80,10 @@ namespace GroundUp.api.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateTime?>("CreatedDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("DATETIME(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -96,13 +98,11 @@ namespace GroundUp.api.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5933),
                             Name = "Electronics"
                         },
                         new
                         {
                             Id = 2,
-                            CreatedDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5939),
                             Name = "Books"
                         });
                 });
@@ -145,7 +145,7 @@ namespace GroundUp.api.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5963),
+                            PurchaseDate = new DateTime(2025, 3, 3, 2, 54, 30, 721, DateTimeKind.Utc).AddTicks(9647),
                             PurchasePrice = 999.99m
                         },
                         new
@@ -154,7 +154,7 @@ namespace GroundUp.api.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 2, 23, 22, 6, 35, 489, DateTimeKind.Utc).AddTicks(5965),
+                            PurchaseDate = new DateTime(2025, 3, 3, 2, 54, 30, 721, DateTimeKind.Utc).AddTicks(9649),
                             PurchasePrice = 12.99m
                         });
                 });

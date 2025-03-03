@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
+using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
 using GroundUp.infrastructure.data;
 using GroundUp.infrastructure.utilities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using System.Linq.Expressions;
@@ -49,7 +51,7 @@ namespace GroundUp.infrastructure.repositories
             }
             catch (Exception ex)
             {
-                return new ApiResponse<PaginatedData<TDto>>(default!, false, "An error occurred while retrieving data.", new List<string> { ex.Message });
+                return new ApiResponse<PaginatedData<TDto>>(default!, false, "An error occurred while retrieving data.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
             }
         }
 
@@ -61,13 +63,13 @@ namespace GroundUp.infrastructure.repositories
                 var entity = await _dbSet.FindAsync(id);
                 if (entity == null)
                 {
-                    return new ApiResponse<TDto>(default!, false, "Item not found");
+                    return new ApiResponse<TDto>(default!, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
                 }
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(entity));
             }
             catch (Exception ex)
             {
-                return new ApiResponse<TDto>(default!, false, "An error occurred while retrieving the item.", new List<string> { ex.Message });
+                return new ApiResponse<TDto>(default!, false, "An error occurred while retrieving the item.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
             }
         }
 
@@ -77,16 +79,17 @@ namespace GroundUp.infrastructure.repositories
             try
             {
                 var entity = _mapper.Map<T>(dto);
+
                 _dbSet.Add(entity);
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Entity {typeof(T).Name} added successfully.");
 
-                return new ApiResponse<TDto>(_mapper.Map<TDto>(entity), true, "Created successfully");
+                return new ApiResponse<TDto>(_mapper.Map<TDto>(entity), true, "Created successfully", null, StatusCodes.Status201Created);
             }
             catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
             {
-                return new ApiResponse<TDto>(default!, false, "A record with this name already exists.");
+                return new ApiResponse<TDto>(default!, false, "A record with this name already exists.", null, StatusCodes.Status400BadRequest, ErrorCodes.DuplicateEntry);
             }
         }
 
@@ -98,7 +101,7 @@ namespace GroundUp.infrastructure.repositories
                 var existingEntity = await _dbSet.FindAsync(id);
                 if (existingEntity == null)
                 {
-                    return new ApiResponse<TDto>(default!, false, "Item not found");
+                    return new ApiResponse<TDto>(default!, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
                 }
 
                 _mapper.Map(dto, existingEntity);
@@ -106,15 +109,15 @@ namespace GroundUp.infrastructure.repositories
 
                 _logger.LogInformation($"Entity {typeof(T).Name} edited successfully.");
 
-                return new ApiResponse<TDto>(_mapper.Map<TDto>(existingEntity), true, "Updated successfully");
+                return new ApiResponse<TDto>(_mapper.Map<TDto>(existingEntity), true, "Updated successfully", null, StatusCodes.Status200OK);
             }
             catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
             {
-                return new ApiResponse<TDto>(default!, false, "A record with this name already exists.");
+                return new ApiResponse<TDto>(default!, false, "A record with this name already exists.", null, StatusCodes.Status400BadRequest, ErrorCodes.DuplicateEntry);
             }
             catch (Exception ex)
             {
-                return new ApiResponse<TDto>(default!, false, "An error occurred while updating the entity.", new List<string> { ex.Message });
+                return new ApiResponse<TDto>(default!, false, "An error occurred while updating the entity.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
             }
         }
 
@@ -126,7 +129,7 @@ namespace GroundUp.infrastructure.repositories
                 var entity = await _dbSet.FindAsync(id);
                 if (entity == null)
                 {
-                    return new ApiResponse<bool>(false, false, "Item not found");
+                    return new ApiResponse<bool>(false, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
                 }
 
                 _dbSet.Remove(entity);
@@ -134,11 +137,11 @@ namespace GroundUp.infrastructure.repositories
 
                 _logger.LogInformation($"Entity {typeof(T).Name} deleted successfully.");
 
-                return new ApiResponse<bool>(true, true, "Deleted successfully");
+                return new ApiResponse<bool>(true, true, "Deleted successfully", null, StatusCodes.Status200OK);
             }
             catch (Exception ex)
             {
-                return new ApiResponse<bool>(false, false, "An error occurred while deleting the entity.", new List<string> { ex.Message });
+                return new ApiResponse<bool>(false, false, "An error occurred while deleting the entity.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
             }
         }
 
@@ -179,7 +182,7 @@ namespace GroundUp.infrastructure.repositories
 
                 if (property != null)
                 {
-                    query = query.Where(property.PropertyType == typeof(DateTime)
+                    query = query.Where((property.PropertyType == typeof(DateTime) || property.PropertyType == typeof(DateTime?))
                         ? ExpressionHelper.BuildDateRangePredicate<T>(property, filter.Value, isMin: true)
                         : ExpressionHelper.BuildRangePredicate<T>(property, filter.Value, isMin: true));
                 }
@@ -192,7 +195,7 @@ namespace GroundUp.infrastructure.repositories
 
                 if (property != null)
                 {
-                    query = query.Where(property.PropertyType == typeof(DateTime)
+                    query = query.Where((property.PropertyType == typeof(DateTime) || property.PropertyType == typeof(DateTime?))
                         ? ExpressionHelper.BuildDateRangePredicate<T>(property, filter.Value, isMin: false)
                         : ExpressionHelper.BuildRangePredicate<T>(property, filter.Value, isMin: false));
                 }

@@ -19,6 +19,12 @@ namespace GroundUp.infrastructure.data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<InventoryCategory>()
+                .Property(b => b.CreatedDate)
+                .HasColumnType("DATETIME(6)")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .ValueGeneratedOnAdd();
+
             modelBuilder.Entity<InventoryItem>()
                 .HasOne(i => i.InventoryCategory)
                 .WithMany(c => c.InventoryItems)
@@ -37,8 +43,8 @@ namespace GroundUp.infrastructure.data
             );
 
             modelBuilder.Entity<InventoryCategory>().HasData(
-                new InventoryCategory { Id = 1, Name = "Electronics" },
-                new InventoryCategory { Id = 2, Name = "Books" }
+                new InventoryCategory { Id = 1, Name = "Electronics", CreatedDate = null },
+                new InventoryCategory { Id = 2, Name = "Books", CreatedDate = null }
             );
 
             modelBuilder.Entity<InventoryItem>().HasData(

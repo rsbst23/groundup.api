@@ -121,19 +121,48 @@ namespace GroundUp.infrastructure.utilities
             var parameter = Expression.Parameter(typeof(T), "x");
             var propertyAccess = Expression.Property(parameter, property);
 
+            // Ensure the property is of type DateTime or Nullable<DateTime>
+            Type propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            if (propertyType != typeof(DateTime))
+            {
+                throw new ArgumentException($"Property {property.Name} is not of type DateTime or Nullable<DateTime>.");
+            }
+
+            // Parse the filter value into a DateTime
             if (!DateTime.TryParse(filterValue, out DateTime dateValue))
             {
                 throw new ArgumentException($"Invalid date format for {property.Name}: {filterValue}");
             }
 
-            var constantValue = Expression.Constant(dateValue, typeof(DateTime));
+            // Ensure proper UTC handling to avoid timezone issues
+            dateValue = DateTime.SpecifyKind(dateValue, DateTimeKind.Utc);
+            Expression constantValue = Expression.Constant(dateValue, typeof(DateTime));
 
-            Expression comparison = isMin
-                ? Expression.GreaterThanOrEqual(propertyAccess, constantValue) // x.PurchaseDate >= MinDate
-                : Expression.LessThanOrEqual(propertyAccess, constantValue);  // x.PurchaseDate <= MaxDate
+            // Handle nullable DateTime (DateTime?)
+            if (property.PropertyType == typeof(DateTime?))
+            {
+                var hasValueProperty = Expression.Property(propertyAccess, "HasValue");
+                var valueProperty = Expression.Property(propertyAccess, "Value");
 
-            return Expression.Lambda<Func<T, bool>>(comparison, parameter);
+                // Convert constantValue to Nullable<DateTime> to match valueProperty type
+                var nullableConstant = Expression.Convert(constantValue, property.PropertyType);
+
+                // Ensure non-null values before comparison
+                Expression comparison = isMin
+                    ? Expression.AndAlso(hasValueProperty, Expression.GreaterThanOrEqual(valueProperty, Expression.Convert(constantValue, typeof(DateTime))))
+                    : Expression.AndAlso(hasValueProperty, Expression.LessThanOrEqual(valueProperty, Expression.Convert(constantValue, typeof(DateTime))));
+
+                return Expression.Lambda<Func<T, bool>>(comparison, parameter);
+            }
+
+            // Ensure both operands are of the same type (non-nullable DateTime)
+            Expression dateComparison = isMin
+                ? Expression.GreaterThanOrEqual(propertyAccess, constantValue)  // x.PurchaseDate >= MinDate
+                : Expression.LessThanOrEqual(propertyAccess, constantValue);   // x.PurchaseDate <= MaxDate
+
+            return Expression.Lambda<Func<T, bool>>(dateComparison, parameter);
         }
+
 
         // Example Query:
         // GET /api/inventory-items?MultiValueFilters[Status]=Active,Pending
