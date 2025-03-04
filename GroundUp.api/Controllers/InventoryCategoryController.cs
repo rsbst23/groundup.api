@@ -1,12 +1,14 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GroundUp.api.Controllers
 {
     [Route("api/inventory-categories")]
     [ApiController]
+    [Authorize]
     public class InventoryCategoryController : ControllerBase
     {
         private readonly IInventoryCategoryRepository _inventoryCategoryRepository;

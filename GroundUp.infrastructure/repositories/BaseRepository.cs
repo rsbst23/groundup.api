@@ -27,7 +27,7 @@ namespace GroundUp.infrastructure.repositories
         }
 
         // Get All with Pagination and Filtering
-        public async Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
+        public virtual async Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
         {
             try
             {
@@ -56,7 +56,7 @@ namespace GroundUp.infrastructure.repositories
         }
 
         // Get by ID
-        public async Task<ApiResponse<TDto>> GetByIdAsync(int id)
+        public virtual async Task<ApiResponse<TDto>> GetByIdAsync(int id)
         {
             try
             {
@@ -74,7 +74,7 @@ namespace GroundUp.infrastructure.repositories
         }
 
         // Add new entity
-        public async Task<ApiResponse<TDto>> AddAsync(TDto dto)
+        public virtual async Task<ApiResponse<TDto>> AddAsync(TDto dto)
         {
             try
             {
@@ -94,7 +94,7 @@ namespace GroundUp.infrastructure.repositories
         }
 
         // Update existing entity
-        public async Task<ApiResponse<TDto>> UpdateAsync(int id, TDto dto)
+        public virtual async Task<ApiResponse<TDto>> UpdateAsync(int id, TDto dto)
         {
             try
             {
@@ -122,7 +122,7 @@ namespace GroundUp.infrastructure.repositories
         }
 
         // Delete entity
-        public async Task<ApiResponse<bool>> DeleteAsync(int id)
+        public virtual async Task<ApiResponse<bool>> DeleteAsync(int id)
         {
             try
             {

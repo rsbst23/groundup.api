@@ -1,14 +1,18 @@
-using Amazon;
 using Amazon.CloudWatchLogs;
-using Amazon.Runtime;
 using GroundUp.api.Middleware;
+using GroundUp.core.entities;
 using GroundUp.infrastructure.data;
-using GroundUp.infrastructure.extensions;
 using GroundUp.infrastructure.mappings;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.AwsCloudWatch;
+using System.Text;
+using GroundUp.infrastructure.extensions;
 
 DotNetEnv.Env.Load();
 
@@ -45,6 +49,12 @@ Log.Logger = loggerConfig.CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+if (string.IsNullOrEmpty(secretKey))
+{
+    throw new InvalidOperationException("JWT_SECRET_KEY is missing from environment variables.");
+}
+
 var connectionString = $"Server={Environment.GetEnvironmentVariable("MYSQL_SERVER")};Port={Environment.GetEnvironmentVariable("MYSQL_PORT")};Database={Environment.GetEnvironmentVariable("MYSQL_DATABASE")};User={Environment.GetEnvironmentVariable("MYSQL_USER")};Password={Environment.GetEnvironmentVariable("MYSQL_PASSWORD")};SslMode=None;AllowPublicKeyRetrieval=True;";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -60,6 +70,45 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
+// Add Identity
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+// Configure Authentication with JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+    };
+});
+
+builder.Services.AddAuthorization();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
+
 // Enable CORS
 builder.Services.AddCors(options =>
 {
@@ -73,7 +122,35 @@ builder.Services.AddInfrastructureServices(); // Auto-register repositories
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "GroundUp API", Version = "v1" });
+
+    // Enable JWT Authorization in Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer {your JWT token}'",
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 app.UseSerilogRequestLogging();
@@ -91,6 +168,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
