@@ -13,6 +13,7 @@ using Serilog.Formatting.Json;
 using Serilog.Sinks.AwsCloudWatch;
 using System.Text;
 using GroundUp.infrastructure.extensions;
+using GroundUp.api.Infrastructure.Swagger;
 
 DotNetEnv.Env.Load();
 
@@ -81,7 +82,7 @@ builder.Services.AddAuthentication(options =>
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(options =>
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -90,6 +91,19 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Allow token from either Cookie or Authorization Header
+            var cookieToken = context.Request.Cookies["AuthToken"];
+            if (!string.IsNullOrEmpty(cookieToken))
+            {
+                context.Token = cookieToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -126,16 +140,29 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "GroundUp API", Version = "v1" });
 
-    // Enable JWT Authorization in Swagger
+    // JWT Bearer Token Authentication
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        In = ParameterLocation.Header,
-        Description = "Enter 'Bearer {your JWT token}'",
         Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        In = ParameterLocation.Header,
+        Description = "Enter 'Bearer {your_token}'",
     });
 
+    // Cookie Authentication (JWT stored in cookies)
+    options.AddSecurityDefinition("CookieAuth", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Cookie,
+        Name = "AuthToken",
+        Description = "JWT stored in cookies"
+    });
+
+    // Make Swagger send cookies by default
+    options.OperationFilter<CookieAuthOperationFilter>();
+
+    // Enforce security requirements
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -148,8 +175,30 @@ builder.Services.AddSwaggerGen(options =>
                 }
             },
             Array.Empty<string>()
+        },
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "CookieAuth"
+                }
+            },
+            Array.Empty<string>()
         }
     });
+});
+
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy => policy
+            .WithOrigins("http://localhost:5174") // Frontend URL
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()); // REQUIRED to allow cookies in requests
 });
 
 var app = builder.Build();
@@ -164,9 +213,9 @@ app.UseSwagger();
     app.UseSwaggerUI();
 //}
 
-app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
+
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

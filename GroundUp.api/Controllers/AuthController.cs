@@ -101,13 +101,82 @@ namespace GroundUp.api.Controllers
 
             var token = GenerateJwtToken(user);
 
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,  // Prevents JavaScript access
+                Secure = true,   // Requires HTTPS
+                SameSite = SameSiteMode.None, // Prevents CSRF attacks
+                Expires = DateTime.UtcNow.AddHours(2)
+            };
+
+            Response.Cookies.Append("AuthToken", token, cookieOptions);
+
             return Ok(new ApiResponse<string>(
-                token,
-                true,
                 "Login successful.",
+                true,
+                "Authenticated successfully.",
                 null,
                 StatusCodes.Status200OK
             ));
+        }
+
+        // LOGOUT ENDPOINT - Clears the JWT Cookie
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            Response.Cookies.Delete("AuthToken");
+
+            return Ok(new ApiResponse<string>(
+                "Logged out successfully.",
+                true,
+                "You have been logged out.",
+                null,
+                StatusCodes.Status200OK
+            ));
+        }
+
+        // GET USER PROFILE - Retrieves authenticated user's details
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserProfileDto>>> GetUserProfile()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null)
+            {
+                return Unauthorized(new ApiResponse<UserProfileDto>(
+                    default!,
+                    false,
+                    "Unauthorized access.",
+                    null,
+                    StatusCodes.Status401Unauthorized,
+                    ErrorCodes.Unauthorized
+                ));
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse<UserProfileDto>(
+                    default!,
+                    false,
+                    "User not found.",
+                    null,
+                    StatusCodes.Status404NotFound,
+                    ErrorCodes.UserNotFound
+                ));
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var userProfile = new UserProfileDto
+            {
+                Id = user.Id,
+                Email = user.Email!,
+                FullName = user.FullName,
+                Roles = roles.ToList()
+            };
+
+            return Ok(new ApiResponse<UserProfileDto>(userProfile));
         }
 
         // GENERATE JWT TOKEN

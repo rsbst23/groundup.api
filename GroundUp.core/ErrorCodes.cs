@@ -11,5 +11,6 @@
         public const string UnhandledException = "ERR_UnhandledException";
         public const string InvalidCredentials = "ERR_INVALID_CREDENTIALS";
         public const string RegistrationFailed = "ERR_REGISTRATION_FAILED";
+        public const string UserNotFound = "ERR_USER_NOT_FOUND";
     }
 }
