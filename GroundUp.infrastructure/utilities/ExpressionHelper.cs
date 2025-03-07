@@ -134,9 +134,21 @@ namespace GroundUp.infrastructure.utilities
                 throw new ArgumentException($"Invalid date format for {property.Name}: {filterValue}");
             }
 
+            // Adjust the dateValue for MaxFilters to include the entire day
+            if (!isMin)
+            {
+                dateValue = dateValue.Date.AddDays(1).AddTicks(-1); // Set to 23:59:59.999 of the day
+            }
+            else
+            {
+                dateValue = dateValue.Date; // Ensure min date starts at 00:00:00
+            }
+
             // Ensure proper UTC handling to avoid timezone issues
             dateValue = DateTime.SpecifyKind(dateValue, DateTimeKind.Utc);
             Expression constantValue = Expression.Constant(dateValue, typeof(DateTime));
+
+            // Rest of the method remains the same...
 
             // Handle nullable DateTime (DateTime?)
             if (property.PropertyType == typeof(DateTime?))
@@ -162,7 +174,6 @@ namespace GroundUp.infrastructure.utilities
 
             return Expression.Lambda<Func<T, bool>>(dateComparison, parameter);
         }
-
 
         // Example Query:
         // GET /api/inventory-items?MultiValueFilters[Status]=Active,Pending
