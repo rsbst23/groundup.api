@@ -32,5 +32,9 @@ namespace GroundUp.infrastructure.repositories
         //[RequiresPermission("inventory.delete")]
         public override Task<ApiResponse<bool>> DeleteAsync(int id)
             => base.DeleteAsync(id);
+
+        //[RequiresPermission("inventory.export")]
+        public override Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv")
+            => base.ExportAsync(filterParams, format);
     }
 }

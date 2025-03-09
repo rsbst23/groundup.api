@@ -20,5 +20,8 @@ namespace GroundUp.core.interfaces
 
         [RequiresPermission("inventory.delete")]
         Task<ApiResponse<bool>> DeleteAsync(int id);
+
+        [RequiresPermission("inventory.export")]
+        Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv");
     }
 }
