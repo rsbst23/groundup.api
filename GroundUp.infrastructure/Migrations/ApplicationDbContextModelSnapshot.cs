@@ -111,6 +111,52 @@ namespace GroundUp.infrastructure.Migrations
                     b.ToTable("Books");
                 });
 
+            modelBuilder.Entity("GroundUp.core.entities.ErrorFeedback", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Context")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("DATETIME(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("ErrorJson")
+                        .IsRequired()
+                        .HasColumnType("LONGTEXT");
+
+                    b.Property<string>("Feedback")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ErrorFeedback");
+                });
+
             modelBuilder.Entity("GroundUp.core.entities.InventoryAttribute", b =>
                 {
                     b.Property<int>("Id")
@@ -210,7 +256,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 3, 4, 1, 41, 35, 26, DateTimeKind.Utc).AddTicks(1431),
+                            PurchaseDate = new DateTime(2025, 3, 9, 2, 9, 58, 704, DateTimeKind.Utc).AddTicks(1440),
                             PurchasePrice = 999.99m
                         },
                         new
@@ -219,7 +265,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 3, 4, 1, 41, 35, 26, DateTimeKind.Utc).AddTicks(1435),
+                            PurchaseDate = new DateTime(2025, 3, 9, 2, 9, 58, 704, DateTimeKind.Utc).AddTicks(1443),
                             PurchasePrice = 12.99m
                         });
                 });

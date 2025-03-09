@@ -45,7 +45,7 @@ namespace GroundUp.infrastructure.repositories
                     .ToListAsync();
 
                 var mappedItems = _mapper.Map<List<TDto>>(pagedItems);
-                var paginatedData = new PaginatedData<TDto>(mappedItems, filterParams.PageNumber, filterParams.PageSize, totalRecords);             
+                var paginatedData = new PaginatedData<TDto>(mappedItems, filterParams.PageNumber, filterParams.PageSize, totalRecords);
 
                 return new ApiResponse<PaginatedData<TDto>>(paginatedData);
             }

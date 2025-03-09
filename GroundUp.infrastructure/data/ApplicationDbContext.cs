@@ -15,6 +15,7 @@ namespace GroundUp.infrastructure.data
         public DbSet<InventoryItem> InventoryItems { get; set; }
         public DbSet<InventoryAttribute> InventoryAttributes { get; set; }
 
+        public DbSet<ErrorFeedback> ErrorFeedback { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -37,6 +38,16 @@ namespace GroundUp.infrastructure.data
                 .WithMany(i => i.Attributes)
                 .HasForeignKey(a => a.InventoryItemId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ErrorFeedback>()
+                .Property(e => e.CreatedDate)
+                .HasColumnType("DATETIME(6)")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<ErrorFeedback>()
+                .Property(e => e.ErrorJson)
+                .HasColumnType("LONGTEXT");
 
             modelBuilder.Entity<User>().HasData(
                 new User { Id = 1, Name = "Alice", Email = "alice@example.com" },

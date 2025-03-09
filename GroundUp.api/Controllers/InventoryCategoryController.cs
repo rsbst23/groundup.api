@@ -8,7 +8,7 @@ namespace GroundUp.api.Controllers
 {
     [Route("api/inventory-categories")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class InventoryCategoryController : ControllerBase
     {
         private readonly IInventoryCategoryRepository _inventoryCategoryRepository;
@@ -22,6 +22,7 @@ namespace GroundUp.api.Controllers
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<InventoryCategoryDto>>>> Get([FromQuery] FilterParams filterParams)
         {
+            throw new Exception("robert has an error");
             var result = await _inventoryCategoryRepository.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }

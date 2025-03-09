@@ -13,23 +13,23 @@ namespace GroundUp.infrastructure.repositories
         public InventoryCategoryRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
             : base(context, mapper, logger) { }
 
-        [RequiresPermission("inventory.view")]
+        //[RequiresPermission("inventory.view")]
         public override Task<ApiResponse<PaginatedData<InventoryCategoryDto>>> GetAllAsync(FilterParams filterParams)
             => base.GetAllAsync(filterParams);
 
-        [RequiresPermission("inventory.view")]
+        //[RequiresPermission("inventory.view")]
         public override Task<ApiResponse<InventoryCategoryDto>> GetByIdAsync(int id)
             => base.GetByIdAsync(id);
 
-        [RequiresPermission("inventory.create")]
+        //[RequiresPermission("inventory.create")]
         public override Task<ApiResponse<InventoryCategoryDto>> AddAsync(InventoryCategoryDto dto)
             => base.AddAsync(dto);
 
-        [RequiresPermission("inventory.update")]
+        //[RequiresPermission("inventory.update")]
         public override Task<ApiResponse<InventoryCategoryDto>> UpdateAsync(int id, InventoryCategoryDto dto)
             => base.UpdateAsync(id, dto);
 
-        [RequiresPermission("inventory.delete")]
+        //[RequiresPermission("inventory.delete")]
         public override Task<ApiResponse<bool>> DeleteAsync(int id)
             => base.DeleteAsync(id);
     }
