@@ -9,7 +9,6 @@ namespace GroundUp.api.Controllers
 {
     [Route("api/inventory-categories")]
     [ApiController]
-    //[Authorize]
     public class InventoryCategoryController : ControllerBase
     {
         private readonly IInventoryCategoryRepository _inventoryCategoryRepository;

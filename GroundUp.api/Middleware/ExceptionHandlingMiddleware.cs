@@ -26,9 +26,32 @@ namespace GroundUp.api.Middleware
                 Log.Error(ex, "An unhandled exception occurred.");
 
                 context.Response.ContentType = "application/json";
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                ApiResponse<string> response;
 
-                var response = new ApiResponse<string>(string.Empty, false, "An unexpected error occurred. Please try again later.", new List<string> { ex.Message }, statusCode: StatusCodes.Status500InternalServerError, errorCode: ErrorCodes.UnhandledException);
+                // Handle permission/authorization related errors
+                if (ex.Message.Contains("lacks permission"))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                    response = new ApiResponse<string>(
+                        string.Empty,
+                        false,
+                        "You do not have permission to access this resource.",
+                        new List<string> { ex.Message },
+                        StatusCodes.Status403Forbidden,
+                        ErrorCodes.Forbidden);
+                }
+                // Handle other types of errors
+                else
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                    response = new ApiResponse<string>(
+                        string.Empty,
+                        false,
+                        "An unexpected error occurred. Please try again later.",
+                        new List<string> { ex.Message },
+                        StatusCodes.Status500InternalServerError,
+                        ErrorCodes.UnhandledException);
+                }
 
                 await context.Response.WriteAsync(JsonSerializer.Serialize(response));
             }

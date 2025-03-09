@@ -42,7 +42,7 @@ namespace GroundUp.api.Controllers
 
             var user = new ApplicationUser
             {
-                UserName = model.Email,
+                UserName = model.Username,  // Now using the username field
                 Email = model.Email,
                 FullName = model.FullName
             };
@@ -60,6 +60,9 @@ namespace GroundUp.api.Controllers
                     ErrorCodes.RegistrationFailed
                 ));
             }
+
+            // Add user to default role (e.g., "User")
+            var roleResult = await _userManager.AddToRoleAsync(user, "ADMIN");
 
             return StatusCode(StatusCodes.Status201Created, new ApiResponse<string>(
                 "User registered successfully",
@@ -86,13 +89,22 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            // First, try to find the user by username
+            var user = await _userManager.FindByNameAsync(model.Identifier);
+
+            // If not found by username, try by email
+            if (user == null)
+            {
+                user = await _userManager.FindByEmailAsync(model.Identifier);
+            }
+
+            // If still not found or password is incorrect
             if (user == null || !(await _userManager.CheckPasswordAsync(user, model.Password)))
             {
                 return Unauthorized(new ApiResponse<string>(
                     string.Empty,
                     false,
-                    "Invalid email or password.",
+                    "Invalid username, email or password.",
                     null,
                     StatusCodes.Status401Unauthorized,
                     ErrorCodes.InvalidCredentials
@@ -172,6 +184,7 @@ namespace GroundUp.api.Controllers
             {
                 Id = user.Id,
                 Email = user.Email!,
+                Username = user.UserName!,
                 FullName = user.FullName,
                 Roles = roles.ToList()
             };
