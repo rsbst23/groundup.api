@@ -1,42 +1,42 @@
-﻿using GroundUp.core.entities;
+﻿// GroundUp.infrastructure/services/PermissionService.cs
 using GroundUp.core.interfaces;
-using Microsoft.AspNetCore.Identity;
-using System.Collections.Generic;
-using System.Linq;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace GroundUp.infrastructure.services
 {
     public class PermissionService : IPermissionService
     {
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILoggingService _logger;
 
-        public PermissionService(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public PermissionService(
+            IHttpContextAccessor httpContextAccessor,
+            ILoggingService logger)
         {
-            _userManager = userManager;
-            _roleManager = roleManager;
+            _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
         public async Task<bool> HasPermission(string userId, string permission)
         {
-            var appUser = await _userManager.FindByIdAsync(userId);
-            if (appUser == null) return false;
-
-            var userRoles = await _userManager.GetRolesAsync(appUser);
-            if (!userRoles.Any()) return false; // User has no roles, so no permissions
-
-            var roleTasks = userRoles.Select(async role =>
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null || !user.Identity?.IsAuthenticated == true)
             {
-                var identityRole = await _roleManager.FindByNameAsync(role);
-                if (identityRole == null) return false;
+                return false;
+            }
 
-                var roleClaims = await _roleManager.GetClaimsAsync(identityRole);
-                return roleClaims.Any(c => c.Type == "permission" && c.Value == permission);
-            });
+            // With Keycloak, permissions are usually mapped to roles
+            // Check if the user has a role that matches the permission
+            var hasRole = user.HasClaim(ClaimTypes.Role, permission);
 
-            var results = await Task.WhenAll(roleTasks);
-            return results.Any(r => r);
+            // For more complex permission checks, you might want to map
+            // between roles and permissions in a more sophisticated way
+
+            _logger.LogInformation($"Checking permission '{permission}' for user {userId}: {hasRole}");
+
+            return hasRole;
         }
     }
 }

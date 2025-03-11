@@ -1,13 +1,10 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
-using GroundUp.core.entities;
+using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace GroundUp.api.Controllers
 {
@@ -15,142 +12,165 @@ namespace GroundUp.api.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly IKeycloakService _keycloakService;
+        private readonly ILoggingService _logger;
 
-        public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+        public AuthController(IKeycloakService keycloakService, ILoggingService logger)
         {
-            _userManager = userManager;
-            _signInManager = signInManager;
+            _keycloakService = keycloakService;
+            _logger = logger;
         }
 
-        // REGISTER ENDPOINT
-        [HttpPost("register")]
-        public async Task<ActionResult<ApiResponse<string>>> Register([FromBody] RegisterDto model)
+        [HttpGet("test-keycloak-connection")]
+        [AllowAnonymous]
+        public async Task<IActionResult> TestKeycloakConnection()
         {
-            if (!ModelState.IsValid)
+            var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync("http://host.docker.internal:8080/realms/groundup/.well-known/openid-configuration");
+            var content = await response.Content.ReadAsStringAsync();
+
+            return Ok(new
             {
-                return BadRequest(new ApiResponse<string>(
-                    string.Empty,
-                    false,
-                    "Invalid registration data.",
-                    null,
-                    StatusCodes.Status400BadRequest,
-                    ErrorCodes.ValidationFailed
-                ));
-            }
-
-            var user = new ApplicationUser
-            {
-                UserName = model.Username,  // Now using the username field
-                Email = model.Email,
-                FullName = model.FullName
-            };
-
-            var result = await _userManager.CreateAsync(user, model.Password);
-
-            if (!result.Succeeded)
-            {
-                return BadRequest(new ApiResponse<string>(
-                    string.Empty,
-                    false,
-                    "User registration failed.",
-                    result.Errors.Select(e => e.Description).ToList(),
-                    StatusCodes.Status400BadRequest,
-                    ErrorCodes.RegistrationFailed
-                ));
-            }
-
-            // Add user to default role (e.g., "User")
-            var roleResult = await _userManager.AddToRoleAsync(user, "ADMIN");
-
-            return StatusCode(StatusCodes.Status201Created, new ApiResponse<string>(
-                "User registered successfully",
-                true,
-                "User created",
-                null,
-                StatusCodes.Status201Created
-            ));
+                response.StatusCode,
+                Content = content
+            });
         }
 
-        // LOGIN ENDPOINT
-        [HttpPost("login")]
-        public async Task<ActionResult<ApiResponse<string>>> Login([FromBody] LoginDto model)
+        [HttpGet("token-check")]
+        [AllowAnonymous]
+        public IActionResult TokenCheck()
         {
-            if (!ModelState.IsValid)
+            var token = Request.Headers["Authorization"].FirstOrDefault()?.Substring("Bearer ".Length);
+            if (string.IsNullOrEmpty(token))
             {
-                return BadRequest(new ApiResponse<string>(
-                    string.Empty,
-                    false,
-                    "Invalid login request.",
-                    null,
-                    StatusCodes.Status400BadRequest,
-                    ErrorCodes.ValidationFailed
-                ));
+                return BadRequest("No token provided in Authorization header");
             }
 
-            // First, try to find the user by username
-            var user = await _userManager.FindByNameAsync(model.Identifier);
-
-            // If not found by username, try by email
-            if (user == null)
+            try
             {
-                user = await _userManager.FindByEmailAsync(model.Identifier);
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(token);
+                return Ok(new
+                {
+                    Message = "Token parsed",
+                    Subject = jwtToken.Subject,
+                    Issuer = jwtToken.Issuer,
+                    ClaimsCount = jwtToken.Claims.Count()
+                });
             }
-
-            // If still not found or password is incorrect
-            if (user == null || !(await _userManager.CheckPasswordAsync(user, model.Password)))
+            catch (Exception ex)
             {
-                return Unauthorized(new ApiResponse<string>(
-                    string.Empty,
-                    false,
-                    "Invalid username, email or password.",
-                    null,
-                    StatusCodes.Status401Unauthorized,
-                    ErrorCodes.InvalidCredentials
-                ));
+                return BadRequest($"Error: {ex.Message}");
             }
-
-            var token = GenerateJwtToken(user);
-
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,  // Prevents JavaScript access
-                Secure = true,   // Requires HTTPS
-                SameSite = SameSiteMode.None, // Prevents CSRF attacks
-                Expires = DateTime.UtcNow.AddHours(2)
-            };
-
-            Response.Cookies.Append("AuthToken", token, cookieOptions);
-
-            return Ok(new ApiResponse<string>(
-                "Login successful.",
-                true,
-                "Authenticated successfully.",
-                null,
-                StatusCodes.Status200OK
-            ));
         }
+
+        [HttpGet("manual-token-test")]
+        [AllowAnonymous]
+        public IActionResult ManualTokenTest()
+        {
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            {
+                return Unauthorized("Missing or invalid Authorization header");
+            }
+
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+
+            try
+            {
+                // Print out the token for debugging
+                _logger.LogInformation($"Token: {token.Substring(0, 50)}...");
+
+                // Try to manually parse and validate it 
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(token);
+
+                var claims = jwtToken.Claims.Select(c => new { c.Type, c.Value }).ToList();
+                return Ok(new { Message = "Token received and parsed", TokenInfo = jwtToken.Header, Claims = claims });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error parsing token: {ex.Message}");
+            }
+        }
+
+        [HttpGet("debug-auth")]
+        public IActionResult DebugAuthentication()
+        {
+            // Log detailed authentication information
+            _logger.LogInformation("Debug authentication endpoint accessed");
+
+            // Attempt to extract and log token
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            if (authHeader != null)
+            {
+                _logger.LogInformation($"Authorization Header: {authHeader}");
+            }
+            else
+            {
+                _logger.LogWarning("No Authorization header found");
+            }
+
+            // Log all incoming headers
+            foreach (var header in Request.Headers)
+            {
+                _logger.LogInformation($"Header - {header.Key}: {header.Value}");
+            }
+
+            return Ok(new
+            {
+                Message = "Authentication debug information",
+                AuthHeaderPresent = authHeader != null
+            });
+        }
+
+        [Authorize]
+        [HttpGet("test-auth")]
+        [Authorize(Roles = "ADMIN")] // Allow both ADMIN and USER roles
+        public IActionResult TestAuth()
+        {
+            // Log all incoming headers
+            foreach (var header in Request.Headers)
+            {
+                _logger.LogInformation($"Header - {header.Key}: {header.Value}");
+            }
+
+            // Explicitly try to extract token
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            _logger.LogInformation($"Authorization Header: {authHeader}");
+
+            // Extract token from header
+            var token = authHeader?.Substring("Bearer ".Length).Trim();
+            _logger.LogInformation($"Extracted Token: {token}");
+
+            // Existing authentication logic
+            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+
+            return Ok(new
+            {
+                Message = "Successfully authenticated",
+                Username = User.Identity.Name,
+                Claims = claims,
+                IsAdmin = User.IsInRole("ADMIN"),
+                IsUser = User.IsInRole("USER")
+            });
+        }
+
+        // We don't need register/login endpoints anymore as Keycloak handles this
 
         // LOGOUT ENDPOINT - Clears the JWT Cookie
         [HttpPost("logout")]
         public IActionResult Logout()
         {
             Response.Cookies.Delete("AuthToken");
-
-            return Ok(new ApiResponse<string>(
-                "Logged out successfully.",
-                true,
-                "You have been logged out.",
-                null,
-                StatusCodes.Status200OK
-            ));
+            _logger.LogInformation("User logged out - cookie cleared");
+            return Ok(new ApiResponse<string>("Logged out successfully."));
         }
 
-        // GET USER PROFILE - Retrieves authenticated user's details
+        // GET USER PROFILE - Retrieves authenticated user's details from token
         [HttpGet("me")]
         [Authorize]
-        public async Task<ActionResult<ApiResponse<UserProfileDto>>> GetUserProfile()
+        public ActionResult<ApiResponse<UserProfileDto>> GetUserProfile()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null)
@@ -165,59 +185,31 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                return NotFound(new ApiResponse<UserProfileDto>(
-                    default!,
-                    false,
-                    "User not found.",
-                    null,
-                    StatusCodes.Status404NotFound,
-                    ErrorCodes.UserNotFound
-                ));
-            }
-
-            var roles = await _userManager.GetRolesAsync(user);
-
             var userProfile = new UserProfileDto
             {
-                Id = user.Id,
-                Email = user.Email!,
-                Username = user.UserName!,
-                FullName = user.FullName,
-                Roles = roles.ToList()
+                Id = userId,
+                Email = User.FindFirstValue(ClaimTypes.Email) ?? "",
+                Username = User.FindFirstValue("preferred_username") ??
+                           User.FindFirstValue(ClaimTypes.Name) ?? "",
+                FullName = User.FindFirstValue("name") ?? "",
+                Roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList()
             };
 
+            _logger.LogInformation($"User profile retrieved for {userProfile.Username}");
             return Ok(new ApiResponse<UserProfileDto>(userProfile));
         }
 
-        // GENERATE JWT TOKEN
-        private string GenerateJwtToken(ApplicationUser user)
+        // DEBUG ENDPOINT - Shows all claims in the token (helpful during development)
+        [HttpGet("debug-token")]
+        [Authorize]
+        public ActionResult<ApiResponse<Dictionary<string, string>>> DebugToken()
         {
-            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
-            if (string.IsNullOrEmpty(secretKey))
-            {
-                throw new InvalidOperationException("JWT_SECRET_KEY is not configured in environment variables.");
-            }
+            var claims = User.Claims.ToDictionary(
+                c => c.Type,
+                c => c.Value
+            );
 
-            var key = Encoding.UTF8.GetBytes(secretKey);
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email!)
-            };
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(2),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
+            return Ok(new ApiResponse<Dictionary<string, string>>(claims));
         }
     }
 }

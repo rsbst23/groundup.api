@@ -1,19 +1,15 @@
 using Amazon.CloudWatchLogs;
 using GroundUp.api.Middleware;
-using GroundUp.core.entities;
 using GroundUp.infrastructure.data;
 using GroundUp.infrastructure.mappings;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.AwsCloudWatch;
-using System.Text;
 using GroundUp.infrastructure.extensions;
 using GroundUp.api.Infrastructure.Swagger;
+using static Mysqlx.Crud.Order.Types;
 
 DotNetEnv.Env.Load();
 
@@ -50,12 +46,6 @@ Log.Logger = loggerConfig.CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
-var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
-if (string.IsNullOrEmpty(secretKey))
-{
-    throw new InvalidOperationException("JWT_SECRET_KEY is missing from environment variables.");
-}
-
 var connectionString = $"Server={Environment.GetEnvironmentVariable("MYSQL_SERVER")};Port={Environment.GetEnvironmentVariable("MYSQL_PORT")};Database={Environment.GetEnvironmentVariable("MYSQL_DATABASE")};User={Environment.GetEnvironmentVariable("MYSQL_USER")};Password={Environment.GetEnvironmentVariable("MYSQL_PASSWORD")};SslMode=None;AllowPublicKeyRetrieval=True;";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -71,43 +61,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// Add Identity
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders();
+// IMPORTANT: Add Keycloak services - this will configure JWT authentication
+builder.Services.AddKeycloakServices();
 
-// Configure Authentication with JWT
-builder.Services.AddAuthentication(options =>
+builder.Services.AddAuthorization(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-    };
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            // Allow token from either Cookie or Authorization Header
-            var cookieToken = context.Request.Cookies["AuthToken"];
-            if (!string.IsNullOrEmpty(cookieToken))
-            {
-                context.Token = cookieToken;
-            }
-            return Task.CompletedTask;
-        }
-    };
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("ADMIN"));
+
+    options.AddPolicy("UserAccess", policy =>
+        policy.RequireRole("USER"));
 });
-
-builder.Services.AddAuthorization();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -127,7 +91,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
-        policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+        policy => policy
+            .WithOrigins("http://localhost:5174") // Frontend URL
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()); // REQUIRED to allow cookies in requests
 });
 
 builder.Services.AddControllers();
@@ -140,23 +108,34 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "GroundUp API", Version = "v1" });
 
-    // JWT Bearer Token Authentication
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    // OAuth2/OpenID Connect for Keycloak
+    options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
     {
-        Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
-        In = ParameterLocation.Header,
-        Description = "Enter 'Bearer {your_token}'",
+        Type = SecuritySchemeType.OAuth2,
+        Flows = new OpenApiOAuthFlows
+        {
+            Implicit = new OpenApiOAuthFlow
+            {
+                AuthorizationUrl = new Uri($"{Environment.GetEnvironmentVariable("KEYCLOAK_AUTH_SERVER_URL") ?? "http://localhost:8080"}/realms/{Environment.GetEnvironmentVariable("KEYCLOAK_REALM") ?? "groundup"}/protocol/openid-connect/auth"),
+                TokenUrl = new Uri($"{Environment.GetEnvironmentVariable("KEYCLOAK_AUTH_SERVER_URL") ?? "http://localhost:8080"}/realms/{Environment.GetEnvironmentVariable("KEYCLOAK_REALM") ?? "groundup"}/protocol/openid-connect/token"),
+                Scopes = new Dictionary<string, string>
+                {
+                    { "openid", "OpenID Connect" },
+                    { "profile", "User profile" }
+                }
+            }
+        }
     });
 
     // Cookie Authentication (JWT stored in cookies)
-    options.AddSecurityDefinition("CookieAuth", new OpenApiSecurityScheme
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Type = SecuritySchemeType.ApiKey,
-        In = ParameterLocation.Cookie,
-        Name = "AuthToken",
-        Description = "JWT stored in cookies"
+        Description = "JWT Authorization header using the Bearer scheme",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     // Make Swagger send cookies by default
@@ -174,7 +153,7 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            Array.Empty<string>()
+            new List<string>()
         },
         {
             new OpenApiSecurityScheme
@@ -190,28 +169,23 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll",
-        policy => policy
-            .WithOrigins("http://localhost:5174") // Frontend URL
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials()); // REQUIRED to allow cookies in requests
-});
-
 var app = builder.Build();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-
-// Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
 app.UseSwagger();
-    app.UseSwaggerUI();
-//}
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "GroundUp API V1");
+
+    // Enable Bearer token input in Swagger UI
+    c.DocumentTitle = "GroundUp API";
+    c.DefaultModelsExpandDepth(-1); // Disable schemas section
+    c.DisplayOperationId();
+    c.DisplayRequestDuration();
+    c.EnableDeepLinking();
+    c.EnableFilter();
+});
 
 app.UseCors("AllowAll");
 

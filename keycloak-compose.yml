@@ -1,0 +1,67 @@
+# keycloak-compose.yml
+version: "3.8"
+
+services:
+  keycloak-db:
+    image: mysql:8.0
+    container_name: keycloak-mysql
+    ports:
+      - "${KEYCLOAK_DB_PORT}:3306"
+    environment:
+      # Use MySQL environment variables
+      MYSQL_ROOT_PASSWORD: ${KEYCLOAK_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${KEYCLOAK_DB_NAME}
+      MYSQL_USER: ${KEYCLOAK_DB_USER}
+      MYSQL_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak-mysql-data:/var/lib/mysql
+    healthcheck:
+      # Update this to use environment variables
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "${KEYCLOAK_DB_USER}",
+          "-p${KEYCLOAK_DB_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - keycloak-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    container_name: groundup-keycloak
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Now use database environment variables
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://keycloak-db:3306/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_HTTP_ENABLED: "true"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    entrypoint: sh
+    command: ["-c", "sleep 10 && /opt/keycloak/bin/kc.sh start-dev"]
+    networks:
+      - keycloak-network
+
+networks:
+  keycloak-network:
+
+volumes:
+  keycloak-mysql-data: {} # Database data
+  keycloak-data: {}

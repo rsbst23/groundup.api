@@ -1,12 +1,20 @@
 ﻿using Castle.DynamicProxy;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using GroundUp.core.configuration;
 using GroundUp.core.interfaces;
 using GroundUp.infrastructure.interceptors;
 using GroundUp.infrastructure.services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 using System.Reflection;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace GroundUp.infrastructure.extensions
 {
@@ -68,6 +76,81 @@ namespace GroundUp.infrastructure.extensions
             // Enable FluentValidation middleware
             services.AddFluentValidationAutoValidation();
             services.AddFluentValidationClientsideAdapters();
+
+            return services;
+        }
+
+        public static IServiceCollection AddKeycloakServices(this IServiceCollection services)
+        {
+            services.Configure<KeycloakConfiguration>(config =>
+            {
+                config.AuthServerUrl = Environment.GetEnvironmentVariable("KEYCLOAK_AUTH_SERVER_URL") ?? "http://localhost:8080";
+                config.Realm = Environment.GetEnvironmentVariable("KEYCLOAK_REALM") ?? "groundup";
+                config.Resource = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
+                config.Secret = Environment.GetEnvironmentVariable("KEYCLOAK_CLIENT_SECRET") ?? "";
+            });
+
+            services.AddHttpClient<IKeycloakService, KeycloakService>();
+            services.AddScoped<IKeycloakService, KeycloakService>();
+
+            var keycloakConfig = services.BuildServiceProvider().GetRequiredService<IOptions<KeycloakConfiguration>>().Value;
+
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.RequireHttpsMetadata = false;
+                    options.Authority = $"{keycloakConfig.AuthServerUrl}/realms/{keycloakConfig.Realm}";
+                    options.Audience = keycloakConfig.Resource;
+
+                    // Use default HttpClientHandler to handle Docker networking explicitly
+                    options.BackchannelHttpHandler = new HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                    };
+
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidIssuer = $"{keycloakConfig.AuthServerUrl}/realms/{keycloakConfig.Realm}",
+                        ValidateAudience = true,
+                        ValidAudiences = new[] { keycloakConfig.Resource, "account" },
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.Zero
+                    };
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnAuthenticationFailed = context =>
+                        {
+                            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                            return Task.CompletedTask;
+                        },
+                        OnTokenValidated = context =>
+                        {
+                            var resourceAccessClaim = context.Principal.Claims.FirstOrDefault(c => c.Type == "resource_access")?.Value;
+                            if (!string.IsNullOrEmpty(resourceAccessClaim))
+                            {
+                                try
+                                {
+                                    var parsedResourceAccess = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string[]>>>(resourceAccessClaim);
+                                    if (parsedResourceAccess.TryGetValue(keycloakConfig.Resource, out var clientRoles) && clientRoles.TryGetValue("roles", out var roles))
+                                    {
+                                        var claimsIdentity = context.Principal.Identity as ClaimsIdentity;
+                                        foreach (var role in roles)
+                                        {
+                                            claimsIdentity?.AddClaim(new Claim(ClaimTypes.Role, role));
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"Error parsing roles: {ex.Message}");
+                                }
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
 
             return services;
         }
