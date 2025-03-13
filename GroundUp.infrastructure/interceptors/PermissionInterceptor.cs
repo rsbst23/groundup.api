@@ -27,18 +27,44 @@ namespace GroundUp.infrastructure.interceptors
 
             if (permissionAttribute != null)
             {
-                var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var httpContext = _httpContextAccessor.HttpContext;
 
-                if (string.IsNullOrEmpty(userId))
+                // Check authentication
+                if (httpContext?.User.Identity?.IsAuthenticated != true)
                 {
                     throw new UnauthorizedAccessException("User is not authenticated.");
                 }
 
-                var hasPermission = Task.Run(async () => await _permissionService.HasPermission(userId, permissionAttribute.Permission)).Result;
-
-                if (!hasPermission)
+                var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
                 {
-                    throw new UnauthorizedAccessException($"User '{userId}' lacks permission: {permissionAttribute.Permission}");
+                    throw new UnauthorizedAccessException("Unable to identify user.");
+                }
+
+                // Authorization logic
+                bool isAuthorized = false;
+
+                // Check role-only scenario
+                if (permissionAttribute.RequiredRoles != null)
+                {
+                    isAuthorized = permissionAttribute.RequiredRoles
+                        .Any(role => httpContext.User.IsInRole(role));
+                }
+
+                // Check permission-only scenario
+                if (!isAuthorized && permissionAttribute.Permissions != null)
+                {
+                    isAuthorized = Task.Run(async () =>
+                        await _permissionService.HasAnyPermission(
+                            userId,
+                            permissionAttribute.Permissions
+                        )).Result;
+                }
+
+                if (!isAuthorized)
+                {
+                    throw new UnauthorizedAccessException(
+                        "Insufficient permissions or roles to access this method.");
                 }
             }
 
