@@ -1,11 +1,9 @@
 ﻿using Castle.DynamicProxy;
 using GroundUp.core.interfaces;
 using GroundUp.core.security;
-using GroundUp.infrastructure.services;
 using Microsoft.AspNetCore.Http;
 using System.Reflection;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace GroundUp.infrastructure.interceptors
 {
@@ -13,59 +11,60 @@ namespace GroundUp.infrastructure.interceptors
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IPermissionService _permissionService;
+        private readonly ILoggingService _logger;
 
-        public PermissionInterceptor(IHttpContextAccessor httpContextAccessor, IPermissionService permissionService)
+        public PermissionInterceptor(
+            IHttpContextAccessor httpContextAccessor,
+            IPermissionService permissionService,
+            ILoggingService logger)
         {
             _httpContextAccessor = httpContextAccessor;
             _permissionService = permissionService;
+            _logger = logger;
         }
 
         public void Intercept(IInvocation invocation)
         {
             var method = invocation.MethodInvocationTarget ?? invocation.Method;
+            var methodName = $"{method.DeclaringType?.Name}.{method.Name}";
             var permissionAttribute = method.GetCustomAttribute<RequiresPermissionAttribute>();
 
-            if (permissionAttribute != null)
+            if (permissionAttribute == null)
             {
-                var httpContext = _httpContextAccessor.HttpContext;
+                invocation.Proceed();
+                return;
+            }
 
-                // Check authentication
-                if (httpContext?.User.Identity?.IsAuthenticated != true)
-                {
-                    throw new UnauthorizedAccessException("User is not authenticated.");
-                }
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext?.User.Identity?.IsAuthenticated != true)
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
 
-                var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    throw new UnauthorizedAccessException("Unable to identify user.");
-                }
+            var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                // Authorization logic
-                bool isAuthorized = false;
+            // Log user roles
+            var roles = httpContext.User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
 
-                // Check role-only scenario
-                if (permissionAttribute.RequiredRoles != null)
-                {
-                    isAuthorized = permissionAttribute.RequiredRoles
-                        .Any(role => httpContext.User.IsInRole(role));
-                }
-
-                // Check permission-only scenario
-                if (!isAuthorized && permissionAttribute.Permissions != null)
+            // Check permissions
+            bool isAuthorized = false;
+            try
+            {
+                if (permissionAttribute.Permissions.Length > 0)
                 {
                     isAuthorized = Task.Run(async () =>
-                        await _permissionService.HasAnyPermission(
-                            userId,
-                            permissionAttribute.Permissions
-                        )).Result;
+                        await _permissionService.HasAnyPermission(userId, permissionAttribute.Permissions)
+                    ).Result;
                 }
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
 
-                if (!isAuthorized)
-                {
-                    throw new UnauthorizedAccessException(
-                        "Insufficient permissions or roles to access this method.");
-                }
+            if (!isAuthorized)
+            {
+                throw new ForbiddenAccessException($"User {userId} lacks permission for {methodName}");
             }
 
             invocation.Proceed();

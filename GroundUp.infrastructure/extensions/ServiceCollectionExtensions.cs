@@ -9,8 +9,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Protocols;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using System.Reflection;
 using System.Security.Claims;
@@ -25,15 +23,16 @@ namespace GroundUp.infrastructure.extensions
         /// </summary>
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
         {
+            var isEfCoreMigration = Environment.GetCommandLineArgs().Any(arg => arg.Contains("ef"));
+
+            if (isEfCoreMigration)
+            {
+                return services; // Skip registering repositories during migrations
+            }
+
             // Register Logging Service
             services.AddSingleton<ILoggingService, LoggingService>();
-
-            // Register Proxy Generator for Castle Dynamic Proxy
             services.AddSingleton<ProxyGenerator>();
-
-            // Register PermissionInterceptor for role-based access control
-            services.AddScoped<PermissionInterceptor>();
-            services.AddScoped<IInterceptor>(provider => provider.GetRequiredService<PermissionInterceptor>());
 
             // Register IHttpContextAccessor for accessing user claims in permission checks
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
@@ -41,29 +40,32 @@ namespace GroundUp.infrastructure.extensions
             // Register Permission Service
             services.AddScoped<IPermissionService, PermissionService>();
 
-            // Register repositories dynamically with Castle Proxy interception
+            services.AddMemoryCache();
+
             var repositoryTypes = Assembly.GetExecutingAssembly()
                 .GetTypes()
-                .Where(type => type.IsClass && !type.IsAbstract && type.Name.EndsWith("Repository"));
+                .Where(type => type.IsClass && !type.IsAbstract && type.Name.EndsWith("Repository"))
+                .ToList();
 
             foreach (var repositoryType in repositoryTypes)
             {
                 var interfaceType = repositoryType.GetInterfaces().FirstOrDefault();
                 if (interfaceType != null)
                 {
-                    services.AddScoped(repositoryType); // Register repository itself
+                    services.AddScoped(repositoryType); // Register the repository class
                     services.AddScoped(interfaceType, provider =>
                     {
                         var proxyGenerator = provider.GetRequiredService<ProxyGenerator>();
                         var repositoryInstance = provider.GetRequiredService(repositoryType);
-                        var interceptor = provider.GetRequiredService<PermissionInterceptor>();
-                        return proxyGenerator.CreateInterfaceProxyWithTarget(interfaceType, repositoryInstance, interceptor);
+
+                        return proxyGenerator.CreateInterfaceProxyWithTarget(interfaceType, repositoryInstance, new LazyInterceptor(provider));
                     });
                 }
             }
 
             return services;
         }
+
 
         /// <summary>
         /// Registers application services, including FluentValidation middleware.
@@ -122,7 +124,6 @@ namespace GroundUp.infrastructure.extensions
                     {
                         OnAuthenticationFailed = context =>
                         {
-                            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
                             return Task.CompletedTask;
                         },
                         OnTokenValidated = context =>

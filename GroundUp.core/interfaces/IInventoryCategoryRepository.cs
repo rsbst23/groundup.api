@@ -6,7 +6,7 @@ namespace GroundUp.core.interfaces
 {
     public interface IInventoryCategoryRepository
     {
-        //[RequiresPermission("inventory.view")]
+        [RequiresPermission("inventory.view")]
         Task<ApiResponse<PaginatedData<InventoryCategoryDto>>> GetAllAsync(FilterParams filterParams);
 
         [RequiresPermission("inventory.view")]

@@ -12,6 +12,7 @@ namespace GroundUp.infrastructure.mappings
             CreateMap<InventoryItem, InventoryItemDto>().ReverseMap();
             CreateMap<InventoryCategory, InventoryCategoryDto>().ReverseMap();
             CreateMap<InventoryAttribute, InventoryAttributeDto>().ReverseMap();
+            CreateMap<Permission, PermissionDto>().ReverseMap();
 
             // Map from DTO to Entity
             CreateMap<ErrorFeedbackDto, ErrorFeedback>()
@@ -27,6 +28,10 @@ namespace GroundUp.infrastructure.mappings
                     JsonSerializer.Deserialize<ErrorDetailsDto>(src.ErrorJson,
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                     ?? new ErrorDetailsDto()));
+
+            CreateMap<RolePermission, RolePermissionDto>()
+                .ForMember(dest => dest.PermissionName, opt => opt.MapFrom(src => src.Permission.Name));
+            CreateMap<RolePermissionDto, RolePermission>();
         }
     }
 }

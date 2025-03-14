@@ -1,10 +1,9 @@
 ﻿using GroundUp.core.entities;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.data
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    public class ApplicationDbContext : DbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
@@ -15,11 +14,22 @@ namespace GroundUp.infrastructure.data
         public DbSet<InventoryItem> InventoryItems { get; set; }
         public DbSet<InventoryAttribute> InventoryAttributes { get; set; }
 
+        public DbSet<Permission> Permissions { get; set; }
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
         public DbSet<ErrorFeedback> ErrorFeedback { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Permission>()
+               .HasIndex(p => p.Name)
+               .IsUnique();
+
+            modelBuilder.Entity<RolePermission>()
+                .HasIndex(rp => new { rp.RoleName, rp.PermissionId })
+                .IsUnique();
 
             modelBuilder.Entity<InventoryCategory>()
                 .Property(b => b.CreatedDate)
@@ -62,6 +72,30 @@ namespace GroundUp.infrastructure.data
             modelBuilder.Entity<InventoryItem>().HasData(
                 new InventoryItem { Id = 1, Name = "Laptop", PurchasePrice = 999.99m, Condition = "New", InventoryCategoryId = 1, PurchaseDate = DateTime.UtcNow },
                 new InventoryItem { Id = 2, Name = "The Great Gatsby", PurchasePrice = 12.99m, Condition = "Used", InventoryCategoryId = 2, PurchaseDate = DateTime.UtcNow }
+            );
+
+            // Seed default permissions
+            modelBuilder.Entity<Permission>().HasData(
+                new Permission { Id = 1, Name = "inventory.view", Description = "View inventory items", Group = "Inventory" },
+                new Permission { Id = 2, Name = "inventory.create", Description = "Create inventory items", Group = "Inventory" },
+                new Permission { Id = 3, Name = "inventory.update", Description = "Update inventory items", Group = "Inventory" },
+                new Permission { Id = 4, Name = "inventory.delete", Description = "Delete inventory items", Group = "Inventory" },
+                new Permission { Id = 5, Name = "inventory.export", Description = "Export inventory data", Group = "Inventory" },
+                new Permission { Id = 6, Name = "errors.view", Description = "View error logs", Group = "Errors" },
+                new Permission { Id = 7, Name = "errors.update", Description = "Update error logs", Group = "Errors" },
+                new Permission { Id = 8, Name = "errors.delete", Description = "Delete error logs", Group = "Errors" }
+            );
+
+            // Seed role-permission mappings for admin role
+            modelBuilder.Entity<RolePermission>().HasData(
+                new RolePermission { Id = 1, RoleName = "ADMIN", PermissionId = 1 },
+                new RolePermission { Id = 2, RoleName = "ADMIN", PermissionId = 2 },
+                new RolePermission { Id = 3, RoleName = "ADMIN", PermissionId = 3 },
+                new RolePermission { Id = 4, RoleName = "ADMIN", PermissionId = 4 },
+                new RolePermission { Id = 5, RoleName = "ADMIN", PermissionId = 5 },
+                new RolePermission { Id = 6, RoleName = "ADMIN", PermissionId = 6 },
+                new RolePermission { Id = 7, RoleName = "ADMIN", PermissionId = 7 },
+                new RolePermission { Id = 8, RoleName = "ADMIN", PermissionId = 8 }
             );
         }
     }

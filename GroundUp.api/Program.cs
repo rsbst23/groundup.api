@@ -9,7 +9,10 @@ using Serilog.Formatting.Json;
 using Serilog.Sinks.AwsCloudWatch;
 using GroundUp.infrastructure.extensions;
 using GroundUp.api.Infrastructure.Swagger;
-using static Mysqlx.Crud.Order.Types;
+using GroundUp.core.interfaces;
+using GroundUp.infrastructure.repositories;
+using GroundUp.infrastructure.interceptors;
+using GroundUp.infrastructure.services;
 
 DotNetEnv.Env.Load();
 
@@ -20,7 +23,7 @@ if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AWS_EXECUTION_ENV"
     cloudWatchClient = new AmazonCloudWatchLogsClient();
 }
 
-// Use Serilog with or without CloudWatch
+// Configure Serilog
 var loggerConfig = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .WriteTo.Console();
@@ -40,7 +43,6 @@ if (cloudWatchClient != null)
     loggerConfig.WriteTo.AmazonCloudWatch(cloudWatchSinkOptions, cloudWatchClient);
 }
 
-// Configure Serilog
 Log.Logger = loggerConfig.CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,16 +63,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// IMPORTANT: Add Keycloak services - this will configure JWT authentication
+// Add Keycloak authentication and authorization
 builder.Services.AddKeycloakServices();
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("ADMIN"));
-
-    options.AddPolicy("UserAccess", policy =>
-        policy.RequireRole("USER"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("ADMIN"));
+    options.AddPolicy("UserAccess", policy => policy.RequireRole("USER"));
 });
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -87,28 +86,39 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-// Enable CORS
+// Register CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
         policy => policy
-            .WithOrigins("http://localhost:5174") // Frontend URL
+            .WithOrigins("http://localhost:5174")
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials()); // REQUIRED to allow cookies in requests
+            .AllowCredentials());
 });
 
-builder.Services.AddControllers();
-builder.Services.AddApplicationServices(); // Auto-register validators
-builder.Services.AddInfrastructureServices(); // Auto-register repositories
+// Register required services before repositories
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<ILoggingService, LoggingService>();
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// Register `PermissionInterceptor`
+builder.Services.AddScoped<PermissionInterceptor>();
+
+// Register infrastructure services (Repositories, Proxies, etc.)
+builder.Services.AddInfrastructureServices();
+
+// Add additional application services
+builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
+builder.Services.AddApplicationServices();
+
+// Ensure Swagger is correctly configured
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "GroundUp API", Version = "v1" });
 
-    // OAuth2/OpenID Connect for Keycloak
     options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.OAuth2,
@@ -127,7 +137,6 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 
-    // Cookie Authentication (JWT stored in cookies)
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme",
@@ -138,10 +147,8 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT"
     });
 
-    // Make Swagger send cookies by default
     options.OperationFilter<CookieAuthOperationFilter>();
 
-    // Enforce security requirements
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -169,18 +176,18 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Build the application
 var app = builder.Build();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Enable Swagger UI
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "GroundUp API V1");
-
-    // Enable Bearer token input in Swagger UI
     c.DocumentTitle = "GroundUp API";
-    c.DefaultModelsExpandDepth(-1); // Disable schemas section
+    c.DefaultModelsExpandDepth(-1);
     c.DisplayOperationId();
     c.DisplayRequestDuration();
     c.EnableDeepLinking();
@@ -188,14 +195,10 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowAll");
-
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
 
 public partial class Program { }
