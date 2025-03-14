@@ -40,6 +40,9 @@ namespace GroundUp.infrastructure.extensions
             // Register Permission Service
             services.AddScoped<IPermissionService, PermissionService>();
 
+            services.AddScoped<PermissionInterceptor>();
+
+
             services.AddMemoryCache();
 
             var repositoryTypes = Assembly.GetExecutingAssembly()

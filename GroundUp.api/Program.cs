@@ -66,11 +66,6 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // Add Keycloak authentication and authorization
 builder.Services.AddKeycloakServices();
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("ADMIN"));
-    options.AddPolicy("UserAccess", policy => policy.RequireRole("USER"));
-});
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -98,12 +93,12 @@ builder.Services.AddCors(options =>
 });
 
 // Register required services before repositories
-builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-builder.Services.AddScoped<IPermissionService, PermissionService>();
-builder.Services.AddScoped<ILoggingService, LoggingService>();
+//builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+//builder.Services.AddScoped<IPermissionService, PermissionService>();
+//builder.Services.AddScoped<ILoggingService, LoggingService>();
 
-// Register `PermissionInterceptor`
-builder.Services.AddScoped<PermissionInterceptor>();
+//// Register `PermissionInterceptor`
+//builder.Services.AddScoped<PermissionInterceptor>();
 
 // Register infrastructure services (Repositories, Proxies, etc.)
 builder.Services.AddInfrastructureServices();
