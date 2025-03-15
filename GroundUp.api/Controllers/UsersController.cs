@@ -1,64 +1,120 @@
-﻿using GroundUp.core.entities;
-using GroundUp.infrastructure.data;
+﻿using GroundUp.core;
+using GroundUp.core.dtos;
+using GroundUp.core.interfaces;
+using GroundUp.core.security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace GroundUp.api.Controllers
 {
+    [Route("api/users")]
     [ApiController]
-    [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IKeycloakAdminService _keycloakAdminService;
+        private readonly ILoggingService _logger;
 
-        public UsersController(ApplicationDbContext context)
+        public UsersController(IKeycloakAdminService keycloakAdminService, ILoggingService logger)
         {
-            _context = context;
+            _keycloakAdminService = keycloakAdminService;
+            _logger = logger;
         }
 
         // GET: api/users
         [HttpGet]
-        public IActionResult GetUsers()
+        public async Task<ActionResult<ApiResponse<List<UserSummaryDto>>>> GetAllUsers()
         {
-            var users = _context.Users.ToList();
-            return Ok(users);
+            try
+            {
+                var users = await _keycloakAdminService.GetAllUsersAsync();
+                return Ok(new ApiResponse<List<UserSummaryDto>>(users));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving users: {ex.Message}", ex);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new ApiResponse<List<UserSummaryDto>>(
+                        new List<UserSummaryDto>(),
+                        false,
+                        "Failed to retrieve users from Keycloak",
+                        new List<string> { ex.Message },
+                        StatusCodes.Status500InternalServerError,
+                        ErrorCodes.InternalServerError
+                    ));
+            }
         }
 
-        // POST: api/users
-        [HttpPost]
-        public IActionResult CreateUser(User user)
+        // GET: api/users/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ApiResponse<UserDetailsDto>>> GetUserById(string id)
         {
-            _context.Users.Add(user);
-            _context.SaveChanges();
-            return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
+            try
+            {
+                var user = await _keycloakAdminService.GetUserByIdAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new ApiResponse<UserDetailsDto>(
+                        default!,
+                        false,
+                        $"User with ID '{id}' not found",
+                        null,
+                        StatusCodes.Status404NotFound,
+                        ErrorCodes.NotFound
+                    ));
+                }
+
+                return Ok(new ApiResponse<UserDetailsDto>(user));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving user with ID '{id}': {ex.Message}", ex);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new ApiResponse<UserDetailsDto>(
+                        default!,
+                        false,
+                        $"Failed to retrieve user with ID '{id}' from Keycloak",
+                        new List<string> { ex.Message },
+                        StatusCodes.Status500InternalServerError,
+                        ErrorCodes.InternalServerError
+                    ));
+            }
         }
 
-        // PUT: api/users/{id}
-        [HttpPut("{id}")]
-        public IActionResult UpdateUser(int id, User updatedUser)
+        // GET: api/users/by-username/{username}
+        [HttpGet("by-username/{username}")]
+        public async Task<ActionResult<ApiResponse<UserDetailsDto>>> GetUserByUsername(string username)
         {
-            var user = _context.Users.Find(id);
-            if (user == null) return NotFound();
+            try
+            {
+                var user = await _keycloakAdminService.GetUserByUsernameAsync(username);
+                if (user == null)
+                {
+                    return NotFound(new ApiResponse<UserDetailsDto>(
+                        default!,
+                        false,
+                        $"User with username '{username}' not found",
+                        null,
+                        StatusCodes.Status404NotFound,
+                        ErrorCodes.NotFound
+                    ));
+                }
 
-            user.Name = updatedUser.Name;
-            user.Email = updatedUser.Email;
-            _context.SaveChanges();
-
-            return NoContent();
-        }
-
-        // DELETE: api/users/{id}
-        [HttpDelete("{id}")]
-        public IActionResult DeleteUser(int id)
-        {
-            var user = _context.Users.Find(id);
-            if (user == null) return NotFound();
-
-            _context.Users.Remove(user);
-            _context.SaveChanges();
-
-            return NoContent();
+                return Ok(new ApiResponse<UserDetailsDto>(user));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving user with username '{username}': {ex.Message}", ex);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new ApiResponse<UserDetailsDto>(
+                        default!,
+                        false,
+                        $"Failed to retrieve user with username '{username}' from Keycloak",
+                        new List<string> { ex.Message },
+                        StatusCodes.Status500InternalServerError,
+                        ErrorCodes.InternalServerError
+                    ));
+            }
         }
     }
 }

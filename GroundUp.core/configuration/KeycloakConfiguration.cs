@@ -10,5 +10,9 @@
         public string SslRequired { get; set; } = "external";
         public bool UseResourceRoleMappings { get; set; } = true;
         public int ConfidentialPort { get; set; } = 0;
+
+        // Added properties for admin access
+        public string AdminClientId { get; set; } = string.Empty;
+        public string AdminClientSecret { get; set; } = string.Empty;
     }
 }

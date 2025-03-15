@@ -1,18 +1,16 @@
 using Amazon.CloudWatchLogs;
+using GroundUp.api.Infrastructure.Swagger;
 using GroundUp.api.Middleware;
 using GroundUp.infrastructure.data;
+using GroundUp.infrastructure.extensions;
 using GroundUp.infrastructure.mappings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.AwsCloudWatch;
-using GroundUp.infrastructure.extensions;
-using GroundUp.api.Infrastructure.Swagger;
-using GroundUp.core.interfaces;
-using GroundUp.infrastructure.repositories;
-using GroundUp.infrastructure.interceptors;
-using GroundUp.infrastructure.services;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 DotNetEnv.Env.Load();
 
@@ -92,14 +90,6 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-// Register required services before repositories
-//builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-//builder.Services.AddScoped<IPermissionService, PermissionService>();
-//builder.Services.AddScoped<ILoggingService, LoggingService>();
-
-//// Register `PermissionInterceptor`
-//builder.Services.AddScoped<PermissionInterceptor>();
-
 // Register infrastructure services (Repositories, Proxies, etc.)
 builder.Services.AddInfrastructureServices();
 
@@ -171,6 +161,33 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Services.AddRateLimiter(options =>
+{
+    // Global rate limiter applied to all endpoints
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // You can add specific policies for different endpoints
+    options.AddPolicy("AdminApiPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
+
 // Build the application
 var app = builder.Build();
 app.UseSerilogRequestLogging();
@@ -189,6 +206,7 @@ app.UseSwaggerUI(c =>
     c.EnableFilter();
 });
 
+app.UseRateLimiter();
 app.UseCors("AllowAll");
 app.UseHttpsRedirection();
 app.UseAuthentication();

@@ -40,8 +40,11 @@ namespace GroundUp.infrastructure.extensions
             // Register Permission Service
             services.AddScoped<IPermissionService, PermissionService>();
 
-            services.AddScoped<PermissionInterceptor>();
+            // Register Keycloak Admin Service
+            services.AddHttpClient<IKeycloakAdminService, KeycloakAdminService>();
+            services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
 
+            services.AddScoped<PermissionInterceptor>();
 
             services.AddMemoryCache();
 
@@ -69,7 +72,6 @@ namespace GroundUp.infrastructure.extensions
             return services;
         }
 
-
         /// <summary>
         /// Registers application services, including FluentValidation middleware.
         /// </summary>
@@ -93,6 +95,10 @@ namespace GroundUp.infrastructure.extensions
                 config.Realm = Environment.GetEnvironmentVariable("KEYCLOAK_REALM") ?? "groundup";
                 config.Resource = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
                 config.Secret = Environment.GetEnvironmentVariable("KEYCLOAK_CLIENT_SECRET") ?? "";
+
+                // Add admin client credentials for Keycloak admin API
+                config.AdminClientId = Environment.GetEnvironmentVariable("KEYCLOAK_ADMIN_CLIENT_ID") ?? "admin-cli";
+                config.AdminClientSecret = Environment.GetEnvironmentVariable("KEYCLOAK_ADMIN_CLIENT_SECRET") ?? "";
             });
 
             services.AddHttpClient<IKeycloakService, KeycloakService>();

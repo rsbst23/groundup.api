@@ -22,6 +22,12 @@ namespace GroundUp.core.interfaces
         Task<ApiResponse<RolePermissionDto>> AssignPermissionToRoleAsync(string roleName, int permissionId);
         Task<ApiResponse<bool>> RemovePermissionFromRoleAsync(string roleName, int permissionId);
 
+        // New method for bulk assigning permissions to a role
+        Task<ApiResponse<bool>> AssignMultiplePermissionsToRoleAsync(string roleName, List<int> permissionIds);
+
+        // New method to get all role-permission mappings
+        Task<ApiResponse<List<RolePermissionMappingDto>>> GetAllRolePermissionMappingsAsync();
+
         // User-focused permission methods
         Task<ApiResponse<UserPermissionsDto>> GetUserPermissionsDetailedAsync(string userId);
 

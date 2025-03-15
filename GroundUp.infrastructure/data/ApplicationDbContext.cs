@@ -97,6 +97,36 @@ namespace GroundUp.infrastructure.data
                 new RolePermission { Id = 7, RoleName = "ADMIN", PermissionId = 7 },
                 new RolePermission { Id = 8, RoleName = "ADMIN", PermissionId = 8 }
             );
+
+            // Additional permissions for role and user management
+            modelBuilder.Entity<Permission>().HasData(
+                new Permission { Id = 9, Name = "roles.view", Description = "View roles", Group = "Roles" },
+                new Permission { Id = 10, Name = "roles.create", Description = "Create roles", Group = "Roles" },
+                new Permission { Id = 11, Name = "roles.update", Description = "Update roles", Group = "Roles" },
+                new Permission { Id = 12, Name = "roles.delete", Description = "Delete roles", Group = "Roles" },
+                new Permission { Id = 13, Name = "roles.permissions.view", Description = "View role permissions", Group = "Roles" },
+                new Permission { Id = 14, Name = "roles.permissions.assign", Description = "Assign permissions to roles", Group = "Roles" },
+                new Permission { Id = 15, Name = "roles.permissions.remove", Description = "Remove permissions from roles", Group = "Roles" },
+                new Permission { Id = 16, Name = "users.view", Description = "View users", Group = "Users" },
+                new Permission { Id = 17, Name = "users.roles.view", Description = "View user roles", Group = "Users" },
+                new Permission { Id = 18, Name = "users.roles.assign", Description = "Assign roles to users", Group = "Users" },
+                new Permission { Id = 19, Name = "users.roles.remove", Description = "Remove roles from users", Group = "Users" }
+            );
+
+            // Give the ADMIN role all the new permissions as well
+            modelBuilder.Entity<RolePermission>().HasData(
+                new RolePermission { Id = 9, RoleName = "ADMIN", PermissionId = 9 },
+                new RolePermission { Id = 10, RoleName = "ADMIN", PermissionId = 10 },
+                new RolePermission { Id = 11, RoleName = "ADMIN", PermissionId = 11 },
+                new RolePermission { Id = 12, RoleName = "ADMIN", PermissionId = 12 },
+                new RolePermission { Id = 13, RoleName = "ADMIN", PermissionId = 13 },
+                new RolePermission { Id = 14, RoleName = "ADMIN", PermissionId = 14 },
+                new RolePermission { Id = 15, RoleName = "ADMIN", PermissionId = 15 },
+                new RolePermission { Id = 16, RoleName = "ADMIN", PermissionId = 16 },
+                new RolePermission { Id = 17, RoleName = "ADMIN", PermissionId = 17 },
+                new RolePermission { Id = 18, RoleName = "ADMIN", PermissionId = 18 },
+                new RolePermission { Id = 19, RoleName = "ADMIN", PermissionId = 19 }
+            );
         }
     }
 }
