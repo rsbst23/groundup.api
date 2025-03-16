@@ -2,7 +2,9 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using GroundUp.core.configuration;
+using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
+using GroundUp.core.validators;
 using GroundUp.infrastructure.interceptors;
 using GroundUp.infrastructure.services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -78,7 +80,7 @@ namespace GroundUp.infrastructure.extensions
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             // Scan and register all FluentValidation validators
-            services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+            services.AddValidatorsFromAssembly(typeof(CreateRoleDtoValidator).Assembly);
 
             // Enable FluentValidation middleware
             services.AddFluentValidationAutoValidation();

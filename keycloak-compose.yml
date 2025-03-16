@@ -40,15 +40,24 @@ services:
     container_name: groundup-keycloak
     restart: unless-stopped
     environment:
+      # Admin credentials
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      # Now use database environment variables
+      
+      # Database configuration
       KC_DB: mysql
       KC_DB_URL: jdbc:mysql://keycloak-db:3306/${KEYCLOAK_DB_NAME}
       KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
       KC_HTTP_ENABLED: "true"
+      
+      # Content Security Policy configuration
+      # This allows your app at localhost:5173 to embed Keycloak in an iframe
+      KC_SPI_CONTENT_SECURITY_POLICY_CONTENT_SECURITY_POLICY: "frame-src 'self'; frame-ancestors 'self' http://localhost:5173 https://localhost:5173; object-src 'none';"
+      
+      # Additional security headers if needed
+      KC_SPI_CONTENT_SECURITY_POLICY_XFRAME_OPTIONS: "SAMEORIGIN"
     depends_on:
       keycloak-db:
         condition: service_healthy

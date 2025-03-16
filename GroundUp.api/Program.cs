@@ -82,9 +82,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 // Register CORS policy
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
+    options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://localhost:5174")
+            .WithOrigins("http://localhost:5173")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());
@@ -207,7 +207,7 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseRateLimiter();
-app.UseCors("AllowAll");
+app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
