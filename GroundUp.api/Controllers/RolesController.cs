@@ -14,169 +14,53 @@ namespace GroundUp.api.Controllers
     [Authorize]
     public class RolesController : ControllerBase
     {
-        private readonly IKeycloakAdminService _keycloakAdminService;
+        private readonly IRoleRepository _roleRepository;
         private readonly ILoggingService _logger;
 
-        public RolesController(IKeycloakAdminService keycloakAdminService, ILoggingService logger)
+        public RolesController(IRoleRepository roleRepository, ILoggingService logger)
         {
-            _keycloakAdminService = keycloakAdminService;
+            _roleRepository = roleRepository;
             _logger = logger;
         }
 
-        // GET: api/roles
+        // GET: api/roles (Paginated)
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<List<RoleDto>>>> GetAllRoles()
+        public async Task<ActionResult<ApiResponse<PaginatedData<RoleDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            try
-            {
-                var roles = await _keycloakAdminService.GetAllRolesAsync();
-                return Ok(new ApiResponse<List<RoleDto>>(roles));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error retrieving roles: {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new ApiResponse<List<RoleDto>>(
-                        new List<RoleDto>(),
-                        false,
-                        "Failed to retrieve roles from Keycloak",
-                        new List<string> { ex.Message },
-                        StatusCodes.Status500InternalServerError,
-                        ErrorCodes.InternalServerError
-                    ));
-            }
+            var result = await _roleRepository.GetAllAsync(filterParams);
+            return StatusCode(result.StatusCode, result);
         }
 
         // GET: api/roles/{name}
         [HttpGet("{name}")]
-        public async Task<ActionResult<ApiResponse<RoleDto>>> GetRoleByName(string name)
+        public async Task<ActionResult<ApiResponse<RoleDto>>> GetByName(string name)
         {
-            try
-            {
-                var role = await _keycloakAdminService.GetRoleByNameAsync(name);
-                if (role == null)
-                {
-                    return NotFound(new ApiResponse<RoleDto>(
-                        default!,
-                        false,
-                        $"Role '{name}' not found",
-                        null,
-                        StatusCodes.Status404NotFound,
-                        ErrorCodes.NotFound
-                    ));
-                }
-
-                return Ok(new ApiResponse<RoleDto>(role));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error retrieving role '{name}': {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new ApiResponse<RoleDto>(
-                        default!,
-                        false,
-                        $"Failed to retrieve role '{name}' from Keycloak",
-                        new List<string> { ex.Message },
-                        StatusCodes.Status500InternalServerError,
-                        ErrorCodes.InternalServerError
-                    ));
-            }
+            var result = await _roleRepository.GetByNameAsync(name);
+            return StatusCode(result.StatusCode, result);
         }
 
         // POST: api/roles
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<RoleDto>>> CreateRole([FromBody] CreateRoleDto roleDto)
+        public async Task<ActionResult<ApiResponse<RoleDto>>> Create([FromBody] CreateRoleDto roleDto)
         {
-            try
-            {
-                var role = await _keycloakAdminService.CreateRoleAsync(roleDto);
-                return StatusCode(StatusCodes.Status201Created, new ApiResponse<RoleDto>(role, true, "Role created successfully"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error creating role: {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new ApiResponse<RoleDto>(
-                        default!,
-                        false,
-                        "Failed to create role in Keycloak",
-                        new List<string> { ex.Message },
-                        StatusCodes.Status500InternalServerError,
-                        ErrorCodes.InternalServerError
-                    ));
-            }
+            var result = await _roleRepository.CreateAsync(roleDto);
+            return StatusCode(result.StatusCode, result);
         }
 
         // PUT: api/roles/{name}
         [HttpPut("{name}")]
-        public async Task<ActionResult<ApiResponse<RoleDto>>> UpdateRole(string name, [FromBody] UpdateRoleDto roleDto)
+        public async Task<ActionResult<ApiResponse<RoleDto>>> Update(string name, [FromBody] UpdateRoleDto roleDto)
         {
-            try
-            {
-                var updatedRole = await _keycloakAdminService.UpdateRoleAsync(name, roleDto);
-                if (updatedRole == null)
-                {
-                    return NotFound(new ApiResponse<RoleDto>(
-                        default!,
-                        false,
-                        $"Role '{name}' not found",
-                        null,
-                        StatusCodes.Status404NotFound,
-                        ErrorCodes.NotFound
-                    ));
-                }
-
-                return Ok(new ApiResponse<RoleDto>(updatedRole));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error updating role '{name}': {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new ApiResponse<RoleDto>(
-                        default!,
-                        false,
-                        $"Failed to update role '{name}' in Keycloak",
-                        new List<string> { ex.Message },
-                        StatusCodes.Status500InternalServerError,
-                        ErrorCodes.InternalServerError
-                    ));
-            }
+            var result = await _roleRepository.UpdateAsync(name, roleDto);
+            return StatusCode(result.StatusCode, result);
         }
 
         // DELETE: api/roles/{name}
         [HttpDelete("{name}")]
-        public async Task<ActionResult<ApiResponse<bool>>> DeleteRole(string name)
+        public async Task<ActionResult<ApiResponse<bool>>> Delete(string name)
         {
-            try
-            {
-                var result = await _keycloakAdminService.DeleteRoleAsync(name);
-                if (!result)
-                {
-                    return NotFound(new ApiResponse<bool>(
-                        false,
-                        false,
-                        $"Role '{name}' not found",
-                        null,
-                        StatusCodes.Status404NotFound,
-                        ErrorCodes.NotFound
-                    ));
-                }
-
-                return Ok(new ApiResponse<bool>(true, true, $"Role '{name}' deleted successfully"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error deleting role '{name}': {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new ApiResponse<bool>(
-                        false,
-                        false,
-                        $"Failed to delete role '{name}' from Keycloak",
-                        new List<string> { ex.Message },
-                        StatusCodes.Status500InternalServerError,
-                        ErrorCodes.InternalServerError
-                    ));
-            }
+            var result = await _roleRepository.DeleteAsync(name);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }
