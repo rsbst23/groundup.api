@@ -1,7 +1,10 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
+using GroundUp.core.entities;
 using GroundUp.core.interfaces;
+using GroundUp.infrastructure.data;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Security.Claims;
@@ -12,12 +15,10 @@ namespace GroundUp.infrastructure.services
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILoggingService _logger;
-        private readonly IPermissionRepository _permissionRepository;
-        private readonly IRolePermissionRepository _rolePermissionRepository;
-        private readonly IKeycloakAdminService _keycloakAdminService;
+        private readonly ApplicationDbContext _context;
+        private readonly IIdentityProviderAdminService _identityProviderAdminService;
         private readonly IMemoryCache _cache;
         private static readonly ConcurrentDictionary<string, bool> _cacheKeys = new ConcurrentDictionary<string, bool>();
-
 
         private const string CACHE_KEY_PERMISSIONS = "UserPermissions_";
         private const int CACHE_DURATION_MINUTES = 15;
@@ -25,23 +26,21 @@ namespace GroundUp.infrastructure.services
         public PermissionService(
             IHttpContextAccessor httpContextAccessor,
             ILoggingService logger,
-            IPermissionRepository permissionRepository,
-            IRolePermissionRepository rolePermissionRepository,
+            ApplicationDbContext context,
             IMemoryCache cache,
-            IKeycloakAdminService keycloakAdminService)
+            IIdentityProviderAdminService identityProviderAdminService)
         {
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
-            _permissionRepository = permissionRepository;
-            _rolePermissionRepository = rolePermissionRepository;
+            _context = context;
             _cache = cache;
-            _keycloakAdminService = keycloakAdminService;
+            _identityProviderAdminService = identityProviderAdminService;
         }
 
         public async Task<bool> HasPermission(string userId, string permission)
         {
             var user = _httpContextAccessor.HttpContext?.User;
-            if (user == null)
+            if (user == null || !user.Identity?.IsAuthenticated == true)
             {
                 return false;
             }
@@ -52,7 +51,7 @@ namespace GroundUp.infrastructure.services
                 return true;
             }
 
-            // Check from database-stored permissions
+            // Check from database-stored permissions through policies
             var userPermissions = await GetUserPermissionsFromCacheOrDatabase(userId);
             return userPermissions.Contains(permission);
         }
@@ -66,12 +65,6 @@ namespace GroundUp.infrastructure.services
                 {
                     return false;
                 }
-
-                // Log user roles
-                var roles = user.Claims
-                    .Where(c => c.Type == ClaimTypes.Role)
-                    .Select(c => c.Value)
-                    .ToList();
 
                 // Try direct claim-based permission check
                 bool hasDirectPermission = permissions.Any(permission =>
@@ -114,9 +107,19 @@ namespace GroundUp.infrastructure.services
                 .Select(c => c.Value)
                 .ToList();
 
-            // Get permissions for these roles from database
-            var permissionsResult = await _permissionRepository.GetPermissionsByRoleNamesAsync(roles);
-            var permissions = permissionsResult.Success ? permissionsResult.Data : new List<string>();
+            // Get permissions for these roles through policies
+            var permissions = await _context.RolePolicies
+                .Where(rp => roles.Contains(rp.RoleName) && rp.RoleType == RoleType.System)
+                .Join(_context.PolicyPermissions,
+                      rp => rp.PolicyId,
+                      pp => pp.PolicyId,
+                      (rp, pp) => pp.PermissionId)
+                .Join(_context.Permissions,
+                      permId => permId,
+                      perm => perm.Id,
+                      (permId, perm) => perm.Name)
+                .Distinct()
+                .ToListAsync();
 
             // Cache the permissions
             _cache.Set(cacheKey, permissions, TimeSpan.FromMinutes(CACHE_DURATION_MINUTES));
@@ -130,95 +133,32 @@ namespace GroundUp.infrastructure.services
             return await GetUserPermissionsFromCacheOrDatabase(userId);
         }
 
-        #region Permission CRUD Operations
-
         public async Task<ApiResponse<List<PermissionDto>>> GetAllPermissionsAsync()
-        {
-            var filterParams = new FilterParams { PageSize = 1000 }; // Get all permissions
-            var result = await _permissionRepository.GetAllAsync(filterParams);
-            return new ApiResponse<List<PermissionDto>>(
-                result.Success ? result.Data.Items : new List<PermissionDto>(),
-                result.Success,
-                result.Message,
-                result.Errors,
-                result.StatusCode,
-                result.ErrorCode
-            );
-        }
-
-        public async Task<ApiResponse<PermissionDto>> GetPermissionByIdAsync(int id)
-        {
-            return await _permissionRepository.GetByIdAsync(id);
-        }
-
-        public async Task<ApiResponse<PermissionDto>> GetPermissionByNameAsync(string name)
-        {
-            return await _permissionRepository.GetByNameAsync(name);
-        }
-
-        public async Task<ApiResponse<PermissionDto>> CreatePermissionAsync(PermissionDto permissionDto)
-        {
-            return await _permissionRepository.AddAsync(permissionDto);
-        }
-
-        public async Task<ApiResponse<PermissionDto>> UpdatePermissionAsync(int id, PermissionDto permissionDto)
-        {
-            return await _permissionRepository.UpdateAsync(id, permissionDto);
-        }
-
-        public async Task<ApiResponse<bool>> DeletePermissionAsync(int id)
-        {
-            return await _permissionRepository.DeleteAsync(id);
-        }
-
-        #endregion
-
-        #region Role-Permission Mapping Operations
-
-        public async Task<ApiResponse<List<RolePermissionMappingDto>>> GetAllRolePermissionMappingsAsync()
         {
             try
             {
-                // Get all roles from Keycloak
-                var roles = await _keycloakAdminService.GetAllRolesAsync();
+                var permissions = await _context.Permissions
+                    .OrderBy(p => p.Group)
+                    .ThenBy(p => p.Name)
+                    .ToListAsync();
 
-                var mappings = new List<RolePermissionMappingDto>();
-
-                // For each role, get its permissions
-                foreach (var role in roles)
+                var permissionDtos = permissions.Select(p => new PermissionDto
                 {
-                    var permissionsResult = await _rolePermissionRepository.GetByRoleNameAsync(role.Name);
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    Group = p.Group
+                }).ToList();
 
-                    var permissionDtos = new List<PermissionDto>();
-                    if (permissionsResult.Success && permissionsResult.Data.Any())
-                    {
-                        // Get the details of each permission
-                        foreach (var rolePermission in permissionsResult.Data)
-                        {
-                            var permissionResult = await _permissionRepository.GetByIdAsync(rolePermission.PermissionId);
-                            if (permissionResult.Success && permissionResult.Data != null)
-                            {
-                                permissionDtos.Add(permissionResult.Data);
-                            }
-                        }
-                    }
-
-                    mappings.Add(new RolePermissionMappingDto
-                    {
-                        RoleName = role.Name,
-                        Permissions = permissionDtos
-                    });
-                }
-
-                return new ApiResponse<List<RolePermissionMappingDto>>(mappings);
+                return new ApiResponse<List<PermissionDto>>(permissionDtos);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error getting all role-permission mappings: {ex.Message}", ex);
-                return new ApiResponse<List<RolePermissionMappingDto>>(
-                    new List<RolePermissionMappingDto>(),
+                _logger.LogError($"Error retrieving all permissions: {ex.Message}", ex);
+                return new ApiResponse<List<PermissionDto>>(
+                    new List<PermissionDto>(),
                     false,
-                    "Failed to retrieve role-permission mappings",
+                    "Failed to retrieve permissions",
                     new List<string> { ex.Message },
                     StatusCodes.Status500InternalServerError,
                     ErrorCodes.InternalServerError
@@ -226,116 +166,40 @@ namespace GroundUp.infrastructure.services
             }
         }
 
-        public async Task<ApiResponse<List<RolePermissionDto>>> GetRolePermissionsAsync(string roleName)
-        {
-            return await _rolePermissionRepository.GetByRoleNameAsync(roleName);
-        }
-
-        public async Task<ApiResponse<RolePermissionDto>> AssignPermissionToRoleAsync(string roleName, int permissionId)
-        {
-            // First, check if the permission exists
-            var permissionResult = await _permissionRepository.GetByIdAsync(permissionId);
-            if (!permissionResult.Success)
-            {
-                return new ApiResponse<RolePermissionDto>(
-                    default!,
-                    false,
-                    permissionResult.Message,
-                    permissionResult.Errors,
-                    permissionResult.StatusCode,
-                    permissionResult.ErrorCode
-                );
-            }
-
-            // Create role-permission mapping
-            var rolePermissionDto = new RolePermissionDto
-            {
-                RoleName = roleName,
-                PermissionId = permissionId,
-                CreatedDate = DateTime.UtcNow
-            };
-
-            // Add the mapping
-            var result = await _rolePermissionRepository.AddAsync(rolePermissionDto);
-
-            // Clear cache for any user with this role
-            ClearCacheForRole(roleName);
-
-            return result;
-        }
-
-        public async Task<ApiResponse<bool>> AssignMultiplePermissionsToRoleAsync(string roleName, List<int> permissionIds)
+        public async Task<ApiResponse<PermissionDto>> GetPermissionByIdAsync(int id)
         {
             try
             {
-                // Check if the role exists in Keycloak
-                var role = await _keycloakAdminService.GetRoleByNameAsync(roleName);
-                if (role == null)
+                var permission = await _context.Permissions.FindAsync(id);
+                if (permission == null)
                 {
-                    return new ApiResponse<bool>(
+                    return new ApiResponse<PermissionDto>(
+                        default!,
                         false,
-                        false,
-                        $"Role '{roleName}' not found in Keycloak",
+                        $"Permission with ID {id} not found",
                         null,
                         StatusCodes.Status404NotFound,
                         ErrorCodes.NotFound
                     );
                 }
 
-                // Check if all permissions exist
-                var validPermissionIds = new List<int>();
-                foreach (var permissionId in permissionIds)
+                var permissionDto = new PermissionDto
                 {
-                    var permissionResult = await _permissionRepository.GetByIdAsync(permissionId);
-                    if (permissionResult.Success)
-                    {
-                        validPermissionIds.Add(permissionId);
-                    }
-                    else
-                    {
-                        _logger.LogWarning($"Permission with ID {permissionId} not found, skipping");
-                    }
-                }
+                    Id = permission.Id,
+                    Name = permission.Name,
+                    Description = permission.Description,
+                    Group = permission.Group
+                };
 
-                if (validPermissionIds.Count == 0)
-                {
-                    return new ApiResponse<bool>(
-                        false,
-                        false,
-                        "No valid permissions found to assign",
-                        null,
-                        StatusCodes.Status400BadRequest,
-                        ErrorCodes.ValidationFailed
-                    );
-                }
-
-                // Assign each permission
-                int successCount = 0;
-                foreach (var permissionId in validPermissionIds)
-                {
-                    var result = await AssignPermissionToRoleAsync(roleName, permissionId);
-                    if (result.Success)
-                    {
-                        successCount++;
-                    }
-                }
-
-                // Clear cache for any user with this role
-                ClearCacheForRole(roleName);
-
-                return new ApiResponse<bool>(
-                    true,
-                    true,
-                    $"Successfully assigned {successCount} of {validPermissionIds.Count} permissions to role '{roleName}'"
-                );
+                return new ApiResponse<PermissionDto>(permissionDto);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error assigning multiple permissions to role '{roleName}': {ex.Message}", ex);
-                return new ApiResponse<bool>(
+                _logger.LogError($"Error retrieving permission with ID {id}: {ex.Message}", ex);
+                return new ApiResponse<PermissionDto>(
+                    default!,
                     false,
-                    false,
-                    $"Failed to assign permissions to role '{roleName}'",
+                    "Failed to retrieve permission",
                     new List<string> { ex.Message },
                     StatusCodes.Status500InternalServerError,
                     ErrorCodes.InternalServerError
@@ -343,20 +207,225 @@ namespace GroundUp.infrastructure.services
             }
         }
 
-        public async Task<ApiResponse<bool>> RemovePermissionFromRoleAsync(string roleName, int permissionId)
+        public async Task<ApiResponse<PermissionDto>> GetPermissionByNameAsync(string name)
         {
-            var result = await _rolePermissionRepository.DeleteAsync(roleName, permissionId);
-
-            // Clear cache for any user with this role
-            if (result.Success)
+            try
             {
-                ClearCacheForRole(roleName);
-            }
+                var permission = await _context.Permissions
+                    .FirstOrDefaultAsync(p => p.Name.ToLower() == name.ToLower());
 
-            return result;
+                if (permission == null)
+                {
+                    return new ApiResponse<PermissionDto>(
+                        default!,
+                        false,
+                        $"Permission with name '{name}' not found",
+                        null,
+                        StatusCodes.Status404NotFound,
+                        ErrorCodes.NotFound
+                    );
+                }
+
+                var permissionDto = new PermissionDto
+                {
+                    Id = permission.Id,
+                    Name = permission.Name,
+                    Description = permission.Description,
+                    Group = permission.Group
+                };
+
+                return new ApiResponse<PermissionDto>(permissionDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error retrieving permission with name {name}: {ex.Message}", ex);
+                return new ApiResponse<PermissionDto>(
+                    default!,
+                    false,
+                    "Failed to retrieve permission",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError
+                );
+            }
         }
 
-        #endregion
+        public async Task<ApiResponse<PermissionDto>> CreatePermissionAsync(PermissionDto permissionDto)
+        {
+            try
+            {
+                // Check if permission with same name already exists
+                var existingPermission = await _context.Permissions
+                    .FirstOrDefaultAsync(p => p.Name.ToLower() == permissionDto.Name.ToLower());
+
+                if (existingPermission != null)
+                {
+                    return new ApiResponse<PermissionDto>(
+                        default!,
+                        false,
+                        $"Permission with name '{permissionDto.Name}' already exists",
+                        null,
+                        StatusCodes.Status400BadRequest,
+                        ErrorCodes.DuplicateEntry
+                    );
+                }
+
+                var permission = new Permission
+                {
+                    Name = permissionDto.Name,
+                    Description = permissionDto.Description,
+                    Group = permissionDto.Group
+                };
+
+                _context.Permissions.Add(permission);
+                await _context.SaveChangesAsync();
+
+                permissionDto.Id = permission.Id;
+                return new ApiResponse<PermissionDto>(
+                    permissionDto,
+                    true,
+                    "Permission created successfully",
+                    null,
+                    StatusCodes.Status201Created
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating permission: {ex.Message}", ex);
+                return new ApiResponse<PermissionDto>(
+                    default!,
+                    false,
+                    "Failed to create permission",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError
+                );
+            }
+        }
+
+        public async Task<ApiResponse<PermissionDto>> UpdatePermissionAsync(int id, PermissionDto permissionDto)
+        {
+            try
+            {
+                var permission = await _context.Permissions.FindAsync(id);
+                if (permission == null)
+                {
+                    return new ApiResponse<PermissionDto>(
+                        default!,
+                        false,
+                        $"Permission with ID {id} not found",
+                        null,
+                        StatusCodes.Status404NotFound,
+                        ErrorCodes.NotFound
+                    );
+                }
+
+                // Check if new name conflicts with existing permission
+                if (permission.Name != permissionDto.Name)
+                {
+                    var existingPermission = await _context.Permissions
+                        .FirstOrDefaultAsync(p => p.Name.ToLower() == permissionDto.Name.ToLower() && p.Id != id);
+
+                    if (existingPermission != null)
+                    {
+                        return new ApiResponse<PermissionDto>(
+                            default!,
+                            false,
+                            $"Permission with name '{permissionDto.Name}' already exists",
+                            null,
+                            StatusCodes.Status400BadRequest,
+                            ErrorCodes.DuplicateEntry
+                        );
+                    }
+                }
+
+                permission.Name = permissionDto.Name;
+                permission.Description = permissionDto.Description;
+                permission.Group = permissionDto.Group;
+
+                await _context.SaveChangesAsync();
+
+                // Clear cache since permission details have changed
+                ClearPermissionCache();
+
+                return new ApiResponse<PermissionDto>(
+                    permissionDto,
+                    true,
+                    "Permission updated successfully"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error updating permission with ID {id}: {ex.Message}", ex);
+                return new ApiResponse<PermissionDto>(
+                    default!,
+                    false,
+                    "Failed to update permission",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError
+                );
+            }
+        }
+
+        public async Task<ApiResponse<bool>> DeletePermissionAsync(int id)
+        {
+            try
+            {
+                var permission = await _context.Permissions.FindAsync(id);
+                if (permission == null)
+                {
+                    return new ApiResponse<bool>(
+                        false,
+                        false,
+                        $"Permission with ID {id} not found",
+                        null,
+                        StatusCodes.Status404NotFound,
+                        ErrorCodes.NotFound
+                    );
+                }
+
+                // Check if permission is used in any policies
+                var isUsed = await _context.PolicyPermissions
+                    .AnyAsync(pp => pp.PermissionId == id);
+
+                if (isUsed)
+                {
+                    return new ApiResponse<bool>(
+                        false,
+                        false,
+                        "Cannot delete permission that is used in policies",
+                        null,
+                        StatusCodes.Status400BadRequest,
+                        ErrorCodes.ValidationFailed
+                    );
+                }
+
+                _context.Permissions.Remove(permission);
+                await _context.SaveChangesAsync();
+
+                // Clear cache since permissions have changed
+                ClearPermissionCache();
+
+                return new ApiResponse<bool>(
+                    true,
+                    true,
+                    "Permission deleted successfully"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error deleting permission with ID {id}: {ex.Message}", ex);
+                return new ApiResponse<bool>(
+                    false,
+                    false,
+                    "Failed to delete permission",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError
+                );
+            }
+        }
 
         public async Task<ApiResponse<UserPermissionsDto>> GetUserPermissionsDetailedAsync(string userId)
         {
@@ -381,7 +450,7 @@ namespace GroundUp.infrastructure.services
                     .Select(c => c.Value)
                     .ToList();
 
-                // Get permissions for these roles
+                // Get permissions for these roles through policies
                 var permissions = await GetUserPermissionsFromCacheOrDatabase(userId);
 
                 // Create result
@@ -408,53 +477,25 @@ namespace GroundUp.infrastructure.services
             }
         }
 
-        public async Task SynchronizeRolesWithKeycloakAsync()
+        public async Task SynchronizeSystemRolesAsync()
         {
             try
             {
                 _logger.LogInformation("Starting synchronization of roles with Keycloak");
 
                 // Get all roles from Keycloak
-                var keycloakRoles = await _keycloakAdminService.GetAllRolesAsync();
+                var keycloakRoles = await _identityProviderAdminService.GetAllRolesAsync();
 
-                // Get all role-permission mappings from the database
-                var allMappingsResponse = await GetAllRolePermissionMappingsAsync();
-
-                if (!allMappingsResponse.Success)
+                foreach (var role in keycloakRoles)
                 {
-                    _logger.LogError("Failed to retrieve existing role-permission mappings");
-                    return;
-                }
+                    // Check if this role has any policies assigned
+                    var existingPolicies = await _context.RolePolicies
+                        .AnyAsync(rp => rp.RoleName == role.Name && rp.RoleType == RoleType.System);
 
-                var existingMappings = allMappingsResponse.Data;
-
-                // Find roles in Keycloak that don't have entries in our database
-                var missingRoles = keycloakRoles
-                    .Where(kr => !existingMappings.Any(em => em.RoleName == kr.Name))
-                    .ToList();
-
-                _logger.LogInformation($"Found {missingRoles.Count} Keycloak roles not yet mapped in the database");
-
-                // For each missing role, create an empty role-permission mapping entry
-                foreach (var role in missingRoles)
-                {
-                    _logger.LogInformation($"Creating empty permission mapping for role '{role.Name}'");
-                    // We don't need to create any specific permissions; just having the role name
-                    // in our database is sufficient for future mappings
-                }
-
-                // Optionally, find roles in our database that don't exist in Keycloak (deleted roles)
-                var deletedRoles = existingMappings
-                    .Where(em => !keycloakRoles.Any(kr => kr.Name == em.RoleName))
-                    .ToList();
-
-                _logger.LogInformation($"Found {deletedRoles.Count} mapped roles that no longer exist in Keycloak");
-
-                // For each deleted role, remove its permission mappings
-                foreach (var mapping in deletedRoles)
-                {
-                    _logger.LogInformation($"Removing permission mappings for deleted role '{mapping.RoleName}'");
-                    await _rolePermissionRepository.DeleteByRoleNameAsync(mapping.RoleName);
+                    if (!existingPolicies)
+                    {
+                        _logger.LogInformation($"Detected System role '{role.Name}' without policy assignments");
+                    }
                 }
 
                 _logger.LogInformation("Role synchronization with Keycloak completed successfully");
@@ -465,12 +506,7 @@ namespace GroundUp.infrastructure.services
             }
         }
 
-        private void AddCacheKey(string key)
-        {
-            _cacheKeys.TryAdd(key, true);
-        }
-
-        private void ClearCacheForRole(string roleName)
+        public void ClearPermissionCache()
         {
             foreach (var key in _cacheKeys.Keys.ToList())
             {
@@ -480,6 +516,20 @@ namespace GroundUp.infrastructure.services
                     _cacheKeys.TryRemove(key, out _);
                 }
             }
+            _logger.LogInformation("Permission cache cleared");
+        }
+
+        public void ClearPermissionCacheForRole(string roleName, RoleType roleType)
+        {
+            // For System roles, a more targeted approach could be implemented
+            // but for now, we'll clear all caches to be safe
+            ClearPermissionCache();
+            _logger.LogInformation($"Permission cache cleared for role {roleName} of type {roleType}");
+        }
+
+        private void AddCacheKey(string key)
+        {
+            _cacheKeys.TryAdd(key, true);
         }
     }
 }

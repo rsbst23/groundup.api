@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GroundUp.core.interfaces
 {
-    public interface IKeycloakService
+    public interface IIdentityProviderService
     {
         Task<bool> ValidateTokenAsync(string token);
         // Add more methods as needed

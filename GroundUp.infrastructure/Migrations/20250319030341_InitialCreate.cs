@@ -97,6 +97,44 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Policies",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Policies", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Roles",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RoleType = table.Column<int>(type: "int", nullable: false),
+                    WorkspaceId = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Roles", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -140,23 +178,51 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RolePermissions",
+                name: "PolicyPermissions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    PolicyId = table.Column<int>(type: "int", nullable: false),
+                    PermissionId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PolicyPermissions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PolicyPermissions_Permissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "Permissions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PolicyPermissions_Policies_PolicyId",
+                        column: x => x.PolicyId,
+                        principalTable: "Policies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "RolePolicies",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     RoleName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    PermissionId = table.Column<int>(type: "int", nullable: false),
+                    RoleType = table.Column<int>(type: "int", nullable: false),
+                    PolicyId = table.Column<int>(type: "int", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RolePermissions", x => x.Id);
+                    table.PrimaryKey("PK_RolePolicies", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_RolePermissions_Permissions_PermissionId",
-                        column: x => x.PermissionId,
-                        principalTable: "Permissions",
+                        name: "FK_RolePolicies_Policies_PolicyId",
+                        column: x => x.PolicyId,
+                        principalTable: "Policies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -207,7 +273,22 @@ namespace GroundUp.infrastructure.Migrations
                     { 5, "Export inventory data", "Inventory", "inventory.export" },
                     { 6, "View error logs", "Errors", "errors.view" },
                     { 7, "Update error logs", "Errors", "errors.update" },
-                    { 8, "Delete error logs", "Errors", "errors.delete" }
+                    { 8, "Delete error logs", "Errors", "errors.delete" },
+                    { 9, "View roles", "Roles", "roles.view" },
+                    { 10, "Create roles", "Roles", "roles.create" },
+                    { 11, "Update roles", "Roles", "roles.update" },
+                    { 12, "Delete roles", "Roles", "roles.delete" },
+                    { 13, "View role permissions", "Roles", "roles.permissions.view" },
+                    { 14, "Assign permissions to roles", "Roles", "roles.permissions.assign" },
+                    { 15, "Remove permissions from roles", "Roles", "roles.permissions.remove" },
+                    { 16, "View policies", "Policies", "policies.view" },
+                    { 17, "Create policies", "Policies", "policies.create" },
+                    { 18, "Update policies", "Policies", "policies.update" },
+                    { 19, "Delete policies", "Policies", "policies.delete" },
+                    { 20, "View users", "Users", "users.view" },
+                    { 21, "View user roles", "Users", "users.roles.view" },
+                    { 22, "Assign roles to users", "Users", "users.roles.assign" },
+                    { 23, "Remove roles from users", "Users", "users.roles.remove" }
                 });
 
             migrationBuilder.InsertData(
@@ -224,23 +305,8 @@ namespace GroundUp.infrastructure.Migrations
                 columns: new[] { "Id", "Condition", "InventoryCategoryId", "Name", "PurchaseDate", "PurchasePrice" },
                 values: new object[,]
                 {
-                    { 1, "New", 1, "Laptop", new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9493), 999.99m },
-                    { 2, "Used", 2, "The Great Gatsby", new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9498), 12.99m }
-                });
-
-            migrationBuilder.InsertData(
-                table: "RolePermissions",
-                columns: new[] { "Id", "CreatedDate", "PermissionId", "RoleName" },
-                values: new object[,]
-                {
-                    { 1, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9564), 1, "ADMIN" },
-                    { 2, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9567), 2, "ADMIN" },
-                    { 3, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9568), 3, "ADMIN" },
-                    { 4, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9569), 4, "ADMIN" },
-                    { 5, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9570), 5, "ADMIN" },
-                    { 6, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9570), 6, "ADMIN" },
-                    { 7, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9571), 7, "ADMIN" },
-                    { 8, new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9572), 8, "ADMIN" }
+                    { 1, "New", 1, "Laptop", new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8485), 999.99m },
+                    { 2, "Used", 2, "The Great Gatsby", new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8490), 12.99m }
                 });
 
             migrationBuilder.CreateIndex(
@@ -260,14 +326,37 @@ namespace GroundUp.infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_RolePermissions_PermissionId",
-                table: "RolePermissions",
+                name: "IX_Policies_Name",
+                table: "Policies",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PolicyPermissions_PermissionId",
+                table: "PolicyPermissions",
                 column: "PermissionId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RolePermissions_RoleName_PermissionId",
-                table: "RolePermissions",
-                columns: new[] { "RoleName", "PermissionId" },
+                name: "IX_PolicyPermissions_PolicyId_PermissionId",
+                table: "PolicyPermissions",
+                columns: new[] { "PolicyId", "PermissionId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RolePolicies_PolicyId",
+                table: "RolePolicies",
+                column: "PolicyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RolePolicies_RoleName_RoleType_PolicyId",
+                table: "RolePolicies",
+                columns: new[] { "RoleName", "RoleType", "PolicyId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Roles_Name_RoleType",
+                table: "Roles",
+                columns: new[] { "Name", "RoleType" },
                 unique: true);
         }
 
@@ -284,7 +373,13 @@ namespace GroundUp.infrastructure.Migrations
                 name: "InventoryAttributes");
 
             migrationBuilder.DropTable(
-                name: "RolePermissions");
+                name: "PolicyPermissions");
+
+            migrationBuilder.DropTable(
+                name: "RolePolicies");
+
+            migrationBuilder.DropTable(
+                name: "Roles");
 
             migrationBuilder.DropTable(
                 name: "Users");
@@ -294,6 +389,9 @@ namespace GroundUp.infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Permissions");
+
+            migrationBuilder.DropTable(
+                name: "Policies");
 
             migrationBuilder.DropTable(
                 name: "InventoryCategories");

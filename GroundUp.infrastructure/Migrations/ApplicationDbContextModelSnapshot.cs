@@ -188,7 +188,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9493),
+                            PurchaseDate = new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8485),
                             PurchasePrice = 999.99m
                         },
                         new
@@ -197,7 +197,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9498),
+                            PurchaseDate = new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8490),
                             PurchasePrice = 12.99m
                         });
                 });
@@ -286,10 +286,164 @@ namespace GroundUp.infrastructure.Migrations
                             Description = "Delete error logs",
                             Group = "Errors",
                             Name = "errors.delete"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Description = "View roles",
+                            Group = "Roles",
+                            Name = "roles.view"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Description = "Create roles",
+                            Group = "Roles",
+                            Name = "roles.create"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Description = "Update roles",
+                            Group = "Roles",
+                            Name = "roles.update"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Description = "Delete roles",
+                            Group = "Roles",
+                            Name = "roles.delete"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Description = "View role permissions",
+                            Group = "Roles",
+                            Name = "roles.permissions.view"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Description = "Assign permissions to roles",
+                            Group = "Roles",
+                            Name = "roles.permissions.assign"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Description = "Remove permissions from roles",
+                            Group = "Roles",
+                            Name = "roles.permissions.remove"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Description = "View policies",
+                            Group = "Policies",
+                            Name = "policies.view"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Description = "Create policies",
+                            Group = "Policies",
+                            Name = "policies.create"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            Description = "Update policies",
+                            Group = "Policies",
+                            Name = "policies.update"
+                        },
+                        new
+                        {
+                            Id = 19,
+                            Description = "Delete policies",
+                            Group = "Policies",
+                            Name = "policies.delete"
+                        },
+                        new
+                        {
+                            Id = 20,
+                            Description = "View users",
+                            Group = "Users",
+                            Name = "users.view"
+                        },
+                        new
+                        {
+                            Id = 21,
+                            Description = "View user roles",
+                            Group = "Users",
+                            Name = "users.roles.view"
+                        },
+                        new
+                        {
+                            Id = 22,
+                            Description = "Assign roles to users",
+                            Group = "Users",
+                            Name = "users.roles.assign"
+                        },
+                        new
+                        {
+                            Id = 23,
+                            Description = "Remove roles from users",
+                            Group = "Users",
+                            Name = "users.roles.remove"
                         });
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.RolePermission", b =>
+            modelBuilder.Entity("GroundUp.core.entities.Policy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Policies");
+                });
+
+            modelBuilder.Entity("GroundUp.core.entities.PolicyPermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PolicyId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PermissionId");
+
+                    b.HasIndex("PolicyId", "PermissionId")
+                        .IsUnique();
+
+                    b.ToTable("PolicyPermissions");
+                });
+
+            modelBuilder.Entity("GroundUp.core.entities.Role", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -300,7 +454,41 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("PermissionId")
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("RoleType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WorkspaceId")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name", "RoleType")
+                        .IsUnique();
+
+                    b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("GroundUp.core.entities.RolePolicy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("PolicyId")
                         .HasColumnType("int");
 
                     b.Property<string>("RoleName")
@@ -308,72 +496,17 @@ namespace GroundUp.infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
+                    b.Property<int>("RoleType")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("PermissionId");
+                    b.HasIndex("PolicyId");
 
-                    b.HasIndex("RoleName", "PermissionId")
+                    b.HasIndex("RoleName", "RoleType", "PolicyId")
                         .IsUnique();
 
-                    b.ToTable("RolePermissions");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9564),
-                            PermissionId = 1,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9567),
-                            PermissionId = 2,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9568),
-                            PermissionId = 3,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9569),
-                            PermissionId = 4,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9570),
-                            PermissionId = 5,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9570),
-                            PermissionId = 6,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9571),
-                            PermissionId = 7,
-                            RoleName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 8,
-                            CreatedDate = new DateTime(2025, 3, 14, 3, 26, 1, 434, DateTimeKind.Utc).AddTicks(9572),
-                            PermissionId = 8,
-                            RoleName = "ADMIN"
-                        });
+                    b.ToTable("RolePolicies");
                 });
 
             modelBuilder.Entity("GroundUp.core.entities.User", b =>
@@ -433,15 +566,34 @@ namespace GroundUp.infrastructure.Migrations
                     b.Navigation("InventoryCategory");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.RolePermission", b =>
+            modelBuilder.Entity("GroundUp.core.entities.PolicyPermission", b =>
                 {
                     b.HasOne("GroundUp.core.entities.Permission", "Permission")
-                        .WithMany("RolePermissions")
+                        .WithMany("PolicyPermissions")
                         .HasForeignKey("PermissionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GroundUp.core.entities.Policy", "Policy")
+                        .WithMany("PolicyPermissions")
+                        .HasForeignKey("PolicyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Permission");
+
+                    b.Navigation("Policy");
+                });
+
+            modelBuilder.Entity("GroundUp.core.entities.RolePolicy", b =>
+                {
+                    b.HasOne("GroundUp.core.entities.Policy", "Policy")
+                        .WithMany("RolePolicies")
+                        .HasForeignKey("PolicyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Policy");
                 });
 
             modelBuilder.Entity("GroundUp.core.entities.InventoryCategory", b =>
@@ -456,7 +608,14 @@ namespace GroundUp.infrastructure.Migrations
 
             modelBuilder.Entity("GroundUp.core.entities.Permission", b =>
                 {
-                    b.Navigation("RolePermissions");
+                    b.Navigation("PolicyPermissions");
+                });
+
+            modelBuilder.Entity("GroundUp.core.entities.Policy", b =>
+                {
+                    b.Navigation("PolicyPermissions");
+
+                    b.Navigation("RolePolicies");
                 });
 #pragma warning restore 612, 618
         }

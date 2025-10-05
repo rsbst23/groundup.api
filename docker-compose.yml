@@ -51,7 +51,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "host.docker.internal"]
       interval: 10s
       retries: 5
       start_period: 5s

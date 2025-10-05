@@ -2,7 +2,7 @@
 
 namespace GroundUp.core.entities
 {
-    public class Permission
+    public class Role
     {
         public int Id { get; set; }
 
@@ -13,10 +13,11 @@ namespace GroundUp.core.entities
         [MaxLength(255)]
         public string? Description { get; set; }
 
-        // Permissions can be grouped for organization
-        [MaxLength(100)]
-        public string? Group { get; set; }
+        public RoleType RoleType { get; set; }
 
-        public ICollection<PolicyPermission> PolicyPermissions { get; set; } = new List<PolicyPermission>();
+        // For workspace roles, we might want to track which workspace they belong to
+        public string? WorkspaceId { get; set; }
+
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     }
 }

@@ -1,11 +1,11 @@
 ﻿namespace GroundUp.core.dtos
 {
-    public class RolePermissionDto
+    public class PolicyPermissionDto
     {
         public int Id { get; set; }
-        public required string RoleName { get; set; }
+        public int PolicyId { get; set; }
         public int PermissionId { get; set; }
+        public string? PolicyName { get; set; }
         public string? PermissionName { get; set; }
-        public DateTime CreatedDate { get; set; }
     }
 }

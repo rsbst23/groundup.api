@@ -1,5 +1,6 @@
 ﻿using GroundUp.core.configuration;
 using GroundUp.core.dtos;
+using GroundUp.core.entities;
 using GroundUp.core.interfaces;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
@@ -9,7 +10,7 @@ using System.Text.Json;
 
 namespace GroundUp.infrastructure.services
 {
-    public class KeycloakAdminService : IKeycloakAdminService
+    public class IdentityProviderAdminService : IIdentityProviderAdminService
     {
         private readonly HttpClient _httpClient;
         private readonly KeycloakConfiguration _keycloakConfig;
@@ -17,7 +18,7 @@ namespace GroundUp.infrastructure.services
         private string? _accessToken;
         private DateTime _tokenExpiresAt = DateTime.MinValue;
 
-        public KeycloakAdminService(HttpClient httpClient, IOptions<KeycloakConfiguration> keycloakConfig, ILoggingService logger)
+        public IdentityProviderAdminService(HttpClient httpClient, IOptions<KeycloakConfiguration> keycloakConfig, ILoggingService logger)
         {
             _httpClient = httpClient;
             _keycloakConfig = keycloakConfig.Value;
@@ -26,7 +27,7 @@ namespace GroundUp.infrastructure.services
 
         #region Role Management
 
-        public async Task<List<RoleDto>> GetAllRolesAsync()
+        public async Task<List<SystemRoleDto>> GetAllRolesAsync()
         {
             await EnsureAdminTokenAsync();
 
@@ -35,11 +36,28 @@ namespace GroundUp.infrastructure.services
             var response = await _httpClient.GetAsync(requestUrl);
             response.EnsureSuccessStatusCode();
 
-            var roles = await response.Content.ReadFromJsonAsync<List<RoleDto>>() ?? new List<RoleDto>();
-            return roles;
+            // Get the raw roles from Keycloak
+            var keycloakRoles = await response.Content.ReadFromJsonAsync<List<dynamic>>() ?? new List<dynamic>();
+
+            // Convert to our SystemRoleDto
+            var systemRoles = new List<SystemRoleDto>();
+            foreach (var role in keycloakRoles)
+            {
+                systemRoles.Add(new SystemRoleDto
+                {
+                    Id = role.id?.ToString() ?? string.Empty,
+                    Name = role.name?.ToString() ?? string.Empty,
+                    Description = role.description?.ToString(),
+                    IsClientRole = role.clientRole != null ? (bool)role.clientRole : false,
+                    ContainerId = role.containerId?.ToString(),
+                    Composite = role.composite != null ? (bool)role.composite : false
+                });
+            }
+
+            return systemRoles;
         }
 
-        public async Task<RoleDto?> GetRoleByNameAsync(string name)
+        public async Task<SystemRoleDto?> GetRoleByNameAsync(string name)
         {
             await EnsureAdminTokenAsync();
 
@@ -55,11 +73,24 @@ namespace GroundUp.infrastructure.services
                 response.EnsureSuccessStatusCode(); // Throw for other errors
             }
 
-            var role = await response.Content.ReadFromJsonAsync<RoleDto>();
-            return role;
+            // Parse the response
+            var responseContent = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            // Convert to our SystemRoleDto
+            var systemRole = new SystemRoleDto
+            {
+                Id = responseContent.GetProperty("id").GetString() ?? string.Empty,
+                Name = responseContent.GetProperty("name").GetString() ?? string.Empty,
+                Description = responseContent.TryGetProperty("description", out var desc) ? desc.GetString() : null,
+                IsClientRole = responseContent.TryGetProperty("clientRole", out var clientRole) && clientRole.GetBoolean(),
+                ContainerId = responseContent.TryGetProperty("containerId", out var containerId) ? containerId.GetString() : null,
+                Composite = responseContent.TryGetProperty("composite", out var composite) && composite.GetBoolean()
+            };
+
+            return systemRole;
         }
 
-        public async Task<RoleDto> CreateRoleAsync(CreateRoleDto roleDto)
+        public async Task<SystemRoleDto> CreateRoleAsync(CreateSystemRoleDto roleDto)
         {
             await EnsureAdminTokenAsync();
 
@@ -92,7 +123,7 @@ namespace GroundUp.infrastructure.services
             return createdRole;
         }
 
-        public async Task<RoleDto?> UpdateRoleAsync(string name, UpdateRoleDto roleDto)
+        public async Task<SystemRoleDto?> UpdateRoleAsync(string name, UpdateRoleDto roleDto)
         {
             await EnsureAdminTokenAsync();
 
@@ -138,7 +169,7 @@ namespace GroundUp.infrastructure.services
 
         #region User-Role Management
 
-        public async Task<List<RoleDto>> GetUserRolesAsync(string userId)
+        public async Task<List<SystemRoleDto>> GetUserRolesAsync(string userId)
         {
             await EnsureAdminTokenAsync();
 
@@ -147,8 +178,25 @@ namespace GroundUp.infrastructure.services
             var response = await _httpClient.GetAsync(requestUrl);
             response.EnsureSuccessStatusCode();
 
-            var roles = await response.Content.ReadFromJsonAsync<List<RoleDto>>() ?? new List<RoleDto>();
-            return roles;
+            // Get the raw roles from Keycloak
+            var keycloakRoles = await response.Content.ReadFromJsonAsync<List<dynamic>>() ?? new List<dynamic>();
+
+            // Convert to our SystemRoleDto
+            var systemRoles = new List<SystemRoleDto>();
+            foreach (var role in keycloakRoles)
+            {
+                systemRoles.Add(new SystemRoleDto
+                {
+                    Id = role.id?.ToString() ?? string.Empty,
+                    Name = role.name?.ToString() ?? string.Empty,
+                    Description = role.description?.ToString(),
+                    IsClientRole = role.clientRole != null ? (bool)role.clientRole : false,
+                    ContainerId = role.containerId?.ToString(),
+                    Composite = role.composite != null ? (bool)role.composite : false
+                });
+            }
+
+            return systemRoles;
         }
 
         public async Task<bool> AssignRoleToUserAsync(string userId, string roleName)
@@ -165,7 +213,14 @@ namespace GroundUp.infrastructure.services
 
             var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users/{userId}/role-mappings/realm";
 
-            var payload = new List<RoleDto> { role };
+            // Create payload with Keycloak's expected format
+            var payload = new List<object> {
+                new {
+                    id = role.Id,
+                    name = role.Name
+                }
+            };
+
             var response = await _httpClient.PostAsJsonAsync(requestUrl, payload);
             response.EnsureSuccessStatusCode();
 
@@ -177,14 +232,18 @@ namespace GroundUp.infrastructure.services
             await EnsureAdminTokenAsync();
 
             // Get all the roles first
-            var rolesToAssign = new List<RoleDto>();
+            var rolesToAssign = new List<object>();
 
             foreach (var roleName in roleNames)
             {
                 var role = await GetRoleByNameAsync(roleName);
                 if (role != null)
                 {
-                    rolesToAssign.Add(role);
+                    rolesToAssign.Add(new
+                    {
+                        id = role.Id,
+                        name = role.Name
+                    });
                 }
                 else
                 {
@@ -220,8 +279,16 @@ namespace GroundUp.infrastructure.services
 
             var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users/{userId}/role-mappings/realm";
 
+            // Create payload with Keycloak's expected format
+            var payload = new List<object> {
+                new {
+                    id = role.Id,
+                    name = role.Name
+                }
+            };
+
             var content = new StringContent(
-                JsonSerializer.Serialize(new List<RoleDto> { role }),
+                JsonSerializer.Serialize(payload),
                 Encoding.UTF8,
                 "application/json"
             );
