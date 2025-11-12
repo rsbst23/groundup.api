@@ -26,8 +26,21 @@ namespace GroundUp.infrastructure.interceptors
         public void Intercept(IInvocation invocation)
         {
             var method = invocation.MethodInvocationTarget ?? invocation.Method;
-            var methodName = $"{method.DeclaringType?.Name}.{method.Name}";
-            var permissionAttribute = method.GetCustomAttribute<RequiresPermissionAttribute>();
+            var methodName = method.Name;
+            var targetType = invocation.TargetType;
+            var parameterTypes = method.GetParameters().Select(p => p.ParameterType).ToArray();
+
+            // Find the interface that declares the method
+            var interfaceType = targetType.GetInterfaces()
+                .FirstOrDefault(i => i.GetMethod(methodName, parameterTypes) != null);
+
+            MethodInfo? interfaceMethod = null;
+            if (interfaceType != null)
+            {
+                interfaceMethod = interfaceType.GetMethod(methodName, parameterTypes);
+            }
+
+            var permissionAttribute = interfaceMethod?.GetCustomAttribute<RequiresPermissionAttribute>();
 
             if (permissionAttribute == null)
             {
@@ -43,28 +56,37 @@ namespace GroundUp.infrastructure.interceptors
 
             var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            // Log user roles
+            // Get user roles from claims
             var roles = httpContext.User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
 
-            // Check permissions
+            // Check if any user role matches required roles
             bool isAuthorized = false;
-            try
+            if (permissionAttribute.RequiredRoles != null && permissionAttribute.RequiredRoles.Length > 0)
             {
-                if (permissionAttribute.Permissions.Length > 0)
+                if (roles.Any(r => permissionAttribute.RequiredRoles.Contains(r, StringComparer.OrdinalIgnoreCase)))
+                {
+                    isAuthorized = true;
+                }
+            }
+
+            // If not authorized by role, check permissions
+            if (!isAuthorized && permissionAttribute.Permissions.Length > 0)
+            {
+                try
                 {
                     isAuthorized = Task.Run(async () =>
                         await _permissionService.HasAnyPermission(userId, permissionAttribute.Permissions)
                     ).Result;
                 }
-            }
-            catch (Exception ex)
-            {
-                throw;
+                catch (Exception ex)
+                {
+                    throw;
+                }
             }
 
             if (!isAuthorized)
             {
-                throw new ForbiddenAccessException($"User {userId} lacks permission for {methodName}");
+                throw new ForbiddenAccessException($"User {userId} lacks permission for {targetType.Name}.{methodName}");
             }
 
             invocation.Proceed();

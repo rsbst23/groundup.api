@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace GroundUp.infrastructure.services
 {
-    public class KeycloakService : IKeycloakService
+    public class IdentityProviderService : IIdentityProviderService
     {
         private readonly HttpClient _httpClient;
         private readonly KeycloakConfiguration _keycloakConfig;
         private readonly ILoggingService _logger;
 
-        public KeycloakService(
+        public IdentityProviderService(
             HttpClient httpClient,
             IOptions<KeycloakConfiguration> keycloakConfig,
             ILoggingService logger)

@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using GroundUp.core.dtos;
+using GroundUp.core.entities;
 
 namespace GroundUp.core.validators
 {
@@ -15,9 +16,12 @@ namespace GroundUp.core.validators
             RuleFor(x => x.Description)
                 .MaximumLength(255).WithMessage("Description cannot exceed 255 characters");
 
-            When(x => x.IsClientRole, () => {
-                RuleFor(x => x.ClientId)
-                    .NotEmpty().WithMessage("Client ID is required for client roles");
+            RuleFor(x => x.RoleType)
+                .IsInEnum().WithMessage("Invalid role type");
+
+            When(x => x.RoleType == RoleType.Workspace, () => {
+                RuleFor(x => x.WorkspaceId)
+                    .NotEmpty().WithMessage("Workspace ID is required for workspace roles");
             });
         }
     }

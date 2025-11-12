@@ -206,7 +206,8 @@ app.UseSwaggerUI(c =>
     c.EnableFilter();
 });
 
-app.UseRateLimiter();
+// Uncomment this to add rate limiting to the application
+//app.UseRateLimiter();
 app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthentication();

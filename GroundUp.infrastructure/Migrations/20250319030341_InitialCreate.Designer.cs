@@ -4,6 +4,7 @@ using GroundUp.infrastructure.data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroundUp.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250319030341_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -188,7 +191,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 11, 9, 3, 32, 40, 712, DateTimeKind.Utc).AddTicks(6311),
+                            PurchaseDate = new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8485),
                             PurchasePrice = 999.99m
                         },
                         new
@@ -197,7 +200,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 11, 9, 3, 32, 40, 712, DateTimeKind.Utc).AddTicks(6315),
+                            PurchaseDate = new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8490),
                             PurchasePrice = 12.99m
                         });
                 });
@@ -544,30 +547,6 @@ namespace GroundUp.infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.UserRole", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RoleId");
-
-                    b.HasIndex("UserId", "RoleId")
-                        .IsUnique();
-
-                    b.ToTable("UserRoles");
-                });
-
             modelBuilder.Entity("GroundUp.core.entities.InventoryAttribute", b =>
                 {
                     b.HasOne("GroundUp.core.entities.InventoryItem", "InventoryItem")
@@ -618,17 +597,6 @@ namespace GroundUp.infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Policy");
-                });
-
-            modelBuilder.Entity("GroundUp.core.entities.UserRole", b =>
-                {
-                    b.HasOne("GroundUp.core.entities.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("GroundUp.core.entities.InventoryCategory", b =>

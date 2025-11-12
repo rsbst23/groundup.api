@@ -2,7 +2,7 @@
 
 namespace GroundUp.core.entities
 {
-    public class Permission
+    public class Policy
     {
         public int Id { get; set; }
 
@@ -13,10 +13,8 @@ namespace GroundUp.core.entities
         [MaxLength(255)]
         public string? Description { get; set; }
 
-        // Permissions can be grouped for organization
-        [MaxLength(100)]
-        public string? Group { get; set; }
-
+        // Navigation properties
         public ICollection<PolicyPermission> PolicyPermissions { get; set; } = new List<PolicyPermission>();
+        public ICollection<RolePolicy> RolePolicies { get; set; } = new List<RolePolicy>();
     }
 }

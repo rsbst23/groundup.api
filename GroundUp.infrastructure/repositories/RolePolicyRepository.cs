@@ -3,12 +3,13 @@ using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
 using GroundUp.infrastructure.data;
+using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
 {
-    public class PermissionRepository : BaseRepository<Permission, PermissionDto>, IPermissionRepository
+    public class RolePolicyRepository : BaseRepository<RolePolicy, RolePolicyDto>, IRolePolicyRepository
     {
-        public PermissionRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
+        public RolePolicyRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
             : base(context, mapper, logger) { }
     }
 }

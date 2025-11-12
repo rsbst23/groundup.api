@@ -43,8 +43,8 @@ namespace GroundUp.infrastructure.extensions
             services.AddScoped<IPermissionService, PermissionService>();
 
             // Register Keycloak Admin Service
-            services.AddHttpClient<IKeycloakAdminService, KeycloakAdminService>();
-            services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
+            services.AddHttpClient<IIdentityProviderAdminService, IdentityProviderAdminService>();
+            services.AddScoped<IIdentityProviderAdminService, IdentityProviderAdminService>();
 
             services.AddScoped<PermissionInterceptor>();
 
@@ -103,8 +103,8 @@ namespace GroundUp.infrastructure.extensions
                 config.AdminClientSecret = Environment.GetEnvironmentVariable("KEYCLOAK_ADMIN_CLIENT_SECRET") ?? "";
             });
 
-            services.AddHttpClient<IKeycloakService, KeycloakService>();
-            services.AddScoped<IKeycloakService, KeycloakService>();
+            services.AddHttpClient<IIdentityProviderService, IdentityProviderService>();
+            services.AddScoped<IIdentityProviderService, IdentityProviderService>();
 
             var keycloakConfig = services.BuildServiceProvider().GetRequiredService<IOptions<KeycloakConfiguration>>().Value;
 

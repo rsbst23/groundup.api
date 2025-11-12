@@ -1,15 +1,16 @@
 ﻿using GroundUp.core.dtos;
+using GroundUp.core.entities;
 
 namespace GroundUp.core.interfaces
 {
     public interface IPermissionService
     {
-        // Existing methods
+        // Core permission checking methods
         Task<bool> HasPermission(string userId, string permission);
         Task<bool> HasAnyPermission(string userId, string[] permissions);
         Task<IEnumerable<string>> GetUserPermissions(string userId);
 
-        // Added methods for managing permissions
+        // Permission management methods
         Task<ApiResponse<List<PermissionDto>>> GetAllPermissionsAsync();
         Task<ApiResponse<PermissionDto>> GetPermissionByIdAsync(int id);
         Task<ApiResponse<PermissionDto>> GetPermissionByNameAsync(string name);
@@ -17,21 +18,14 @@ namespace GroundUp.core.interfaces
         Task<ApiResponse<PermissionDto>> UpdatePermissionAsync(int id, PermissionDto permissionDto);
         Task<ApiResponse<bool>> DeletePermissionAsync(int id);
 
-        // Methods for role-permission mappings
-        Task<ApiResponse<List<RolePermissionDto>>> GetRolePermissionsAsync(string roleName);
-        Task<ApiResponse<RolePermissionDto>> AssignPermissionToRoleAsync(string roleName, int permissionId);
-        Task<ApiResponse<bool>> RemovePermissionFromRoleAsync(string roleName, int permissionId);
-
-        // New method for bulk assigning permissions to a role
-        Task<ApiResponse<bool>> AssignMultiplePermissionsToRoleAsync(string roleName, List<int> permissionIds);
-
-        // New method to get all role-permission mappings
-        Task<ApiResponse<List<RolePermissionMappingDto>>> GetAllRolePermissionMappingsAsync();
-
         // User-focused permission methods
         Task<ApiResponse<UserPermissionsDto>> GetUserPermissionsDetailedAsync(string userId);
 
-        // Synchronization with Keycloak
-        Task SynchronizeRolesWithKeycloakAsync();
+        // System maintenance methods
+        Task SynchronizeSystemRolesAsync();
+
+        // Cache management
+        void ClearPermissionCache();
+        void ClearPermissionCacheForRole(string roleName, RoleType roleType);
     }
 }
