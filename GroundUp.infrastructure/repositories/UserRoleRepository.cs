@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
 {
-    public class UserRoleRepository : BaseRepository<UserRole, UserRoleDto>, IUserRoleRepository
+    public class UserRoleRepository : BaseTenantRepository<UserRole, UserRoleDto>, IUserRoleRepository
     {
-        public UserRoleRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
-            : base(context, mapper, logger) { }
+        public UserRoleRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger, ITenantContext tenantContext)
+            : base(context, mapper, logger, tenantContext) { }
 
         public async Task<ApiResponse<UserRoleDto>> GetByNameAsync(string name)
         {

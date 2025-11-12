@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace GroundUp.core.entities
 {
-    public class ErrorFeedback
+    public class ErrorFeedback : ITenantEntity
     {
         public int Id { get; set; }
 
@@ -29,5 +29,7 @@ namespace GroundUp.core.entities
 
         public DateTime Timestamp { get; set; }
         public DateTime? CreatedDate { get; set; }
+
+        public Guid TenantId { get; set; }
     }
 }

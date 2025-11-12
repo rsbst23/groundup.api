@@ -7,10 +7,10 @@ using GroundUp.infrastructure.data;
 
 namespace GroundUp.infrastructure.repositories
 {
-    public class ErrorFeedbackRepository : BaseRepository<ErrorFeedback, ErrorFeedbackDto>, IErrorFeedbackRepository
+    public class ErrorFeedbackRepository : BaseTenantRepository<ErrorFeedback, ErrorFeedbackDto>, IErrorFeedbackRepository
     {
-        public ErrorFeedbackRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
-            : base(context, mapper, logger) { }
+        public ErrorFeedbackRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger, ITenantContext tenantContext)
+            : base(context, mapper, logger, tenantContext) { }
 
         [RequiresPermission("errors.view")]
         public override Task<ApiResponse<PaginatedData<ErrorFeedbackDto>>> GetAllAsync(FilterParams filterParams)

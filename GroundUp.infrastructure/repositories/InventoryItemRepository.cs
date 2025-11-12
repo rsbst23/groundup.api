@@ -6,10 +6,10 @@ using GroundUp.infrastructure.data;
 
 namespace GroundUp.infrastructure.repositories
 {
-    public class InventoryItemRepository : BaseRepository<InventoryItem, InventoryItemDto>, IInventoryItemRepository
+    public class InventoryItemRepository : BaseTenantRepository<InventoryItem, InventoryItemDto>, IInventoryItemRepository
     {
-        public InventoryItemRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
-            : base(context, mapper, logger) { }
+        public InventoryItemRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger, ITenantContext tenantContext)
+            : base(context, mapper, logger, tenantContext) { }
 
         // Any additional entity-specific methods can go here
     }

@@ -56,6 +56,12 @@ namespace GroundUp.infrastructure.mappings
                     JsonSerializer.Deserialize<ErrorDetailsDto>(src.ErrorJson,
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                     ?? new ErrorDetailsDto()));
+
+            // Tenant mappings
+            CreateMap<Tenant, TenantDto>().ReverseMap();
+
+            // UserTenant mappings
+            CreateMap<UserTenant, UserTenantDto>().ReverseMap();
         }
     }
 }

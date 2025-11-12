@@ -2,15 +2,13 @@
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.core.security;
 using GroundUp.infrastructure.data;
 
 namespace GroundUp.infrastructure.repositories
 {
-    public class InventoryCategoryRepository : BaseRepository<InventoryCategory, InventoryCategoryDto>, IInventoryCategoryRepository
+    public class InventoryCategoryRepository : BaseTenantRepository<InventoryCategory, InventoryCategoryDto>, IInventoryCategoryRepository
     {
-        public InventoryCategoryRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger) : base(context, mapper, logger)
-        {
-        }        
+        public InventoryCategoryRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger, ITenantContext tenantContext)
+            : base(context, mapper, logger, tenantContext) { }
     }
 }

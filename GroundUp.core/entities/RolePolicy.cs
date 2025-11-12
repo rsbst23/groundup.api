@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace GroundUp.core.entities
 {
-    public class RolePolicy
+    public class RolePolicy : ITenantEntity
     {
         public int Id { get; set; }
 
@@ -18,6 +18,8 @@ namespace GroundUp.core.entities
         public RoleType RoleType { get; set; }
         public int PolicyId { get; set; }
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        public Guid TenantId { get; set; }
 
         // Navigation property
         public Policy Policy { get; set; } = null!;

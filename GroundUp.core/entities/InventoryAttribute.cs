@@ -1,11 +1,16 @@
-﻿namespace GroundUp.core.entities
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace GroundUp.core.entities
 {
-    public class InventoryAttribute
+    public class InventoryAttribute : ITenantEntity
     {
         public int Id { get; set; }
         public int InventoryItemId { get; set; }
+        [Required]
+        [MaxLength(255)]
         public required string FieldName { get; set; }
-        public required string FieldValue { get; set; }
+        public string? FieldValue { get; set; }
+        public Guid TenantId { get; set; }
 
         public InventoryItem InventoryItem { get; set; } = null!;
     }

@@ -5,7 +5,7 @@ namespace GroundUp.core.interfaces
 {
     public interface IPolicyRepository
     {
-        [RequiresPermission("policies.view", "SYSTEMADMINasdf")]
+        [RequiresPermission("policies.view", "SYSTEMADMIN")]
         Task<ApiResponse<PaginatedData<PolicyDto>>> GetAllAsync(FilterParams filterParams);
 
         [RequiresPermission("policies.view", "SYSTEMADMIN")]

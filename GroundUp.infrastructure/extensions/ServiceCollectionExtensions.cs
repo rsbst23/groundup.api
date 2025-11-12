@@ -39,6 +39,9 @@ namespace GroundUp.infrastructure.extensions
             // Register IHttpContextAccessor for accessing user claims in permission checks
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
+            // Register TenantContext for multi-tenancy
+            services.AddScoped<ITenantContext, TenantContext>();
+
             // Register Permission Service
             services.AddScoped<IPermissionService, PermissionService>();
 
