@@ -34,6 +34,9 @@ namespace GroundUp.infrastructure.mappings
             // Role mappings
             CreateMap<Role, RoleDto>().ReverseMap();
 
+            // UserRole mappings
+            CreateMap<UserRoleDto, UserRole>().ReverseMap();
+
             // RolePolicy mappings
             CreateMap<RolePolicy, RolePolicyDto>()
                 .ForMember(dest => dest.PolicyName, opt => opt.MapFrom(src => src.Policy.Name));

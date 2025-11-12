@@ -85,4 +85,13 @@ namespace GroundUp.core.dtos
         public required string UserId { get; set; }
         public required List<UserRoleAssignmentDto> RoleAssignments { get; set; }
     }
+
+    public class UserRoleDto
+    {
+        public int Id { get; set; }
+
+        public Guid UserId { get; set; }
+
+        public int RoleId { get; set; }
+    }
 }

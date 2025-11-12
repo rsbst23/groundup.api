@@ -2,6 +2,13 @@
 
 namespace GroundUp.core.entities
 {
+    public enum RoleType
+    {
+        System,
+        Application,
+        Workspace
+    }
+
     public class Role
     {
         public int Id { get; set; }

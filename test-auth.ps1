@@ -12,3 +12,6 @@ Write-Host $accessToken
 # }
 
 # Invoke-RestMethod -Method Post -Uri "http://localhost:8080/realms/master/protocol/openid-connect/token" -Body $body -ContentType "application/x-www-form-urlencoded"
+
+
+#http://host.docker.internal:8080/admin/realms/groundup/roles

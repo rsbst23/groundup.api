@@ -98,18 +98,16 @@ namespace GroundUp.infrastructure.services
                 return cachedPermissions;
             }
 
-            // Get roles from user claims
-            var user = _httpContextAccessor.HttpContext?.User;
-            if (user == null) return new List<string>();
-
-            var roles = user.Claims
-                .Where(c => c.Type == ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToList();
+            // Get roles for the user from the database
+            var userRoles = await _context.UserRoles
+                .Where(ur => ur.UserId.ToString() == userId)
+                .Include(ur => ur.Role)
+                .Select(ur => ur.Role.Name)
+                .ToListAsync();
 
             // Get permissions for these roles through policies
             var permissions = await _context.RolePolicies
-                .Where(rp => roles.Contains(rp.RoleName) && rp.RoleType == RoleType.System)
+                .Where(rp => userRoles.Contains(rp.RoleName) && rp.RoleType == RoleType.System)
                 .Join(_context.PolicyPermissions,
                       rp => rp.PolicyId,
                       pp => pp.PolicyId,

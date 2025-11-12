@@ -7,13 +7,6 @@ using System.Threading.Tasks;
 
 namespace GroundUp.core.entities
 {
-    public enum RoleType
-    {
-        System,
-        Application,
-        Workspace
-    }
-
     public class RolePolicy
     {
         public int Id { get; set; }

@@ -21,6 +21,7 @@ namespace GroundUp.infrastructure.data
         public DbSet<Role> Roles { get; set; }
 
         public DbSet<ErrorFeedback> ErrorFeedback { get; set; }
+        public DbSet<UserRole> UserRoles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -94,6 +95,18 @@ namespace GroundUp.infrastructure.data
             modelBuilder.Entity<ErrorFeedback>()
                 .Property(e => e.ErrorJson)
                 .HasColumnType("LONGTEXT");
+
+            modelBuilder.Entity<UserRole>()
+                .HasKey(ur => ur.Id);
+
+            modelBuilder.Entity<UserRole>()
+                .HasIndex(ur => new { ur.UserId, ur.RoleId })
+                .IsUnique();
+
+            modelBuilder.Entity<UserRole>()
+                .HasOne(ur => ur.Role)
+                .WithMany()
+                .HasForeignKey(ur => ur.RoleId);
 
             // Seed Users
             modelBuilder.Entity<User>().HasData(
