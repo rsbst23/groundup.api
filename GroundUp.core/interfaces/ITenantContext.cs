@@ -4,6 +4,6 @@ namespace GroundUp.core.interfaces
 {
     public interface ITenantContext
     {
-        Guid TenantId { get; }
+        int TenantId { get; }
     }
 }

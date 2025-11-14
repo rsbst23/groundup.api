@@ -98,6 +98,19 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddApplicationServices();
 
+// Require authentication globally for all endpoints
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder("Keycloak", "Custom")
+        .RequireAuthenticatedUser()
+        .Build();
+    
+    // Set fallback policy to require authentication
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder("Keycloak", "Custom")
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
 // Ensure Swagger is correctly configured
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

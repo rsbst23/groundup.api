@@ -19,7 +19,7 @@ namespace GroundUp.api.Middleware
         {
             try
             {
-                await _next(context); // Continue to the next middleware
+                await _next(context);
             }
             catch (Exception ex)
             {
@@ -28,8 +28,18 @@ namespace GroundUp.api.Middleware
                 context.Response.ContentType = "application/json";
                 ApiResponse<string> response;
 
-                // Handle permission/authorization related errors
-                if (ex.Message.Contains("lacks permission"))
+                if (ex is UnauthorizedAccessException)
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                    response = new ApiResponse<string>(
+                        string.Empty,
+                        false,
+                        "User is not authenticated.",
+                        new List<string> { ex.Message },
+                        StatusCodes.Status401Unauthorized,
+                        ErrorCodes.Unauthorized);
+                }
+                else if (ex.Message.Contains("lacks permission"))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                     response = new ApiResponse<string>(
@@ -40,7 +50,6 @@ namespace GroundUp.api.Middleware
                         StatusCodes.Status403Forbidden,
                         ErrorCodes.Forbidden);
                 }
-                // Handle other types of errors
                 else
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;

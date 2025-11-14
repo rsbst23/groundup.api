@@ -15,6 +15,6 @@ namespace GroundUp.core.entities
 
         public InventoryCategory InventoryCategory { get; set; } = null!;
         public ICollection<InventoryAttribute> Attributes { get; set; } = new List<InventoryAttribute>();
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
     }
 }

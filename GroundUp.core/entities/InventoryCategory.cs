@@ -12,6 +12,6 @@ namespace GroundUp.core.entities
         public DateTime? CreatedDate { get; set; }
         public ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
 
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
     }
 }

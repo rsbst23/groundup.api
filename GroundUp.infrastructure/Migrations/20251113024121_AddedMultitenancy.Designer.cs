@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GroundUp.infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251112043003_AddedMultitenancy")]
+    [Migration("20251113024121_AddedMultitenancy")]
     partial class AddedMultitenancy
     {
         /// <inheritdoc />
@@ -40,8 +40,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<DateTime?>("PublishedDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -82,8 +82,8 @@ namespace GroundUp.infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
@@ -120,8 +120,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<int>("InventoryItemId")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -148,8 +148,8 @@ namespace GroundUp.infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -160,13 +160,13 @@ namespace GroundUp.infrastructure.Migrations
                         {
                             Id = 1,
                             Name = "Electronics",
-                            TenantId = new Guid("00000000-0000-0000-0000-000000000000")
+                            TenantId = 0
                         },
                         new
                         {
                             Id = 2,
                             Name = "Books",
-                            TenantId = new Guid("00000000-0000-0000-0000-000000000000")
+                            TenantId = 0
                         });
                 });
 
@@ -196,8 +196,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<decimal>("PurchasePrice")
                         .HasColumnType("decimal(65,30)");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -212,9 +212,9 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 11, 12, 4, 30, 2, 361, DateTimeKind.Utc).AddTicks(5230),
+                            PurchaseDate = new DateTime(2025, 11, 13, 2, 41, 20, 673, DateTimeKind.Utc).AddTicks(1088),
                             PurchasePrice = 999.99m,
-                            TenantId = new Guid("00000000-0000-0000-0000-000000000000")
+                            TenantId = 0
                         },
                         new
                         {
@@ -222,9 +222,9 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 11, 12, 4, 30, 2, 361, DateTimeKind.Utc).AddTicks(5240),
+                            PurchaseDate = new DateTime(2025, 11, 13, 2, 41, 20, 673, DateTimeKind.Utc).AddTicks(1091),
                             PurchasePrice = 12.99m,
-                            TenantId = new Guid("00000000-0000-0000-0000-000000000000")
+                            TenantId = 0
                         });
                 });
 
@@ -437,8 +437,8 @@ namespace GroundUp.infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -462,8 +462,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<int>("PolicyId")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -498,8 +498,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<int>("RoleType")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.Property<string>("WorkspaceId")
                         .HasColumnType("longtext");
@@ -534,8 +534,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<int>("RoleType")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -588,8 +588,8 @@ namespace GroundUp.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -601,14 +601,14 @@ namespace GroundUp.infrastructure.Migrations
                             Id = 1,
                             Email = "alice@example.com",
                             Name = "Alice",
-                            TenantId = new Guid("00000000-0000-0000-0000-000000000000")
+                            TenantId = 0
                         },
                         new
                         {
                             Id = 2,
                             Email = "bob@example.com",
                             Name = "Bob",
-                            TenantId = new Guid("00000000-0000-0000-0000-000000000000")
+                            TenantId = 0
                         });
                 });
 
@@ -623,8 +623,8 @@ namespace GroundUp.infrastructure.Migrations
                     b.Property<int>("RoleId")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("char(36)");
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");

@@ -15,6 +15,6 @@ namespace GroundUp.core.entities
 
         public DateTime? PublishedDate { get; set; }
 
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
     }
 }

@@ -13,7 +13,7 @@ namespace GroundUp.infrastructure.services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public Guid TenantId
+        public int TenantId
         {
             get
             {
@@ -21,7 +21,7 @@ namespace GroundUp.infrastructure.services
                 if (context?.User?.Identity?.IsAuthenticated == true)
                 {
                     var tenantIdClaim = context.User.FindFirst("tenant_id")?.Value;
-                    if (Guid.TryParse(tenantIdClaim, out var tenantId))
+                    if (int.TryParse(tenantIdClaim, out var tenantId))
                     {
                         return tenantId;
                     }

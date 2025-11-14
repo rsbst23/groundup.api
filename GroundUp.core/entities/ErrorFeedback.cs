@@ -30,6 +30,6 @@ namespace GroundUp.core.entities
         public DateTime Timestamp { get; set; }
         public DateTime? CreatedDate { get; set; }
 
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
     }
 }

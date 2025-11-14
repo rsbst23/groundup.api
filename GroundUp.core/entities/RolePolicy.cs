@@ -19,7 +19,7 @@ namespace GroundUp.core.entities
         public int PolicyId { get; set; }
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
 
         // Navigation property
         public Policy Policy { get; set; } = null!;

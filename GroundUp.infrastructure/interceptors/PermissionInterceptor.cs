@@ -47,8 +47,9 @@ namespace GroundUp.infrastructure.interceptors
                 invocation.Proceed();
                 return;
             }
-
+            
             var httpContext = _httpContextAccessor.HttpContext;
+            
             if (httpContext?.User.Identity?.IsAuthenticated != true)
             {
                 throw new UnauthorizedAccessException("User is not authenticated.");
@@ -80,6 +81,7 @@ namespace GroundUp.infrastructure.interceptors
                 }
                 catch (Exception ex)
                 {
+                    _logger.LogError($"Permission check exception: {ex.Message}", ex);
                     throw;
                 }
             }

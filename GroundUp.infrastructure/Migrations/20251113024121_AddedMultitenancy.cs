@@ -12,53 +12,47 @@ namespace GroundUp.infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "Users",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "UserRoles",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "Roles",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "RolePolicies",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "PolicyPermissions",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "Policies",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
             migrationBuilder.AlterColumn<string>(
                 name: "Name",
@@ -71,21 +65,19 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "InventoryItems",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "InventoryCategories",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
             migrationBuilder.AlterColumn<string>(
                 name: "FieldValue",
@@ -108,21 +100,19 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "InventoryAttributes",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "ErrorFeedback",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PublishedDate",
@@ -130,13 +120,12 @@ namespace GroundUp.infrastructure.Migrations
                 type: "datetime(6)",
                 nullable: true);
 
-            migrationBuilder.AddColumn<Guid>(
+            migrationBuilder.AddColumn<int>(
                 name: "TenantId",
                 table: "Books",
-                type: "char(36)",
+                type: "int",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                collation: "ascii_general_ci");
+                defaultValue: 0);
 
             migrationBuilder.CreateTable(
                 name: "Tenants",
@@ -181,42 +170,42 @@ namespace GroundUp.infrastructure.Migrations
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "TenantId",
-                value: new Guid("00000000-0000-0000-0000-000000000000"));
+                value: 0);
 
             migrationBuilder.UpdateData(
                 table: "InventoryCategories",
                 keyColumn: "Id",
                 keyValue: 2,
                 column: "TenantId",
-                value: new Guid("00000000-0000-0000-0000-000000000000"));
+                value: 0);
 
             migrationBuilder.UpdateData(
                 table: "InventoryItems",
                 keyColumn: "Id",
                 keyValue: 1,
                 columns: new[] { "PurchaseDate", "TenantId" },
-                values: new object[] { new DateTime(2025, 11, 12, 4, 30, 2, 361, DateTimeKind.Utc).AddTicks(5230), new Guid("00000000-0000-0000-0000-000000000000") });
+                values: new object[] { new DateTime(2025, 11, 13, 2, 41, 20, 673, DateTimeKind.Utc).AddTicks(1088), 0 });
 
             migrationBuilder.UpdateData(
                 table: "InventoryItems",
                 keyColumn: "Id",
                 keyValue: 2,
                 columns: new[] { "PurchaseDate", "TenantId" },
-                values: new object[] { new DateTime(2025, 11, 12, 4, 30, 2, 361, DateTimeKind.Utc).AddTicks(5240), new Guid("00000000-0000-0000-0000-000000000000") });
+                values: new object[] { new DateTime(2025, 11, 13, 2, 41, 20, 673, DateTimeKind.Utc).AddTicks(1091), 0 });
 
             migrationBuilder.UpdateData(
                 table: "Users",
                 keyColumn: "Id",
                 keyValue: 1,
                 column: "TenantId",
-                value: new Guid("00000000-0000-0000-0000-000000000000"));
+                value: 0);
 
             migrationBuilder.UpdateData(
                 table: "Users",
                 keyColumn: "Id",
                 keyValue: 2,
                 column: "TenantId",
-                value: new Guid("00000000-0000-0000-0000-000000000000"));
+                value: 0);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Tenants_Name",

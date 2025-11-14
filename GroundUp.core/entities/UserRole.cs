@@ -8,7 +8,7 @@
 
         public int RoleId { get; set; }
 
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
 
         public Role Role { get; set; } = null!;
     }

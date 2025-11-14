@@ -10,7 +10,7 @@ namespace GroundUp.core.entities
         [MaxLength(255)]
         public required string FieldName { get; set; }
         public string? FieldValue { get; set; }
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
 
         public InventoryItem InventoryItem { get; set; } = null!;
     }

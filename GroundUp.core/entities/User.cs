@@ -10,6 +10,6 @@ namespace GroundUp.core.entities
 
         public required string Email { get; set; }
 
-        public Guid TenantId { get; set; }
+        public int TenantId { get; set; }
     }
 }
