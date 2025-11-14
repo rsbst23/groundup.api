@@ -9,7 +9,7 @@ namespace GroundUp.core.entities
         Workspace
     }
 
-    public class Role
+    public class Role : ITenantEntity
     {
         public int Id { get; set; }
 
@@ -26,5 +26,7 @@ namespace GroundUp.core.entities
         public string? WorkspaceId { get; set; }
 
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+
+        public int TenantId { get; set; }
     }
 }

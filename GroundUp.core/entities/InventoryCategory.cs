@@ -2,7 +2,7 @@
 
 namespace GroundUp.core.entities
 {
-    public class InventoryCategory
+    public class InventoryCategory : ITenantEntity
     {
         public int Id { get; set; }
 
@@ -11,5 +11,7 @@ namespace GroundUp.core.entities
         public required string Name { get; set; }
         public DateTime? CreatedDate { get; set; }
         public ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
+
+        public int TenantId { get; set; }
     }
 }

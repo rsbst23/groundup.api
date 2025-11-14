@@ -23,6 +23,10 @@ namespace GroundUp.infrastructure.data
         public DbSet<ErrorFeedback> ErrorFeedback { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
 
+        // Add Tenant and UserTenant entities
+        public DbSet<Tenant> Tenants { get; set; }
+        public DbSet<UserTenant> UserTenants { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -107,6 +111,28 @@ namespace GroundUp.infrastructure.data
                 .HasOne(ur => ur.Role)
                 .WithMany()
                 .HasForeignKey(ur => ur.RoleId);
+
+            // Tenant configuration
+            modelBuilder.Entity<Tenant>()
+                .HasKey(t => t.Id);
+
+            modelBuilder.Entity<Tenant>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
+
+            // UserTenant configuration
+            modelBuilder.Entity<UserTenant>()
+                .HasKey(ut => ut.Id);
+
+            modelBuilder.Entity<UserTenant>()
+                .HasIndex(ut => new { ut.UserId, ut.TenantId })
+                .IsUnique();
+
+            modelBuilder.Entity<UserTenant>()
+                .HasOne(ut => ut.Tenant)
+                .WithMany(t => t.UserTenants)
+                .HasForeignKey(ut => ut.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Seed Users
             modelBuilder.Entity<User>().HasData(

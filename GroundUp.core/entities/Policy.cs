@@ -2,7 +2,7 @@
 
 namespace GroundUp.core.entities
 {
-    public class Policy
+    public class Policy : ITenantEntity
     {
         public int Id { get; set; }
 
@@ -12,6 +12,8 @@ namespace GroundUp.core.entities
 
         [MaxLength(255)]
         public string? Description { get; set; }
+
+        public int TenantId { get; set; }
 
         // Navigation properties
         public ICollection<PolicyPermission> PolicyPermissions { get; set; } = new List<PolicyPermission>();

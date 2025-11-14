@@ -2,7 +2,7 @@
 
 namespace GroundUp.core.entities
 {
-    public class Book
+    public class Book : ITenantEntity
     {
         [Key]
         public int Id { get; set; }
@@ -12,5 +12,9 @@ namespace GroundUp.core.entities
 
         [Required]
         public string Author { get; set; } = string.Empty;
+
+        public DateTime? PublishedDate { get; set; }
+
+        public int TenantId { get; set; }
     }
 }

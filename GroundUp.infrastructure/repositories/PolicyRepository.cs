@@ -7,10 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
 {
-    public class PolicyRepository : BaseRepository<Policy, PolicyDto>, IPolicyRepository
+    public class PolicyRepository : BaseTenantRepository<Policy, PolicyDto>, IPolicyRepository
     {
-        public PolicyRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
-            : base(context, mapper, logger) { }
+        public PolicyRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger, ITenantContext tenantContext)
+            : base(context, mapper, logger, tenantContext) { }
 
         public async Task<ApiResponse<PolicyDto>> GetByNameAsync(string name)
         {
