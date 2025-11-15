@@ -28,7 +28,7 @@ namespace GroundUp.core.entities
         public string? UserAgent { get; set; }
 
         public DateTime Timestamp { get; set; }
-        public DateTime? CreatedDate { get; set; }
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
         public int TenantId { get; set; }
     }

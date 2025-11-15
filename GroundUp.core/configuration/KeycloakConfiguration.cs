@@ -14,5 +14,8 @@
         // Added properties for admin access
         public string AdminClientId { get; set; } = string.Empty;
         public string AdminClientSecret { get; set; } = string.Empty;
+        
+        // Default role assigned to new users
+        public string DefaultUserRole { get; set; } = "USER";
     }
 }

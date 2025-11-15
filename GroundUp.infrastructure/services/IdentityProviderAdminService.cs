@@ -354,6 +354,190 @@ namespace GroundUp.infrastructure.services
             return users.FirstOrDefault();
         }
 
+        public async Task<UserDetailsDto> CreateUserAsync(CreateUserDto userDto)
+        {
+            await EnsureAdminTokenAsync();
+
+            var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users";
+
+            // Generate a strong temporary password (user will be required to change it)
+            var temporaryPassword = GenerateSecurePassword();
+
+            // Build Keycloak user payload
+            var payload = new
+            {
+                username = userDto.Username,
+                email = userDto.Email,
+                firstName = userDto.FirstName,
+                lastName = userDto.LastName,
+                enabled = userDto.Enabled,
+                emailVerified = userDto.EmailVerified,
+                credentials = new[]
+                {
+                    new
+                    {
+                        type = "password",
+                        value = temporaryPassword,
+                        temporary = true // Force user to change password on first login
+                    }
+                },
+                requiredActions = new[] { "UPDATE_PASSWORD" }, // Require password update
+                attributes = userDto.Attributes
+            };
+
+            var response = await _httpClient.PostAsJsonAsync(requestUrl, payload);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to create user: {errorContent}");
+                throw new Exception($"Failed to create user in Keycloak: {errorContent}");
+            }
+
+            // Keycloak returns 201 Created with Location header containing the user ID
+            var locationHeader = response.Headers.Location?.ToString();
+            if (string.IsNullOrEmpty(locationHeader))
+            {
+                throw new Exception("Failed to get user ID from Keycloak response");
+            }
+
+            // Extract user ID from location header (e.g., .../users/12345-67890-...)
+            var userId = locationHeader.Split('/').Last();
+
+            // Send password setup email if requested
+            if (userDto.SendWelcomeEmail)
+            {
+                try
+                {
+                    await SendPasswordResetEmailAsync(userId);
+                    _logger.LogInformation($"Sent password setup email to user '{userDto.Username}'");
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogWarning($"Failed to send password setup email to user '{userDto.Username}': {emailEx.Message}");
+                    // Don't fail user creation if email fails
+                }
+            }
+
+            // Fetch the created user
+            var createdUser = await GetUserByIdAsync(userId);
+            if (createdUser == null)
+            {
+                throw new Exception($"User was created but could not be retrieved");
+            }
+
+            _logger.LogInformation($"Successfully created user '{userDto.Username}' with ID {userId}");
+            return createdUser;
+        }
+
+        public async Task<UserDetailsDto?> UpdateUserAsync(string userId, UpdateUserDto userDto)
+        {
+            await EnsureAdminTokenAsync();
+
+            // First, get the existing user
+            var existingUser = await GetUserByIdAsync(userId);
+            if (existingUser == null)
+            {
+                _logger.LogWarning($"User with ID '{userId}' not found");
+                return null;
+            }
+
+            var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users/{userId}";
+
+            // Build update payload (only include fields that are provided)
+            var payload = new
+            {
+                email = userDto.Email ?? existingUser.Email,
+                firstName = userDto.FirstName ?? existingUser.FirstName,
+                lastName = userDto.LastName ?? existingUser.LastName,
+                enabled = userDto.Enabled ?? existingUser.Enabled,
+                emailVerified = userDto.EmailVerified ?? existingUser.EmailVerified,
+                attributes = userDto.Attributes ?? existingUser.Attributes
+            };
+
+            var response = await _httpClient.PutAsJsonAsync(requestUrl, payload);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to update user {userId}: {errorContent}");
+                throw new Exception($"Failed to update user in Keycloak: {errorContent}");
+            }
+
+            // Fetch the updated user
+            var updatedUser = await GetUserByIdAsync(userId);
+            _logger.LogInformation($"Successfully updated user with ID {userId}");
+            return updatedUser;
+        }
+
+        public async Task<bool> DeleteUserAsync(string userId)
+        {
+            await EnsureAdminTokenAsync();
+
+            var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users/{userId}";
+
+            var response = await _httpClient.DeleteAsync(requestUrl);
+            
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning($"User with ID '{userId}' not found");
+                return false;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to delete user {userId}: {errorContent}");
+                throw new Exception($"Failed to delete user from Keycloak: {errorContent}");
+            }
+
+            _logger.LogInformation($"Successfully deleted user with ID {userId}");
+            return true;
+        }
+
+        public async Task<bool> SetUserEnabledAsync(string userId, bool enabled)
+        {
+            await EnsureAdminTokenAsync();
+
+            var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users/{userId}";
+
+            var payload = new { enabled };
+
+            var response = await _httpClient.PutAsJsonAsync(requestUrl, payload);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to set user {userId} enabled status: {errorContent}");
+                return false;
+            }
+
+            _logger.LogInformation($"Successfully set user {userId} enabled status to {enabled}");
+            return true;
+        }
+
+        public async Task<bool> SendPasswordResetEmailAsync(string userId)
+        {
+            await EnsureAdminTokenAsync();
+
+            // Trigger Keycloak to send password reset email
+            var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users/{userId}/execute-actions-email";
+
+            var payload = new[] { "UPDATE_PASSWORD" };
+
+            var response = await _httpClient.PutAsJsonAsync(requestUrl, payload);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to send password reset email to user {userId}: {errorContent}");
+                return false;
+            }
+
+            _logger.LogInformation($"Successfully sent password reset email to user {userId}");
+            return true;
+        }
+
         #endregion
 
         #region Authentication
@@ -422,6 +606,47 @@ namespace GroundUp.infrastructure.services
 
             [System.Text.Json.Serialization.JsonPropertyName("token_type")]
             public string TokenType { get; set; } = string.Empty;
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Generates a cryptographically secure random password
+        /// </summary>
+        private string GenerateSecurePassword()
+        {
+            const string upperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const string lowerCase = "abcdefghijklmnopqrstuvwxyz";
+            const string digits = "0123456789";
+            const string special = "!@#$%^&*()-_=+[]{}|;:,.<>?";
+            const int passwordLength = 16;
+
+            var random = new Random();
+            var password = new char[passwordLength];
+
+            // Ensure at least one character from each category
+            password[0] = upperCase[random.Next(upperCase.Length)];
+            password[1] = lowerCase[random.Next(lowerCase.Length)];
+            password[2] = digits[random.Next(digits.Length)];
+            password[3] = special[random.Next(special.Length)];
+
+            // Fill the rest randomly
+            var allChars = upperCase + lowerCase + digits + special;
+            for (int i = 4; i < passwordLength; i++)
+            {
+                password[i] = allChars[random.Next(allChars.Length)];
+            }
+
+            // Shuffle the password to avoid predictable patterns
+            for (int i = passwordLength - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                (password[i], password[j]) = (password[j], password[i]);
+            }
+
+            return new string(password);
         }
 
         #endregion

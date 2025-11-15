@@ -19,8 +19,8 @@ namespace GroundUp.infrastructure.repositories
         protected readonly ApplicationDbContext _context;
         protected readonly IMapper _mapper;
         protected readonly DbSet<T> _dbSet;
-        private readonly ILoggingService _logger;
-        private readonly ITenantContext _tenantContext;
+        protected readonly ILoggingService _logger;
+        protected readonly ITenantContext _tenantContext;
 
         public BaseTenantRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger, ITenantContext tenantContext)
         {

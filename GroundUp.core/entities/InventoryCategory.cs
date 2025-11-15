@@ -9,7 +9,7 @@ namespace GroundUp.core.entities
         [Required]
         [MaxLength(255)]
         public required string Name { get; set; }
-        public DateTime? CreatedDate { get; set; }
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();
 
         public int TenantId { get; set; }

@@ -26,7 +26,9 @@ namespace GroundUp.infrastructure.Migrations
                     Title = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Author = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PublishedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -53,7 +55,8 @@ namespace GroundUp.infrastructure.Migrations
                     UserAgent = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Timestamp = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "DATETIME(6)", nullable: true, defaultValueSql: "CURRENT_TIMESTAMP(6)")
+                    CreatedDate = table.Column<DateTime>(type: "DATETIME(6)", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -69,7 +72,8 @@ namespace GroundUp.infrastructure.Migrations
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     Name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedDate = table.Column<DateTime>(type: "DATETIME(6)", nullable: true, defaultValueSql: "CURRENT_TIMESTAMP(6)")
+                    CreatedDate = table.Column<DateTime>(type: "DATETIME(6)", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -105,7 +109,8 @@ namespace GroundUp.infrastructure.Migrations
                     Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Description = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -126,7 +131,8 @@ namespace GroundUp.infrastructure.Migrations
                     RoleType = table.Column<int>(type: "int", nullable: false),
                     WorkspaceId = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -135,15 +141,39 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Users",
+                name: "Tenants",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
+                    Name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Email = table.Column<string>(type: "longtext", nullable: false)
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Tenants", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Users",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Username = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Email = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FirstName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LastName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "DATETIME(6)", nullable: false),
+                    LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -157,13 +187,14 @@ namespace GroundUp.infrastructure.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    InventoryCategoryId = table.Column<int>(type: "int", nullable: false),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
+                    Name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    InventoryCategoryId = table.Column<int>(type: "int", nullable: false),
                     PurchasePrice = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     Condition = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    PurchaseDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    PurchaseDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -184,7 +215,8 @@ namespace GroundUp.infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     PolicyId = table.Column<int>(type: "int", nullable: false),
-                    PermissionId = table.Column<int>(type: "int", nullable: false)
+                    PermissionId = table.Column<int>(type: "int", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -214,7 +246,8 @@ namespace GroundUp.infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     RoleType = table.Column<int>(type: "int", nullable: false),
                     PolicyId = table.Column<int>(type: "int", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -229,16 +262,72 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "UserRoles",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RoleId = table.Column<int>(type: "int", nullable: false),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserRoles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "UserTenants",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserTenants", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserTenants_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserTenants_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "InventoryAttributes",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     InventoryItemId = table.Column<int>(type: "int", nullable: false),
-                    FieldName = table.Column<string>(type: "longtext", nullable: false)
+                    FieldName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    FieldValue = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                    FieldValue = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TenantId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -254,11 +343,11 @@ namespace GroundUp.infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "InventoryCategories",
-                columns: new[] { "Id", "Name" },
+                columns: new[] { "Id", "CreatedDate", "Name", "TenantId" },
                 values: new object[,]
                 {
-                    { 1, "Electronics" },
-                    { 2, "Books" }
+                    { 1, new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3729), "Electronics", 0 },
+                    { 2, new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3731), "Books", 0 }
                 });
 
             migrationBuilder.InsertData(
@@ -286,27 +375,24 @@ namespace GroundUp.infrastructure.Migrations
                     { 18, "Update policies", "Policies", "policies.update" },
                     { 19, "Delete policies", "Policies", "policies.delete" },
                     { 20, "View users", "Users", "users.view" },
-                    { 21, "View user roles", "Users", "users.roles.view" },
-                    { 22, "Assign roles to users", "Users", "users.roles.assign" },
-                    { 23, "Remove roles from users", "Users", "users.roles.remove" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[] { "Id", "Email", "Name" },
-                values: new object[,]
-                {
-                    { 1, "alice@example.com", "Alice" },
-                    { 2, "bob@example.com", "Bob" }
+                    { 21, "Create users", "Users", "users.create" },
+                    { 22, "Update users", "Users", "users.update" },
+                    { 23, "Delete users", "Users", "users.delete" },
+                    { 24, "View user roles", "Users", "users.roles.view" },
+                    { 25, "Assign roles to users", "Users", "users.roles.assign" },
+                    { 26, "Remove roles from users", "Users", "users.roles.remove" },
+                    { 27, "View user tenants", "Users", "users.tenants.view" },
+                    { 28, "Assign users to tenants", "Users", "users.tenants.assign" },
+                    { 29, "Remove users from tenants", "Users", "users.tenants.remove" }
                 });
 
             migrationBuilder.InsertData(
                 table: "InventoryItems",
-                columns: new[] { "Id", "Condition", "InventoryCategoryId", "Name", "PurchaseDate", "PurchasePrice" },
+                columns: new[] { "Id", "Condition", "InventoryCategoryId", "Name", "PurchaseDate", "PurchasePrice", "TenantId" },
                 values: new object[,]
                 {
-                    { 1, "New", 1, "Laptop", new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8485), 999.99m },
-                    { 2, "Used", 2, "The Great Gatsby", new DateTime(2025, 3, 19, 3, 3, 39, 260, DateTimeKind.Utc).AddTicks(8490), 12.99m }
+                    { 1, "New", 1, "Laptop", new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3846), 999.99m, 0 },
+                    { 2, "Used", 2, "The Great Gatsby", new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3848), 12.99m, 0 }
                 });
 
             migrationBuilder.CreateIndex(
@@ -358,6 +444,46 @@ namespace GroundUp.infrastructure.Migrations
                 table: "Roles",
                 columns: new[] { "Name", "RoleType" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tenants_Name",
+                table: "Tenants",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserRoles_RoleId",
+                table: "UserRoles",
+                column: "RoleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserRoles_UserId_RoleId",
+                table: "UserRoles",
+                columns: new[] { "UserId", "RoleId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Username",
+                table: "Users",
+                column: "Username",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserTenants_TenantId",
+                table: "UserTenants",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserTenants_UserId_TenantId",
+                table: "UserTenants",
+                columns: new[] { "UserId", "TenantId" },
+                unique: true);
         }
 
         /// <inheritdoc />
@@ -379,10 +505,10 @@ namespace GroundUp.infrastructure.Migrations
                 name: "RolePolicies");
 
             migrationBuilder.DropTable(
-                name: "Roles");
+                name: "UserRoles");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "UserTenants");
 
             migrationBuilder.DropTable(
                 name: "InventoryItems");
@@ -392,6 +518,15 @@ namespace GroundUp.infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Policies");
+
+            migrationBuilder.DropTable(
+                name: "Roles");
+
+            migrationBuilder.DropTable(
+                name: "Tenants");
+
+            migrationBuilder.DropTable(
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "InventoryCategories");
