@@ -61,10 +61,8 @@ namespace GroundUp.infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<DateTime?>("CreatedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("DATETIME(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("DATETIME(6)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
@@ -135,10 +133,8 @@ namespace GroundUp.infrastructure.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("CreatedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("DATETIME(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("DATETIME(6)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -156,12 +152,14 @@ namespace GroundUp.infrastructure.Migrations
                         new
                         {
                             Id = 1,
+                            CreatedDate = new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3729),
                             Name = "Electronics",
                             TenantId = 0
                         },
                         new
                         {
                             Id = 2,
+                            CreatedDate = new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3731),
                             Name = "Books",
                             TenantId = 0
                         });
@@ -209,7 +207,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "New",
                             InventoryCategoryId = 1,
                             Name = "Laptop",
-                            PurchaseDate = new DateTime(2025, 11, 13, 2, 41, 20, 673, DateTimeKind.Utc).AddTicks(1088),
+                            PurchaseDate = new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3846),
                             PurchasePrice = 999.99m,
                             TenantId = 0
                         },
@@ -219,7 +217,7 @@ namespace GroundUp.infrastructure.Migrations
                             Condition = "Used",
                             InventoryCategoryId = 2,
                             Name = "The Great Gatsby",
-                            PurchaseDate = new DateTime(2025, 11, 13, 2, 41, 20, 673, DateTimeKind.Utc).AddTicks(1091),
+                            PurchaseDate = new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3848),
                             PurchasePrice = 12.99m,
                             TenantId = 0
                         });
@@ -397,23 +395,65 @@ namespace GroundUp.infrastructure.Migrations
                         new
                         {
                             Id = 21,
+                            Description = "Create users",
+                            Group = "Users",
+                            Name = "users.create"
+                        },
+                        new
+                        {
+                            Id = 22,
+                            Description = "Update users",
+                            Group = "Users",
+                            Name = "users.update"
+                        },
+                        new
+                        {
+                            Id = 23,
+                            Description = "Delete users",
+                            Group = "Users",
+                            Name = "users.delete"
+                        },
+                        new
+                        {
+                            Id = 24,
                             Description = "View user roles",
                             Group = "Users",
                             Name = "users.roles.view"
                         },
                         new
                         {
-                            Id = 22,
+                            Id = 25,
                             Description = "Assign roles to users",
                             Group = "Users",
                             Name = "users.roles.assign"
                         },
                         new
                         {
-                            Id = 23,
+                            Id = 26,
                             Description = "Remove roles from users",
                             Group = "Users",
                             Name = "users.roles.remove"
+                        },
+                        new
+                        {
+                            Id = 27,
+                            Description = "View user tenants",
+                            Group = "Users",
+                            Name = "users.tenants.view"
+                        },
+                        new
+                        {
+                            Id = 28,
+                            Description = "Assign users to tenants",
+                            Group = "Users",
+                            Name = "users.tenants.assign"
+                        },
+                        new
+                        {
+                            Id = 29,
+                            Description = "Remove users from tenants",
+                            Group = "Users",
+                            Name = "users.tenants.remove"
                         });
                 });
 
@@ -571,42 +611,45 @@ namespace GroundUp.infrastructure.Migrations
 
             modelBuilder.Entity("GroundUp.core.entities.User", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("char(36)");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("DATETIME(6)");
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("FirstName")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastName")
                         .HasColumnType("longtext");
 
                     b.Property<int>("TenantId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.HasIndex("Email")
+                        .IsUnique();
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Email = "alice@example.com",
-                            Name = "Alice",
-                            TenantId = 0
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Email = "bob@example.com",
-                            Name = "Bob",
-                            TenantId = 0
-                        });
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("GroundUp.core.entities.UserRole", b =>
@@ -720,6 +763,12 @@ namespace GroundUp.infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GroundUp.core.entities.User", null)
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Role");
                 });
 
@@ -728,6 +777,12 @@ namespace GroundUp.infrastructure.Migrations
                     b.HasOne("GroundUp.core.entities.Tenant", "Tenant")
                         .WithMany("UserTenants")
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GroundUp.core.entities.User", null)
+                        .WithMany("UserTenants")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -758,6 +813,13 @@ namespace GroundUp.infrastructure.Migrations
 
             modelBuilder.Entity("GroundUp.core.entities.Tenant", b =>
                 {
+                    b.Navigation("UserTenants");
+                });
+
+            modelBuilder.Entity("GroundUp.core.entities.User", b =>
+                {
+                    b.Navigation("UserRoles");
+
                     b.Navigation("UserTenants");
                 });
 #pragma warning restore 612, 618

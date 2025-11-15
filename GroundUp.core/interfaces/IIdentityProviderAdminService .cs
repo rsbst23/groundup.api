@@ -22,5 +22,10 @@ namespace GroundUp.core.interfaces
         Task<List<UserSummaryDto>> GetAllUsersAsync();
         Task<UserDetailsDto?> GetUserByIdAsync(string userId);
         Task<UserDetailsDto?> GetUserByUsernameAsync(string username);
+        Task<UserDetailsDto> CreateUserAsync(CreateUserDto userDto);
+        Task<UserDetailsDto?> UpdateUserAsync(string userId, UpdateUserDto userDto);
+        Task<bool> DeleteUserAsync(string userId);
+        Task<bool> SetUserEnabledAsync(string userId, bool enabled);
+        Task<bool> SendPasswordResetEmailAsync(string userId);
     }
 }

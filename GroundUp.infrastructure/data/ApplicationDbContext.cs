@@ -74,9 +74,7 @@ namespace GroundUp.infrastructure.data
 
             modelBuilder.Entity<InventoryCategory>()
                 .Property(b => b.CreatedDate)
-                .HasColumnType("DATETIME(6)")
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .ValueGeneratedOnAdd();
+                .HasColumnType("DATETIME(6)");
 
             modelBuilder.Entity<InventoryItem>()
                 .HasOne(i => i.InventoryCategory)
@@ -92,9 +90,7 @@ namespace GroundUp.infrastructure.data
 
             modelBuilder.Entity<ErrorFeedback>()
                 .Property(e => e.CreatedDate)
-                .HasColumnType("DATETIME(6)")
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .ValueGeneratedOnAdd();
+                .HasColumnType("DATETIME(6)");
 
             modelBuilder.Entity<ErrorFeedback>()
                 .Property(e => e.ErrorJson)
@@ -134,16 +130,32 @@ namespace GroundUp.infrastructure.data
                 .HasForeignKey(ut => ut.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Seed Users
-            modelBuilder.Entity<User>().HasData(
-                new User { Id = 1, Name = "Alice", Email = "alice@example.com" },
-                new User { Id = 2, Name = "Bob", Email = "bob@example.com" }
-            );
+            // User configuration
+            modelBuilder.Entity<User>()
+                .HasKey(u => u.Id);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.CreatedAt)
+                .HasColumnType("DATETIME(6)");
+
+            // Remove old User seed data - users now come from Keycloak
+            // modelBuilder.Entity<User>().HasData(
+            //     new User { Id = 1, Name = "Alice", Email = "alice@example.com" },
+            //     new User { Id = 2, Name = "Bob", Email = "bob@example.com" }
+            // );
 
             // Seed Inventory Categories
             modelBuilder.Entity<InventoryCategory>().HasData(
-                new InventoryCategory { Id = 1, Name = "Electronics", CreatedDate = null },
-                new InventoryCategory { Id = 2, Name = "Books", CreatedDate = null }
+                new InventoryCategory { Id = 1, Name = "Electronics", CreatedDate = DateTime.UtcNow, TenantId = 0 },
+                new InventoryCategory { Id = 2, Name = "Books", CreatedDate = DateTime.UtcNow, TenantId = 0 }
             );
 
             // Seed Inventory Items
@@ -183,9 +195,15 @@ namespace GroundUp.infrastructure.data
 
                 // User permissions
                 new Permission { Id = 20, Name = "users.view", Description = "View users", Group = "Users" },
-                new Permission { Id = 21, Name = "users.roles.view", Description = "View user roles", Group = "Users" },
-                new Permission { Id = 22, Name = "users.roles.assign", Description = "Assign roles to users", Group = "Users" },
-                new Permission { Id = 23, Name = "users.roles.remove", Description = "Remove roles from users", Group = "Users" }
+                new Permission { Id = 21, Name = "users.create", Description = "Create users", Group = "Users" },
+                new Permission { Id = 22, Name = "users.update", Description = "Update users", Group = "Users" },
+                new Permission { Id = 23, Name = "users.delete", Description = "Delete users", Group = "Users" },
+                new Permission { Id = 24, Name = "users.roles.view", Description = "View user roles", Group = "Users" },
+                new Permission { Id = 25, Name = "users.roles.assign", Description = "Assign roles to users", Group = "Users" },
+                new Permission { Id = 26, Name = "users.roles.remove", Description = "Remove roles from users", Group = "Users" },
+                new Permission { Id = 27, Name = "users.tenants.view", Description = "View user tenants", Group = "Users" },
+                new Permission { Id = 28, Name = "users.tenants.assign", Description = "Assign users to tenants", Group = "Users" },
+                new Permission { Id = 29, Name = "users.tenants.remove", Description = "Remove users from tenants", Group = "Users" }
             );
         }
     }
