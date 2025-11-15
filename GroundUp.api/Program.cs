@@ -61,8 +61,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// Add Keycloak authentication and authorization
-builder.Services.AddKeycloakServices();
+// Add authentication and authorization
+builder.Services.AddAuthenticationServices();
 
 
 builder.Services.ConfigureApplicationCookie(options =>

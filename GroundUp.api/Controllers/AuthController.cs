@@ -124,7 +124,12 @@ namespace GroundUp.api.Controllers
                     response = new ApiResponse<SetTenantResponseDto>(
                         new SetTenantResponseDto {
                             SelectionRequired = true,
-                            AvailableTenants = userTenants.Select(ut => ut.Tenant).ToList(),
+                            AvailableTenants = userTenants.Select(ut => new TenantDto
+                            {
+                                Id = ut.Tenant.Id,
+                                Name = ut.Tenant.Name,
+                                Description = ut.Tenant.Description
+                            }).ToList(),
                             Token = null
                         },
                         true,
