@@ -12,7 +12,7 @@ namespace GroundUp.core.dtos
     public class SetTenantResponseDto
     {
         public bool SelectionRequired { get; set; }
-        public List<Tenant>? AvailableTenants { get; set; }
+        public List<TenantDto>? AvailableTenants { get; set; }
         public string? Token { get; set; }
     }
 }
