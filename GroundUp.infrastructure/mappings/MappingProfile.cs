@@ -62,6 +62,21 @@ namespace GroundUp.infrastructure.mappings
 
             // UserTenant mappings
             CreateMap<UserTenant, UserTenantDto>().ReverseMap();
+
+            // User mappings
+            CreateMap<User, UserSummaryDto>()
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()))
+                .ForMember(dest => dest.Enabled, opt => opt.MapFrom(src => src.IsActive));
+
+            CreateMap<User, UserDetailsDto>()
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()))
+                .ForMember(dest => dest.Enabled, opt => opt.MapFrom(src => src.IsActive))
+                .ForMember(dest => dest.EmailVerified, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedTimestamp, opt => opt.Ignore())
+                .ForMember(dest => dest.Attributes, opt => opt.Ignore())
+                .ForMember(dest => dest.Groups, opt => opt.Ignore())
+                .ForMember(dest => dest.RealmRoles, opt => opt.Ignore())
+                .ForMember(dest => dest.ClientRoles, opt => opt.Ignore());
         }
     }
 }

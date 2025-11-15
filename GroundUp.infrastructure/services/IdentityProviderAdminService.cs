@@ -360,6 +360,9 @@ namespace GroundUp.infrastructure.services
 
             var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{_keycloakConfig.Realm}/users";
 
+            // Generate a strong temporary password (user will be required to change it)
+            var temporaryPassword = GenerateSecurePassword();
+
             // Build Keycloak user payload
             var payload = new
             {
@@ -374,10 +377,11 @@ namespace GroundUp.infrastructure.services
                     new
                     {
                         type = "password",
-                        value = userDto.Password,
-                        temporary = false // Set to true if you want user to change password on first login
+                        value = temporaryPassword,
+                        temporary = true // Force user to change password on first login
                     }
                 },
+                requiredActions = new[] { "UPDATE_PASSWORD" }, // Require password update
                 attributes = userDto.Attributes
             };
 
@@ -399,6 +403,21 @@ namespace GroundUp.infrastructure.services
 
             // Extract user ID from location header (e.g., .../users/12345-67890-...)
             var userId = locationHeader.Split('/').Last();
+
+            // Send password setup email if requested
+            if (userDto.SendWelcomeEmail)
+            {
+                try
+                {
+                    await SendPasswordResetEmailAsync(userId);
+                    _logger.LogInformation($"Sent password setup email to user '{userDto.Username}'");
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogWarning($"Failed to send password setup email to user '{userDto.Username}': {emailEx.Message}");
+                    // Don't fail user creation if email fails
+                }
+            }
 
             // Fetch the created user
             var createdUser = await GetUserByIdAsync(userId);
@@ -587,6 +606,47 @@ namespace GroundUp.infrastructure.services
 
             [System.Text.Json.Serialization.JsonPropertyName("token_type")]
             public string TokenType { get; set; } = string.Empty;
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Generates a cryptographically secure random password
+        /// </summary>
+        private string GenerateSecurePassword()
+        {
+            const string upperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const string lowerCase = "abcdefghijklmnopqrstuvwxyz";
+            const string digits = "0123456789";
+            const string special = "!@#$%^&*()-_=+[]{}|;:,.<>?";
+            const int passwordLength = 16;
+
+            var random = new Random();
+            var password = new char[passwordLength];
+
+            // Ensure at least one character from each category
+            password[0] = upperCase[random.Next(upperCase.Length)];
+            password[1] = lowerCase[random.Next(lowerCase.Length)];
+            password[2] = digits[random.Next(digits.Length)];
+            password[3] = special[random.Next(special.Length)];
+
+            // Fill the rest randomly
+            var allChars = upperCase + lowerCase + digits + special;
+            for (int i = 4; i < passwordLength; i++)
+            {
+                password[i] = allChars[random.Next(allChars.Length)];
+            }
+
+            // Shuffle the password to avoid predictable patterns
+            for (int i = passwordLength - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                (password[i], password[j]) = (password[j], password[i]);
+            }
+
+            return new string(password);
         }
 
         #endregion

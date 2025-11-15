@@ -43,11 +43,11 @@ namespace GroundUp.core.dtos
     {
         public required string Username { get; set; }
         public required string Email { get; set; }
-        public required string Password { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public bool Enabled { get; set; } = true;
         public bool EmailVerified { get; set; } = false;
+        public bool SendWelcomeEmail { get; set; } = true; // Send password setup email
         public Dictionary<string, List<string>>? Attributes { get; set; }
     }
 

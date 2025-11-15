@@ -68,6 +68,19 @@ services:
     networks:
       - keycloak-network
 
+  # MailHog removed - using AWS SES for both dev and prod
+  # If you want to keep MailHog as an option, uncomment below:
+  # mailhog:
+  #   image: mailhog/mailhog:latest
+  #   container_name: groundup-mailhog
+  #   ports:
+  #     - "1025:1025"  # SMTP server
+  #     - "8025:8025"  # Web UI
+  #   networks:
+  #     - keycloak-network
+  #   profiles:
+  #     - mailhog  # Only start when explicitly requested
+
 networks:
   keycloak-network:
 
