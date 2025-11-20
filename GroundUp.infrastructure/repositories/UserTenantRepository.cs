@@ -32,7 +32,7 @@ namespace GroundUp.infrastructure.repositories
             return userTenant == null ? null : _mapper.Map<UserTenantDto>(userTenant);
         }
 
-        public async Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId)
+        public async Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false)
         {
             // Check if mapping already exists
             var existing = await _context.UserTenants
@@ -41,7 +41,17 @@ namespace GroundUp.infrastructure.repositories
 
             if (existing != null)
             {
-                _logger.LogInformation($"User {userId} is already assigned to tenant {tenantId}");
+                // Update IsAdmin if different
+                if (existing.IsAdmin != isAdmin)
+                {
+                    existing.IsAdmin = isAdmin;
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"Updated IsAdmin for user {userId} in tenant {tenantId} to {isAdmin}");
+                }
+                else
+                {
+                    _logger.LogInformation($"User {userId} is already assigned to tenant {tenantId}");
+                }
                 return _mapper.Map<UserTenantDto>(existing);
             }
 
@@ -49,7 +59,9 @@ namespace GroundUp.infrastructure.repositories
             var userTenant = new UserTenant
             {
                 UserId = userId,
-                TenantId = tenantId
+                TenantId = tenantId,
+                IsAdmin = isAdmin,
+                JoinedAt = DateTime.UtcNow
             };
 
             _context.UserTenants.Add(userTenant);
@@ -60,7 +72,7 @@ namespace GroundUp.infrastructure.repositories
                 .Include(ut => ut.Tenant)
                 .FirstAsync(ut => ut.Id == userTenant.Id);
 
-            _logger.LogInformation($"Successfully assigned user {userId} to tenant {tenantId}");
+            _logger.LogInformation($"Successfully assigned user {userId} to tenant {tenantId} (IsAdmin: {isAdmin})");
             return _mapper.Map<UserTenantDto>(created);
         }
 

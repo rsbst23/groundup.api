@@ -14,7 +14,7 @@ namespace GroundUp.core.interfaces
         
         // Write operations
         [RequiresPermission("users.tenants.assign")]
-        Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId);
+        Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false);
         
         [RequiresPermission("users.tenants.remove")]
         Task<bool> RemoveUserFromTenantAsync(Guid userId, int tenantId);

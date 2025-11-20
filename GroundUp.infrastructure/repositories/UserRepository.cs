@@ -107,8 +107,8 @@ namespace GroundUp.infrastructure.repositories
                     FirstName = keycloakUser.FirstName,
                     LastName = keycloakUser.LastName,
                     IsActive = keycloakUser.Enabled,
-                    CreatedAt = DateTime.UtcNow,
-                    TenantId = _tenantContext.TenantId // Assign to current tenant
+                    CreatedAt = DateTime.UtcNow
+                    // TenantId removed - user assigned to tenant via UserTenants table
                 };
 
                 _context.Users.Add(dbUser);
@@ -458,8 +458,8 @@ namespace GroundUp.infrastructure.repositories
                         FirstName = keycloakUser.FirstName,
                         LastName = keycloakUser.LastName,
                         IsActive = keycloakUser.Enabled,
-                        CreatedAt = DateTime.UtcNow,
-                        TenantId = _tenantContext.TenantId
+                        CreatedAt = DateTime.UtcNow
+                        // TenantId removed - user will be assigned to tenant via invitation acceptance
                     };
                     _context.Users.Add(newUser);
                 }
