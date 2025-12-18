@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using GroundUp.core.enums;
 
 namespace GroundUp.core.entities
 {
-    /// <summary>
-    /// Represents a tenant (organization) in the system.
-    /// Supports hierarchical tenants (parent/child relationships).
-    /// </summary>
     public class Tenant
     {
+        private const string DEFAULT_REALM = "groundup";
+
         /// <summary>
         /// Primary key
         /// </summary>
@@ -41,25 +40,50 @@ namespace GroundUp.core.entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
+        /// When tenant was last updated
+        /// </summary>
+        public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>
         /// Whether tenant is active
         /// </summary>
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// Tenant type: Standard or Enterprise
+        /// </summary>
+        public TenantType TenantType { get; set; } = TenantType.Standard;
+
+        /// <summary>
+        /// Subscription/billing plan (e.g., 'free', 'pro', 'enterprise')
+        /// </summary>
+        [MaxLength(100)]
+        public string? Plan { get; set; }
+
+        /// <summary>
+        /// Keycloak realm name for this tenant.
+        /// </summary>
+        [MaxLength(255)]
+        public string RealmName { get; set; } = DEFAULT_REALM;
+
+        /// <summary>
+        /// Domain where this tenant's application is hosted
+        /// Used for:
+        /// - Realm resolution (lookup by URL)
+        /// - Keycloak redirect URIs
+        /// - Email invitation links
+        /// </summary>
+        [MaxLength(255)]
+        public string? CustomDomain { get; set; }
+
+        /// <summary>
+        /// Onboarding mode for this tenant. Default = InvitationsRequired.
+        /// </summary>
+        public OnboardingMode Onboarding { get; set; } = OnboardingMode.InvitationsRequired;
+
         // Navigation properties
-        
-        /// <summary>
-        /// Users belonging to this tenant (many-to-many)
-        /// </summary>
         public ICollection<UserTenant> UserTenants { get; set; } = new List<UserTenant>();
-
-        /// <summary>
-        /// Parent tenant (for hierarchical tenants)
-        /// </summary>
         public Tenant? ParentTenant { get; set; }
-
-        /// <summary>
-        /// Child tenants (for hierarchical tenants)
-        /// </summary>
         public ICollection<Tenant> ChildTenants { get; set; } = new List<Tenant>();
     }
 }

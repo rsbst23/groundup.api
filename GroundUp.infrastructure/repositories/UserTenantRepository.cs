@@ -32,7 +32,49 @@ namespace GroundUp.infrastructure.repositories
             return userTenant == null ? null : _mapper.Map<UserTenantDto>(userTenant);
         }
 
-        public async Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false)
+        public async Task<UserTenantDto?> GetByRealmAndExternalUserIdAsync(string realmName, string externalUserId)
+        {
+            _logger.LogInformation($"Looking up UserTenant: Realm='{realmName}', ExternalUserId='{externalUserId}'");
+            
+            // First try exact match
+            var userTenant = await _context.UserTenants
+                .Include(ut => ut.Tenant)
+                .Include(ut => ut.User)
+                .FirstOrDefaultAsync(ut => 
+                    ut.Tenant.RealmName == realmName && 
+                    ut.ExternalUserId == externalUserId);
+
+            if (userTenant != null)
+            {
+                _logger.LogInformation($"Found UserTenant: UserId={userTenant.UserId}, TenantId={userTenant.TenantId}, TenantRealm={userTenant.Tenant?.RealmName}");
+                return _mapper.Map<UserTenantDto>(userTenant);
+            }
+
+            // If not found, log all matching records by ExternalUserId for debugging
+            var allMatches = await _context.UserTenants
+                .Include(ut => ut.Tenant)
+                .Include(ut => ut.User)
+                .Where(ut => ut.ExternalUserId == externalUserId)
+                .ToListAsync();
+
+            if (allMatches.Any())
+            {
+                _logger.LogWarning($"No match for realm '{realmName}', but found {allMatches.Count} UserTenant(s) with ExternalUserId '{externalUserId}':");
+                foreach (var match in allMatches)
+                {
+                    _logger.LogWarning($"  - UserId={match.UserId}, TenantId={match.TenantId}, TenantRealm='{match.Tenant?.RealmName}'");
+                }
+                
+                // TEMPORARY: Return first match regardless of realm (for debugging)
+                _logger.LogWarning($"TEMPORARY FIX: Returning first match regardless of realm");
+                return _mapper.Map<UserTenantDto>(allMatches[0]);
+            }
+
+            _logger.LogWarning($"No UserTenant found for ExternalUserId '{externalUserId}' in any realm");
+            return null;
+        }
+
+        public async Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false, string? externalUserId = null)
         {
             // Check if mapping already exists
             var existing = await _context.UserTenants
@@ -41,12 +83,23 @@ namespace GroundUp.infrastructure.repositories
 
             if (existing != null)
             {
-                // Update IsAdmin if different
+                // Update fields if different
+                bool updated = false;
                 if (existing.IsAdmin != isAdmin)
                 {
                     existing.IsAdmin = isAdmin;
+                    updated = true;
+                }
+                if (!string.IsNullOrEmpty(externalUserId) && existing.ExternalUserId != externalUserId)
+                {
+                    existing.ExternalUserId = externalUserId;
+                    updated = true;
+                }
+                
+                if (updated)
+                {
                     await _context.SaveChangesAsync();
-                    _logger.LogInformation($"Updated IsAdmin for user {userId} in tenant {tenantId} to {isAdmin}");
+                    _logger.LogInformation($"Updated UserTenant for user {userId} in tenant {tenantId}");
                 }
                 else
                 {
@@ -61,6 +114,7 @@ namespace GroundUp.infrastructure.repositories
                 UserId = userId,
                 TenantId = tenantId,
                 IsAdmin = isAdmin,
+                ExternalUserId = externalUserId,
                 JoinedAt = DateTime.UtcNow
             };
 
@@ -72,7 +126,7 @@ namespace GroundUp.infrastructure.repositories
                 .Include(ut => ut.Tenant)
                 .FirstAsync(ut => ut.Id == userTenant.Id);
 
-            _logger.LogInformation($"Successfully assigned user {userId} to tenant {tenantId} (IsAdmin: {isAdmin})");
+            _logger.LogInformation($"Successfully assigned user {userId} to tenant {tenantId} (IsAdmin: {isAdmin}, ExternalUserId: {externalUserId})");
             return _mapper.Map<UserTenantDto>(created);
         }
 

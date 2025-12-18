@@ -475,34 +475,34 @@ namespace GroundUp.infrastructure.services
             }
         }
 
-        public async Task SynchronizeSystemRolesAsync()
-        {
-            try
-            {
-                _logger.LogInformation("Starting synchronization of roles with Keycloak");
+        //public async Task SynchronizeSystemRolesAsync()
+        //{
+        //    try
+        //    {
+        //        _logger.LogInformation("Starting synchronization of roles with Keycloak");
 
-                // Get all roles from Keycloak
-                var keycloakRoles = await _identityProviderAdminService.GetAllRolesAsync();
+        //        // Get all roles from Keycloak
+        //        var keycloakRoles = await _identityProviderAdminService.GetAllRolesAsync();
 
-                foreach (var role in keycloakRoles)
-                {
-                    // Check if this role has any policies assigned
-                    var existingPolicies = await _context.RolePolicies
-                        .AnyAsync(rp => rp.RoleName == role.Name && rp.RoleType == RoleType.System);
+        //        foreach (var role in keycloakRoles)
+        //        {
+        //            // Check if this role has any policies assigned
+        //            var existingPolicies = await _context.RolePolicies
+        //                .AnyAsync(rp => rp.RoleName == role.Name && rp.RoleType == RoleType.System);
 
-                    if (!existingPolicies)
-                    {
-                        _logger.LogInformation($"Detected System role '{role.Name}' without policy assignments");
-                    }
-                }
+        //            if (!existingPolicies)
+        //            {
+        //                _logger.LogInformation($"Detected System role '{role.Name}' without policy assignments");
+        //            }
+        //        }
 
-                _logger.LogInformation("Role synchronization with Keycloak completed successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error synchronizing roles with Keycloak: {ex.Message}", ex);
-            }
-        }
+        //        _logger.LogInformation("Role synchronization with Keycloak completed successfully");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError($"Error synchronizing roles with Keycloak: {ex.Message}", ex);
+        //    }
+        //}
 
         public void ClearPermissionCache()
         {

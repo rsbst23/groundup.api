@@ -149,11 +149,29 @@ namespace GroundUp.infrastructure.Migrations
                     Name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ParentTenantId = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "DATETIME(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    TenantType = table.Column<int>(type: "int", nullable: false),
+                    Plan = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RealmName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CustomDomain = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Onboarding = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Tenants", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Tenants_Tenants_ParentTenantId",
+                        column: x => x.ParentTenantId,
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -162,18 +180,20 @@ namespace GroundUp.infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Username = table.Column<string>(type: "varchar(255)", nullable: false)
+                    DisplayName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Email = table.Column<string>(type: "varchar(255)", nullable: false)
+                    Username = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    FirstName = table.Column<string>(type: "longtext", nullable: true)
+                    Email = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    LastName = table.Column<string>(type: "longtext", nullable: true)
+                    FirstName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LastName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "DATETIME(6)", nullable: false),
-                    LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    TenantId = table.Column<int>(type: "int", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "DATETIME(6)", nullable: true),
+                    LastLoginAt = table.Column<DateTime>(type: "DATETIME(6)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -262,6 +282,78 @@ namespace GroundUp.infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "TenantJoinLinks",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    TenantId = table.Column<int>(type: "int", nullable: false),
+                    JoinToken = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsRevoked = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    DefaultRoleId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TenantJoinLinks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TenantJoinLinks_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TenantInvitations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    TenantId = table.Column<int>(type: "int", nullable: false),
+                    InvitationToken = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ContactEmail = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ContactName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RoleId = table.Column<int>(type: "int", nullable: true),
+                    IsAdmin = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    AcceptedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    AcceptedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    Metadata = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TenantInvitations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TenantInvitations_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TenantInvitations_Users_AcceptedByUserId",
+                        column: x => x.AcceptedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_TenantInvitations_Users_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "UserRoles",
                 columns: table => new
                 {
@@ -296,7 +388,11 @@ namespace GroundUp.infrastructure.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    TenantId = table.Column<int>(type: "int", nullable: false)
+                    TenantId = table.Column<int>(type: "int", nullable: false),
+                    ExternalUserId = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsAdmin = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    JoinedAt = table.Column<DateTime>(type: "DATETIME(6)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -346,8 +442,8 @@ namespace GroundUp.infrastructure.Migrations
                 columns: new[] { "Id", "CreatedDate", "Name", "TenantId" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3729), "Electronics", 0 },
-                    { 2, new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3731), "Books", 0 }
+                    { 1, new DateTime(2025, 12, 16, 3, 48, 51, 555, DateTimeKind.Utc).AddTicks(351), "Electronics", 0 },
+                    { 2, new DateTime(2025, 12, 16, 3, 48, 51, 555, DateTimeKind.Utc).AddTicks(353), "Books", 0 }
                 });
 
             migrationBuilder.InsertData(
@@ -391,8 +487,8 @@ namespace GroundUp.infrastructure.Migrations
                 columns: new[] { "Id", "Condition", "InventoryCategoryId", "Name", "PurchaseDate", "PurchasePrice", "TenantId" },
                 values: new object[,]
                 {
-                    { 1, "New", 1, "Laptop", new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3846), 999.99m, 0 },
-                    { 2, "Used", 2, "The Great Gatsby", new DateTime(2025, 11, 15, 2, 59, 48, 385, DateTimeKind.Utc).AddTicks(3848), 12.99m, 0 }
+                    { 1, "New", 1, "Laptop", new DateTime(2025, 12, 16, 3, 48, 51, 555, DateTimeKind.Utc).AddTicks(477), 999.99m, 0 },
+                    { 2, "Used", 2, "The Great Gatsby", new DateTime(2025, 12, 16, 3, 48, 51, 555, DateTimeKind.Utc).AddTicks(480), 12.99m, 0 }
                 });
 
             migrationBuilder.CreateIndex(
@@ -446,10 +542,35 @@ namespace GroundUp.infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_TenantInvitations_AcceptedByUserId",
+                table: "TenantInvitations",
+                column: "AcceptedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TenantInvitations_CreatedByUserId",
+                table: "TenantInvitations",
+                column: "CreatedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TenantInvitations_TenantId",
+                table: "TenantInvitations",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TenantJoinLinks_TenantId",
+                table: "TenantJoinLinks",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Tenants_Name",
                 table: "Tenants",
                 column: "Name",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tenants_ParentTenantId",
+                table: "Tenants",
+                column: "ParentTenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserRoles_RoleId",
@@ -465,19 +586,17 @@ namespace GroundUp.infrastructure.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
                 table: "Users",
-                column: "Email",
-                unique: true);
+                column: "Email");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Username",
                 table: "Users",
-                column: "Username",
-                unique: true);
+                column: "Username");
 
             migrationBuilder.CreateIndex(
-                name: "IX_UserTenants_TenantId",
+                name: "IX_UserTenants_TenantId_ExternalUserId",
                 table: "UserTenants",
-                column: "TenantId");
+                columns: new[] { "TenantId", "ExternalUserId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserTenants_UserId_TenantId",
@@ -503,6 +622,12 @@ namespace GroundUp.infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "RolePolicies");
+
+            migrationBuilder.DropTable(
+                name: "TenantInvitations");
+
+            migrationBuilder.DropTable(
+                name: "TenantJoinLinks");
 
             migrationBuilder.DropTable(
                 name: "UserRoles");

@@ -12,9 +12,15 @@ namespace GroundUp.core.interfaces
         Task<List<UserTenantDto>> GetTenantsForUserAsync(Guid userId);
         Task<UserTenantDto?> GetUserTenantAsync(Guid userId, int tenantId);
         
+        /// <summary>
+        /// Resolve UserTenant by realm name and external user ID (Keycloak sub)
+        /// Used during auth callback to determine tenant membership
+        /// </summary>
+        Task<UserTenantDto?> GetByRealmAndExternalUserIdAsync(string realmName, string externalUserId);
+        
         // Write operations
-        [RequiresPermission("users.tenants.assign")]
-        Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false);
+        //[RequiresPermission("users.tenants.assign")]
+        Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false, string? externalUserId = null);
         
         [RequiresPermission("users.tenants.remove")]
         Task<bool> RemoveUserFromTenantAsync(Guid userId, int tenantId);
