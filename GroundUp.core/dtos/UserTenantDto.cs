@@ -9,6 +9,8 @@ namespace GroundUp.core.dtos
         public int TenantId { get; set; }
         public string? Role { get; set; }
         public bool IsActive { get; set; }
+        public bool IsAdmin { get; set; }
+        public DateTime JoinedAt { get; set; }
         public Tenant Tenant { get; set; }
     }
 }

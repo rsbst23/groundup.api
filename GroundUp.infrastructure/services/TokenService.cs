@@ -57,7 +57,8 @@ namespace GroundUp.infrastructure.services
             var claims = new List<Claim>(userClaims)
             {
                 new Claim("tenant_id", tenantId.ToString()),
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+                new Claim("ApplicationUserId", userId.ToString()), // Application-level user ID (distinct from external IdP)
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()) // Keep this for backwards compatibility
             };
 
             // Get JWT configuration

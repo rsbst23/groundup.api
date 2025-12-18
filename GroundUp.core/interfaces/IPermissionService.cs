@@ -21,8 +21,8 @@ namespace GroundUp.core.interfaces
         // User-focused permission methods
         Task<ApiResponse<UserPermissionsDto>> GetUserPermissionsDetailedAsync(string userId);
 
-        // System maintenance methods
-        Task SynchronizeSystemRolesAsync();
+        //// System maintenance methods
+        //Task SynchronizeSystemRolesAsync();
 
         // Cache management
         void ClearPermissionCache();

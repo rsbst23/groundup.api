@@ -23,9 +23,11 @@ namespace GroundUp.infrastructure.data
         public DbSet<ErrorFeedback> ErrorFeedback { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
 
-        // Add Tenant and UserTenant entities
+        // Tenant and user-tenant entities
         public DbSet<Tenant> Tenants { get; set; }
         public DbSet<UserTenant> UserTenants { get; set; }
+        public DbSet<TenantInvitation> TenantInvitations { get; set; }
+        public DbSet<TenantJoinLink> TenantJoinLinks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -116,6 +118,17 @@ namespace GroundUp.infrastructure.data
                 .HasIndex(t => t.Name)
                 .IsUnique();
 
+            // Tenant hierarchical relationship (self-referencing)
+            modelBuilder.Entity<Tenant>()
+                .HasOne(t => t.ParentTenant)
+                .WithMany(t => t.ChildTenants)
+                .HasForeignKey(t => t.ParentTenantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Tenant>()
+                .Property(t => t.CreatedAt)
+                .HasColumnType("DATETIME(6)");
+
             // UserTenant configuration
             modelBuilder.Entity<UserTenant>()
                 .HasKey(ut => ut.Id);
@@ -125,26 +138,50 @@ namespace GroundUp.infrastructure.data
                 .IsUnique();
 
             modelBuilder.Entity<UserTenant>()
+                .HasIndex(ut => new { ut.TenantId, ut.ExternalUserId });
+
+            modelBuilder.Entity<UserTenant>()
                 .HasOne(ut => ut.Tenant)
                 .WithMany(t => t.UserTenants)
                 .HasForeignKey(ut => ut.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<UserTenant>()
+                .HasOne(ut => ut.User)
+                .WithMany(u => u.UserTenants)
+                .HasForeignKey(ut => ut.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserTenant>()
+                .Property(ut => ut.JoinedAt)
+                .HasColumnType("DATETIME(6)");
+
             // User configuration
             modelBuilder.Entity<User>()
                 .HasKey(u => u.Id);
 
+            // Remove unique constraints on Email and Username (nullable and not unique)
             modelBuilder.Entity<User>()
-                .HasIndex(u => u.Email)
-                .IsUnique();
+                .HasIndex(u => u.Email);
 
             modelBuilder.Entity<User>()
-                .HasIndex(u => u.Username)
-                .IsUnique();
+                .HasIndex(u => u.Username);
 
             modelBuilder.Entity<User>()
                 .Property(u => u.CreatedAt)
                 .HasColumnType("DATETIME(6)");
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.UpdatedAt)
+                .HasColumnType("DATETIME(6)");
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.LastLoginAt)
+                .HasColumnType("DATETIME(6)");
+
+            // TenantInvitation configuration
+            modelBuilder.Entity<TenantInvitation>()
+                .HasKey(ti => ti.Id);
 
             // Remove old User seed data - users now come from Keycloak
             // modelBuilder.Entity<User>().HasData(

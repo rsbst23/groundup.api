@@ -60,6 +60,15 @@ namespace GroundUp.infrastructure.extensions
             services.AddHttpClient<IIdentityProviderAdminService, IdentityProviderAdminService>();
             services.AddScoped<IIdentityProviderAdminService, IdentityProviderAdminService>();
 
+            // Register TenantJoinLinkRepository explicitly (not auto-discovered because of custom interface name)
+            services.AddScoped<GroundUp.infrastructure.repositories.TenantJoinLinkRepository>();
+            services.AddScoped<ITenantJoinLinkRepository>(provider =>
+            {
+                var proxyGenerator = provider.GetRequiredService<ProxyGenerator>();
+                var repositoryInstance = provider.GetRequiredService<GroundUp.infrastructure.repositories.TenantJoinLinkRepository>();
+                return proxyGenerator.CreateInterfaceProxyWithTarget<ITenantJoinLinkRepository>(repositoryInstance, new LazyInterceptor(provider));
+            });
+
             // Register the permission interceptor used by repositories
             services.AddScoped<PermissionInterceptor>();
 

@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
+using GroundUp.core.enums;
 using System.Text.Json;
 
 namespace GroundUp.infrastructure.mappings
@@ -58,10 +59,47 @@ namespace GroundUp.infrastructure.mappings
                     ?? new ErrorDetailsDto()));
 
             // Tenant mappings
-            CreateMap<Tenant, TenantDto>().ReverseMap();
+            CreateMap<Tenant, TenantDto>()
+                .ForMember(dest => dest.ParentTenantName, opt => opt.MapFrom(src => src.ParentTenant != null ? src.ParentTenant.Name : null))
+                .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName));
+            
+            CreateMap<TenantDto, Tenant>()
+                .ForMember(dest => dest.ParentTenant, opt => opt.Ignore())
+                .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
+                .ForMember(dest => dest.UserTenants, opt => opt.Ignore())
+                .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName));
+
+            CreateMap<CreateTenantDto, Tenant>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.ParentTenant, opt => opt.Ignore())
+                .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
+                .ForMember(dest => dest.UserTenants, opt => opt.Ignore())
+                .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.CustomDomain ?? "groundup"));
+
+            CreateMap<UpdateTenantDto, Tenant>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.ParentTenantId, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.ParentTenant, opt => opt.Ignore())
+                .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
+                .ForMember(dest => dest.UserTenants, opt => opt.Ignore());
 
             // UserTenant mappings
             CreateMap<UserTenant, UserTenantDto>().ReverseMap();
+
+            // TenantInvitation mappings
+            CreateMap<TenantInvitation, TenantInvitationDto>()
+                .ForMember(dest => dest.TenantName, opt => opt.MapFrom(src => src.Tenant != null ? src.Tenant.Name : string.Empty))
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.Tenant != null ? src.Tenant.RealmName : null))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.ContactEmail))
+                .ForMember(dest => dest.CreatedByUserName, opt => opt.MapFrom(src => src.CreatedByUser != null ? src.CreatedByUser.Username : string.Empty))
+                .ForMember(dest => dest.AcceptedByUserName, opt => opt.MapFrom(src => src.AcceptedByUser != null ? src.AcceptedByUser.Username : string.Empty))
+                .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.IsExpired));
 
             // User mappings
             CreateMap<User, UserSummaryDto>()
@@ -77,6 +115,10 @@ namespace GroundUp.infrastructure.mappings
                 .ForMember(dest => dest.Groups, opt => opt.Ignore())
                 .ForMember(dest => dest.RealmRoles, opt => opt.Ignore())
                 .ForMember(dest => dest.ClientRoles, opt => opt.Ignore());
+
+            // TenantJoinLink mappings
+            CreateMap<TenantJoinLink, TenantJoinLinkDto>()
+                .ForMember(dest => dest.JoinUrl, opt => opt.Ignore()); // Set by controller
         }
     }
 }
