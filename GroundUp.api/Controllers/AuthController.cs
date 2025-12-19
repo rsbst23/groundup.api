@@ -226,116 +226,122 @@ namespace GroundUp.api.Controllers
             string invitationToken, 
             string accessToken)
         {
-            using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            try
+            // Use execution strategy for retry support with manual transactions
+            var strategy = _dbContext.Database.CreateExecutionStrategy();
+            
+            return await strategy.ExecuteAsync(async () =>
             {
-                _logger.LogInformation($"Processing invitation flow for Keycloak user {keycloakUserId} in realm {realm}");
-
-                // Check if user already exists in local DB
-                var existingUser = await _dbContext.Users.FindAsync(userId);
-                
-                if (existingUser == null)
+                using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    // User doesn't exist yet - create user
-                    var keycloakUser = await _identityProviderAdminService.GetUserByIdAsync(keycloakUserId, realm);
-                    if (keycloakUser == null)
+                    _logger.LogInformation($"Processing invitation flow for Keycloak user {keycloakUserId} in realm {realm}");
+
+                    // Check if user already exists in local DB
+                    var existingUser = await _dbContext.Users.FindAsync(userId);
+                    
+                    if (existingUser == null)
+                    {
+                        // User doesn't exist yet - create user
+                        var keycloakUser = await _identityProviderAdminService.GetUserByIdAsync(keycloakUserId, realm);
+                        if (keycloakUser == null)
+                        {
+                            await transaction.RollbackAsync();
+                            return new AuthCallbackResponseDto
+                            {
+                                Success = false,
+                                Flow = "invitation",
+                                RequiresTenantSelection = false,
+                                ErrorMessage = "User not found in Keycloak"
+                            };
+                        }
+
+                        // Create new user
+                        var newUser = new core.entities.User
+                        {
+                            Id = userId,
+                            DisplayName = !string.IsNullOrEmpty(keycloakUser.FirstName) 
+                                ? $"{keycloakUser.FirstName} {keycloakUser.LastName}".Trim() 
+                                : keycloakUser.Username ?? "Unknown",
+                            Email = keycloakUser.Email,
+                            Username = keycloakUser.Username,
+                            FirstName = keycloakUser.FirstName,
+                            LastName = keycloakUser.LastName,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _dbContext.Users.Add(newUser);
+                        await _dbContext.SaveChangesAsync();
+
+                        _logger.LogInformation($"Created new user {userId} for realm {realm}");
+                    }
+
+                    // Accept the invitation - this creates UserTenant with ExternalUserId
+                    var accepted = await _tenantInvitationRepository.AcceptInvitationAsync(invitationToken, userId, keycloakUserId);
+
+                    if (!accepted.Success)
                     {
                         await transaction.RollbackAsync();
+                        _logger.LogWarning($"Failed to accept invitation: {accepted.Message}");
                         return new AuthCallbackResponseDto
                         {
                             Success = false,
                             Flow = "invitation",
                             RequiresTenantSelection = false,
-                            ErrorMessage = "User not found in Keycloak"
+                            ErrorMessage = accepted.Message
                         };
                     }
 
-                    // Create new user
-                    var newUser = new core.entities.User
+                    await transaction.CommitAsync();
+
+                    // Get the user's tenants
+                    var userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
+
+                    if (userTenants.Count == 0)
                     {
-                        Id = userId,
-                        DisplayName = !string.IsNullOrEmpty(keycloakUser.FirstName) 
-                            ? $"{keycloakUser.FirstName} {keycloakUser.LastName}".Trim() 
-                            : keycloakUser.Username ?? "Unknown",
-                        Email = keycloakUser.Email,
-                        Username = keycloakUser.Username,
-                        FirstName = keycloakUser.FirstName,
-                        LastName = keycloakUser.LastName,
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow
+                        _logger.LogWarning($"User {userId} has no tenants after accepting invitation");
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "invitation",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "No tenants found after accepting invitation"
+                        };
+                    }
+
+                    // Generate tenant-scoped token
+                    var tenantId = userTenants[0].TenantId;
+                    var customToken = await _tokenService.GenerateTokenAsync(userId, tenantId, ExtractClaims(accessToken));
+
+                    // Set cookie
+                    SetAuthCookie(customToken);
+
+                    _logger.LogInformation($"User {userId} successfully added to tenant {tenantId} via invitation");
+                    
+                    return new AuthCallbackResponseDto
+                    {
+                        Success = true,
+                        Flow = "invitation",
+                        Token = customToken,
+                        TenantId = tenantId,
+                        TenantName = userTenants[0].Tenant?.Name,
+                        RequiresTenantSelection = false,
+                        Message = "Invitation accepted successfully"
                     };
-
-                    _dbContext.Users.Add(newUser);
-                    await _dbContext.SaveChangesAsync();
-
-                    _logger.LogInformation($"Created new user {userId} for realm {realm}");
                 }
-
-                // Accept the invitation - this creates UserTenant with ExternalUserId
-                var accepted = await _tenantInvitationRepository.AcceptInvitationAsync(invitationToken, userId, keycloakUserId);
-
-                if (!accepted.Success)
+                catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    _logger.LogWarning($"Failed to accept invitation: {accepted.Message}");
+                    _logger.LogError($"Error handling invitation flow: {ex.Message}", ex);
                     return new AuthCallbackResponseDto
                     {
                         Success = false,
                         Flow = "invitation",
                         RequiresTenantSelection = false,
-                        ErrorMessage = accepted.Message
+                        ErrorMessage = "An unexpected error occurred while accepting invitation"
                     };
                 }
-
-                await transaction.CommitAsync();
-
-                // Get the user's tenants
-                var userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
-
-                if (userTenants.Count == 0)
-                {
-                    _logger.LogWarning($"User {userId} has no tenants after accepting invitation");
-                    return new AuthCallbackResponseDto
-                    {
-                        Success = false,
-                        Flow = "invitation",
-                        RequiresTenantSelection = false,
-                        ErrorMessage = "No tenants found after accepting invitation"
-                    };
-                }
-
-                // Generate tenant-scoped token
-                var tenantId = userTenants[0].TenantId;
-                var customToken = await _tokenService.GenerateTokenAsync(userId, tenantId, ExtractClaims(accessToken));
-
-                // Set cookie
-                SetAuthCookie(customToken);
-
-                _logger.LogInformation($"User {userId} successfully added to tenant {tenantId} via invitation");
-                
-                return new AuthCallbackResponseDto
-                {
-                    Success = true,
-                    Flow = "invitation",
-                    Token = customToken,
-                    TenantId = tenantId,
-                    TenantName = userTenants[0].Tenant?.Name,
-                    RequiresTenantSelection = false,
-                    Message = "Invitation accepted successfully"
-                };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError($"Error handling invitation flow: {ex.Message}", ex);
-                return new AuthCallbackResponseDto
-                {
-                    Success = false,
-                    Flow = "invitation",
-                    RequiresTenantSelection = false,
-                    ErrorMessage = "An unexpected error occurred while accepting invitation"
-                };
-            }
+            });
         }
 
         private async Task<AuthCallbackResponseDto> HandleJoinLinkFlowAsync(
