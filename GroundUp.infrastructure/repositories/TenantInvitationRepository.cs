@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
@@ -179,10 +179,11 @@ namespace GroundUp.infrastructure.repositories
                 _context.TenantInvitations.Add(invitation);
                 await _context.SaveChangesAsync();
 
-                // FOR LOCAL ACCOUNT INVITATIONS: Create Keycloak user and send execute actions email
-                if (tenant.TenantType == core.enums.TenantType.Enterprise && !string.IsNullOrEmpty(tenant.RealmName))
+                // FOR LOCAL ACCOUNT INVITATIONS ONLY: Create Keycloak user and send execute actions email
+                // FOR SSO INVITATIONS: Skip user creation - let the SSO provider (Google, Azure AD, etc.) create the user
+                if (dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise && !string.IsNullOrEmpty(tenant.RealmName))
                 {
-                    _logger.LogInformation($"Processing local account invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName}");
+                    _logger.LogInformation($"Processing LOCAL ACCOUNT invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName}");
                     
                     // Check if user already exists in Keycloak
                     var existingUserId = await _identityProvider.GetUserIdByEmailAsync(tenant.RealmName, dto.Email);
@@ -191,9 +192,9 @@ namespace GroundUp.infrastructure.repositories
                     
                     if (existingUserId == null)
                     {
-                        _logger.LogInformation($"User {dto.Email} does not exist in realm {tenant.RealmName}, creating new user...");
+                        _logger.LogInformation($"User {dto.Email} does not exist in realm {tenant.RealmName}, creating new LOCAL ACCOUNT user...");
                         
-                        // Create Keycloak user
+                        // Create Keycloak user for local account
                         var createUserDto = new CreateUserDto
                         {
                             Username = dto.Email.Split('@')[0], // Use email prefix as username
@@ -215,25 +216,26 @@ namespace GroundUp.infrastructure.repositories
                         }
                         else
                         {
-                            _logger.LogInformation($"? Successfully created Keycloak user {keycloakUserId} for invitation {invitation.Id}");
+                            _logger.LogInformation($"✅ Successfully created Keycloak LOCAL ACCOUNT user {keycloakUserId} for invitation {invitation.Id}");
                             
                             // Verify user was actually created by fetching it
                             var verifyUser = await _identityProvider.GetUserByIdAsync(keycloakUserId, tenant.RealmName);
                             if (verifyUser == null)
                             {
-                                _logger.LogError($"? User creation verification failed! User {keycloakUserId} not found after creation");
+                                _logger.LogError($"❌ User creation verification failed! User {keycloakUserId} not found after creation");
                             }
                             else
                             {
-                                _logger.LogInformation($"? User creation verified: {verifyUser.Email}, Enabled={verifyUser.Enabled}, EmailVerified={verifyUser.EmailVerified}");
+                                _logger.LogInformation($"✅ User creation verified: {verifyUser.Email}, Enabled={verifyUser.Enabled}, EmailVerified={verifyUser.EmailVerified}");
                             }
-                            
+
                             // Send execute actions email with BOTH client_id and redirect_uri
                             // UPDATE_PROFILE: Prompts user to enter first name and last name
                             // UPDATE_PASSWORD: Prompts user to set their password
                             // VERIFY_EMAIL: Sends email verification (if SMTP configured)
-                            var actions = new List<string> { "UPDATE_PROFILE", "UPDATE_PASSWORD", "VERIFY_EMAIL" };
-                            
+                            //var actions = new List<string> { "UPDATE_PROFILE", "UPDATE_PASSWORD", "VERIFY_EMAIL" };
+                            var actions = new List<string> { "UPDATE_PASSWORD", "VERIFY_EMAIL" };
+
                             // Build redirect URI to invitation acceptance endpoint
                             var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "http://localhost:5123";
                             var invitationUrl = $"{apiUrl}/api/invitations/invite/{invitation.InvitationToken}";
@@ -241,7 +243,7 @@ namespace GroundUp.infrastructure.repositories
                             // Get client ID from configuration
                             var clientId = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
                             
-                            _logger.LogInformation($"?? Attempting to send execute-actions email...");
+                            _logger.LogInformation($"📧 Attempting to send execute-actions email...");
                             _logger.LogInformation($"   Realm: {tenant.RealmName}");
                             _logger.LogInformation($"   User ID: {keycloakUserId}");
                             _logger.LogInformation($"   Actions: {string.Join(", ", actions)}");
@@ -258,7 +260,7 @@ namespace GroundUp.infrastructure.repositories
                             
                             if (!emailSent)
                             {
-                                _logger.LogError($"? Failed to send execute actions email for invitation {invitation.Id}");
+                                _logger.LogError($"❌ Failed to send execute actions email for invitation {invitation.Id}");
                                 _logger.LogError($"   Check the SendExecuteActionsEmailAsync logs above for specific error details");
                                 _logger.LogError($"   Common causes:");
                                 _logger.LogError($"   1. SMTP not configured in realm '{tenant.RealmName}'");
@@ -268,7 +270,7 @@ namespace GroundUp.infrastructure.repositories
                             }
                             else
                             {
-                                _logger.LogInformation($"? Successfully sent execute actions email for invitation {invitation.Id}");
+                                _logger.LogInformation($"✅ Successfully sent execute actions email for invitation {invitation.Id}");
                                 _logger.LogInformation($"   User {dto.Email} should receive email to set password and verify email");
                                 _logger.LogInformation($"   After completing actions, 'Back to application' link will redirect to: {invitationUrl}");
                             }
@@ -299,6 +301,12 @@ namespace GroundUp.infrastructure.repositories
                             );
                         }
                     }
+                }
+                else if (!dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise)
+                {
+                    _logger.LogInformation($"Processing SSO invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName ?? "N/A"}");
+                    _logger.LogInformation($"Skipping Keycloak user creation - user will authenticate via SSO (Google, Azure AD, etc.)");
+                    _logger.LogInformation($"User will be created automatically by the SSO provider upon first login");
                 }
 
                 // Reload with navigation properties
