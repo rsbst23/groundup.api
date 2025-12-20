@@ -68,6 +68,167 @@ namespace GroundUp.infrastructure.services
             return user;
         }
 
+        /// <summary>
+        /// Get Keycloak user ID by email address
+        /// Used to check if user already exists before creating invitation
+        /// </summary>
+        public async Task<string?> GetUserIdByEmailAsync(string realm, string email)
+        {
+            try
+            {
+                await EnsureAdminTokenAsync();
+                
+                var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{realm}/users?email={Uri.EscapeDataString(email)}&exact=true";
+
+                _logger.LogInformation($"Searching for user by email in realm {realm}: {email}");
+                
+                var response = await _httpClient.GetAsync(requestUrl);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning($"Failed to search for user by email: {response.StatusCode}");
+                    return null;
+                }
+                
+                var users = await response.Content.ReadFromJsonAsync<List<UserDetailsDto>>();
+                var user = users?.FirstOrDefault();
+                
+                if (user != null)
+                {
+                    _logger.LogInformation($"Found existing user with email {email}: {user.Id}");
+                    return user.Id;
+                }
+                
+                _logger.LogInformation($"No user found with email {email} in realm {realm}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error searching for user by email: {ex.Message}", ex);
+                return null;
+            }
+        }
+
+        #endregion
+
+        #region User Management
+
+        /// <summary>
+        /// Creates a new user in Keycloak with required actions
+        /// Used when inviting users who don't have Keycloak accounts yet
+        /// </summary>
+        public async Task<string?> CreateUserAsync(string realm, CreateUserDto dto)
+        {
+            try
+            {
+                await EnsureAdminTokenAsync();
+                
+                _logger.LogInformation($"Creating user in realm {realm}: {dto.Email}");
+                
+                var userPayload = new
+                {
+                    username = dto.Username,
+                    email = dto.Email,
+                    firstName = dto.FirstName,
+                    lastName = dto.LastName,
+                    enabled = dto.Enabled,
+                    emailVerified = dto.EmailVerified,
+                    attributes = dto.Attributes ?? new Dictionary<string, List<string>>()
+                    // NOTE: Do NOT set requiredActions here - we'll send execute-actions email explicitly
+                    // Setting requiredActions during user creation does NOT trigger email automatically
+                };
+                
+                var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{realm}/users";
+                var response = await _httpClient.PostAsJsonAsync(requestUrl, userPayload);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to create user in Keycloak: {error}");
+                    return null;
+                }
+                
+                // Get user ID from Location header
+                var location = response.Headers.Location?.ToString();
+                if (string.IsNullOrEmpty(location))
+                {
+                    _logger.LogError("No Location header returned after user creation");
+                    return null;
+                }
+                
+                var userId = location.Split('/').Last();
+                _logger.LogInformation($"Successfully created user {userId} in realm {realm}");
+                return userId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error creating user in realm {realm}: {ex.Message}", ex);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Sends Keycloak execute actions email (password setup, email verification, etc.)
+        /// IMPORTANT: Both client_id and redirect_uri must be provided together for proper redirects
+        /// </summary>
+        public async Task<bool> SendExecuteActionsEmailAsync(
+            string realm,
+            string userId,
+            List<string> actions,
+            string? clientId = null,
+            string? redirectUri = null)
+        {
+            try
+            {
+                await EnsureAdminTokenAsync();
+                
+                _logger.LogInformation($"Sending execute actions email to user {userId} in realm {realm}");
+                _logger.LogInformation($"Actions: {string.Join(", ", actions)}");
+                
+                // Build query parameters - BOTH client_id and redirect_uri must be provided together
+                var queryParams = new List<string>();
+                
+                if (!string.IsNullOrEmpty(clientId))
+                {
+                    queryParams.Add($"client_id={Uri.EscapeDataString(clientId)}");
+                    _logger.LogInformation($"Client ID: {clientId}");
+                }
+                
+                if (!string.IsNullOrEmpty(redirectUri))
+                {
+                    queryParams.Add($"redirect_uri={Uri.EscapeDataString(redirectUri)}");
+                    _logger.LogInformation($"Redirect URI: {redirectUri}");
+                }
+                
+                var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+                
+                var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{realm}/users/{userId}/execute-actions-email{queryString}";
+                
+                _logger.LogInformation($"Execute actions email URL: {requestUrl}");
+                _logger.LogInformation($"Actions payload: {string.Join(", ", actions)}");
+                
+                var response = await _httpClient.PutAsJsonAsync(requestUrl, actions);
+                
+                _logger.LogInformation($"Execute actions email response status: {response.StatusCode}");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to send execute actions email. Status: {response.StatusCode}, Error: {error}");
+                    _logger.LogError($"This usually means: 1) SMTP not configured in realm '{realm}', 2) User email not set, or 3) Invalid client_id/redirect_uri");
+                    return false;
+                }
+                
+                _logger.LogInformation($"Successfully sent execute actions email to user {userId}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error sending execute actions email: {ex.Message}", ex);
+                return false;
+            }
+        }
+
         #endregion
 
         #region Realm Management
@@ -228,6 +389,49 @@ namespace GroundUp.infrastructure.services
             return realmDto;
         }
 
+        /// <summary>
+        /// Disables user registration for a realm
+        /// Called after first enterprise tenant user completes registration
+        /// </summary>
+        public async Task<bool> DisableRealmRegistrationAsync(string realmName)
+        {
+            try
+            {
+                await EnsureAdminTokenAsync();
+
+                var requestUrl = $"{_keycloakConfig.AuthServerUrl}/admin/realms/{realmName}";
+
+                // Update realm to disable registration
+                var payload = new
+                {
+                    registrationAllowed = false
+                };
+
+                var response = await _httpClient.PutAsJsonAsync(requestUrl, payload);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogWarning($"Realm {realmName} not found");
+                    return false;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to disable registration for realm {realmName}: {errorContent}");
+                    return false;
+                }
+
+                _logger.LogInformation($"Successfully disabled registration for realm: {realmName}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error disabling registration for realm {realmName}: {ex.Message}", ex);
+                return false;
+            }
+        }
+
         #endregion
 
         #region Client Management
@@ -330,12 +534,10 @@ namespace GroundUp.infrastructure.services
                 // Build SMTP configuration from environment variables
                 var smtpServer = BuildSmtpConfiguration();
 
-                // IMPORTANT: Only enable email verification if we're in production
-                // Development/testing should have it disabled for easier testing
-                var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
-                var enableEmailVerification = smtpServer != null && dto.VerifyEmail && !isDevelopment;
+                // Enable email verification if SMTP is configured and dto requests it
+                var enableEmailVerification = smtpServer != null && dto.VerifyEmail;
 
-                _logger.LogInformation($"Creating realm {dto.Realm} with email verification: {enableEmailVerification} (IsDevelopment: {isDevelopment}, SMTP Configured: {smtpServer != null})");
+                _logger.LogInformation($"Creating realm {dto.Realm} with email verification: {enableEmailVerification} (SMTP Configured: {smtpServer != null})");
 
                 var payload = new
                 {
@@ -439,8 +641,12 @@ namespace GroundUp.infrastructure.services
             var redirectUris = new List<string>();
             var webOrigins = new List<string>();
 
+            // Add API callback URL (for OAuth login flow)
             redirectUris.Add($"{apiUrl}{apiCallbackPath}");
             webOrigins.Add(apiUrl);
+            
+            // Add invitation acceptance URL (for execute-actions email redirect)
+            redirectUris.Add($"{apiUrl}/api/invitations/invite/*");
 
             if (!string.IsNullOrEmpty(tenantFrontendUrl))
             {

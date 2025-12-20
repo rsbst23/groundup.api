@@ -1,12 +1,16 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
+using GroundUp.core.entities;
+using GroundUp.core.enums;
 using GroundUp.core.interfaces;
 using GroundUp.infrastructure.data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 
 namespace GroundUp.api.Controllers
@@ -180,9 +184,14 @@ namespace GroundUp.api.Controllers
                     // Flow: User clicked join link
                     responseDto = await HandleJoinLinkFlowAsync(userId.Value, keycloakUserId, realm, callbackState.JoinToken, tokenResponse.AccessToken);
                 }
+                else if (callbackState?.Flow == "enterprise_first_admin")
+                {
+                    // Flow: Enterprise tenant first admin registration
+                    responseDto = await HandleEnterpriseFirstAdminFlowAsync(userId.Value, keycloakUserId, realm, tokenResponse.AccessToken);
+                }
                 else if (callbackState?.Flow == "new_org")
                 {
-                    // Flow: New organization signup
+                    // Flow: New organization signup (standard tenant)
                     responseDto = await HandleNewOrganizationFlowAsync(userId.Value, keycloakUserId, realm, tokenResponse.AccessToken);
                 }
                 else
@@ -488,6 +497,9 @@ namespace GroundUp.api.Controllers
                 {
                     _logger.LogInformation($"Processing new organization flow for Keycloak user {keycloakUserId} in realm {realm}");
 
+                    // This flow is ONLY for standard tenant creation
+                    // Enterprise tenants use the 'enterprise_first_admin' flow
+
                     // Check if user already exists in local DB
                     var existingUser = await _dbContext.Users.FindAsync(userId);
                     
@@ -551,15 +563,14 @@ namespace GroundUp.api.Controllers
                         ? $"{user.FirstName}'s Organization" 
                         : "My Organization";
 
-                    // Create new tenant using shared realm (standard tenants use "groundup" realm)
-                    // RealmName must be provided for AddAsync to succeed
+                    // Create new STANDARD tenant using shared realm
                     var tenant = new core.entities.Tenant
                     {
                         Name = organizationName,
                         Description = "Created via self-service registration",
                         IsActive = true,
                         TenantType = core.enums.TenantType.Standard,
-                        RealmName = realm, // Use the realm from callback state (should be "groundup")
+                        RealmName = realm, // Should be "groundup" for standard tenants
                         CreatedAt = DateTime.UtcNow
                     };
 
@@ -671,61 +682,103 @@ namespace GroundUp.api.Controllers
                     }
                 }
 
-                // Check if user has any tenants
+                // Resolve tenant memberships
                 var userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
 
+                // Handle users with no tenant memberships
                 if (userTenants.Count == 0)
                 {
-                    // User has no tenants - check for pending invitations
+                    // Get Keycloak user details first (needed for email validation)
                     var keycloakUser = await _identityProviderAdminService.GetUserByIdAsync(keycloakUserId, realm);
-                    if (keycloakUser != null && !string.IsNullOrEmpty(keycloakUser.Email))
+                    if (keycloakUser == null)
                     {
-                        var pendingInvitations = await _tenantInvitationRepository.GetInvitationsForEmailAsync(keycloakUser.Email);
-                        
-                        if (pendingInvitations.Success && pendingInvitations.Data.Count > 0)
+                        return new AuthCallbackResponseDto
                         {
-                            // Has pending invitations
-                            _logger.LogInformation($"User {userId} has {pendingInvitations.Data.Count} pending invitations");
-                            return new AuthCallbackResponseDto
-                            {
-                                Success = true,
-                                Flow = "default",
-                                RequiresTenantSelection = false,
-                                HasPendingInvitations = true,
-                                PendingInvitationsCount = pendingInvitations.Data.Count,
-                                Message = "User has pending invitations"
-                            };
-                        }
+                            Success = false,
+                            Flow = "default",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "User not found in authentication system"
+                        };
                     }
 
-                    // No tenants and no invitations
-                    _logger.LogInformation($"User {userId} has no tenants or pending invitations");
+                    // Determine tenant from realm
+                    var tenant = await _dbContext.Tenants
+                        .Include(t => t.SsoAutoJoinRole)
+                        .FirstOrDefaultAsync(t => t.RealmName == realm);
+
+                    if (tenant == null)
+                    {
+                        _logger.LogError($"No tenant found for realm {realm}");
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "default",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "Tenant configuration error"
+                        };
+                    }
+
+                    if (tenant.TenantType == TenantType.Enterprise)
+                    {
+                        // ENTERPRISE TENANT: Validate and potentially auto-join
+                        var (authorized, errorMessage) = await ValidateAndAssignSsoUserAsync(
+                            userId,
+                            keycloakUserId,
+                            keycloakUser.Email,
+                            tenant,
+                            realm
+                        );
+
+                        if (!authorized)
+                        {
+                            // TODO: Delete Keycloak user (cleanup orphaned account)
+                            // await _identityProviderAdminService.DeleteUserAsync(keycloakUserId, realm);
+                            _logger.LogWarning($"Unauthorized user {keycloakUserId} attempted access to enterprise tenant {tenant.Name}. Keycloak account should be manually deleted.");
+
+                            return new AuthCallbackResponseDto
+                            {
+                                Success = false,
+                                Flow = "unauthorized_sso_access",
+                                RequiresTenantSelection = false,
+                                ErrorMessage = errorMessage
+                            };
+                        }
+
+                        // User was authorized and assigned - refresh memberships
+                        userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
+                    }
+                    else
+                    {
+                        // STANDARD TENANT: Auto-create tenant for them (existing new_org flow)
+                        return await HandleNewOrganizationFlowAsync(userId, keycloakUserId, realm, accessToken);
+                    }
+                }
+
+                // At this point, userTenants.Count should be > 0
+                if (userTenants.Count == 0)
+                {
+                    // This should only happen if something went wrong
                     return new AuthCallbackResponseDto
                     {
-                        Success = true,
+                        Success = false,
                         Flow = "default",
                         RequiresTenantSelection = false,
-                        HasPendingInvitations = false,
-                        Message = "User has no tenant access"
+                        ErrorMessage = "Unable to assign user to tenant. Please contact support."
                     };
                 }
-                else if (userTenants.Count == 1)
+
+                // User has tenants - check for tenant selection requirement
+                if (userTenants.Count == 1)
                 {
-                    // User has exactly one tenant - auto-select it
-                    var customToken = await _tokenService.GenerateTokenAsync(
-                        userId,
-                        userTenants[0].TenantId,
-                        ExtractClaims(accessToken));
+                    // Automatically select the tenant
+                    var token = await _tokenService.GenerateTokenAsync(userId, userTenants[0].TenantId, ExtractClaims(accessToken));
+                    SetAuthCookie(token);
 
-                    SetAuthCookie(customToken);
-
-                    _logger.LogInformation($"User {userId} auto-assigned to tenant {userTenants[0].TenantId}");
-                    
                     return new AuthCallbackResponseDto
                     {
                         Success = true,
                         Flow = "default",
-                        Token = customToken,
+                        Token = token,
                         TenantId = userTenants[0].TenantId,
                         TenantName = userTenants[0].Tenant?.Name,
                         RequiresTenantSelection = false,
@@ -734,12 +787,7 @@ namespace GroundUp.api.Controllers
                 }
                 else
                 {
-                    // User has multiple tenants - return list for selection
-                    _logger.LogInformation($"User {userId} has {userTenants.Count} tenants - requires tenant selection");
-                    
-                    // Store Keycloak token temporarily for tenant selection
-                    SetAuthCookie(accessToken, "KeycloakToken");
-                    
+                    // Multiple tenants - require tenant selection
                     return new AuthCallbackResponseDto
                     {
                         Success = true,
@@ -766,6 +814,264 @@ namespace GroundUp.api.Controllers
                     ErrorMessage = "An unexpected error occurred during authentication"
                 };
             }
+        }
+
+        private async Task<AuthCallbackResponseDto> HandleEnterpriseFirstAdminFlowAsync(
+            Guid userId, 
+            string keycloakUserId, 
+            string realm, 
+            string accessToken)
+        {
+            // Use execution strategy for retry support with manual transactions
+            var strategy = _dbContext.Database.CreateExecutionStrategy();
+            
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    _logger.LogInformation($"Processing enterprise first admin flow for Keycloak user {keycloakUserId} in realm {realm}");
+
+                    // Check if user already exists in local DB
+                    var existingUser = await _dbContext.Users.FindAsync(userId);
+                    
+                    if (existingUser == null)
+                    {
+                        // User doesn't exist yet - create user
+                        var keycloakUser = await _identityProviderAdminService.GetUserByIdAsync(keycloakUserId, realm);
+                        if (keycloakUser == null)
+                        {
+                            await transaction.RollbackAsync();
+                            return new AuthCallbackResponseDto
+                            {
+                                Success = false,
+                                Flow = "enterprise_first_admin",
+                                RequiresTenantSelection = false,
+                                ErrorMessage = "User not found in authentication system"
+                            };
+                        }
+
+                        // Create new user
+                        var newUser = new core.entities.User
+                        {
+                            Id = userId,
+                            DisplayName = !string.IsNullOrEmpty(keycloakUser.FirstName) 
+                                ? $"{keycloakUser.FirstName} {keycloakUser.LastName}".Trim() 
+                                : keycloakUser.Username ?? "Unknown",
+                            Email = keycloakUser.Email,
+                            Username = keycloakUser.Username,
+                            FirstName = keycloakUser.FirstName,
+                            LastName = keycloakUser.LastName,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _dbContext.Users.Add(newUser);
+                        await _dbContext.SaveChangesAsync();
+
+                        _logger.LogInformation($"Created new user {userId} for realm {realm}");
+                    }
+
+                    // Find the enterprise tenant that was pre-created for this realm
+                    var tenant = await _dbContext.Tenants
+                        .FirstOrDefaultAsync(t => t.RealmName == realm && t.TenantType == core.enums.TenantType.Enterprise && t.IsActive);
+
+                    if (tenant == null)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError($"No enterprise tenant found for realm {realm}");
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "enterprise_first_admin",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "Enterprise tenant not found for this realm"
+                        };
+                    }
+
+                    // Check if tenant already has any users (race condition check)
+                    var existingMembers = await _dbContext.UserTenants
+                        .Where(ut => ut.TenantId == tenant.Id)
+                        .CountAsync();
+
+                    if (existingMembers > 0)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogWarning($"Enterprise tenant {tenant.Id} already has {existingMembers} member(s). First admin has already registered.");
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "enterprise_first_admin",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "This enterprise tenant already has an administrator. Please contact them for an invitation."
+                        };
+                    }
+
+                    // Assign user to tenant as admin with ExternalUserId
+                    await _userTenantRepository.AssignUserToTenantAsync(
+                        userId,
+                        tenant.Id,
+                        isAdmin: true,
+                        externalUserId: keycloakUserId);
+
+                    // Disable registration for enterprise realm after first admin
+                    _logger.LogInformation($"Disabling registration for enterprise realm: {realm}");
+                    var disabled = await _identityProviderAdminService.DisableRealmRegistrationAsync(realm);
+                    
+                    if (!disabled)
+                    {
+                        _logger.LogWarning($"Failed to disable registration for enterprise realm: {realm}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Successfully disabled registration for enterprise realm: {realm}");
+                    }
+
+                    await transaction.CommitAsync();
+
+                    // Generate tenant-scoped token
+                    var customToken = await _tokenService.GenerateTokenAsync(
+                        userId, 
+                        tenant.Id, 
+                        ExtractClaims(accessToken));
+
+                    // Set cookie
+                    SetAuthCookie(customToken);
+
+                    _logger.LogInformation($"User {userId} successfully became first admin of enterprise tenant {tenant.Name} (ID: {tenant.Id})");
+                    
+                    return new AuthCallbackResponseDto
+                    {
+                        Success = true,
+                        Flow = "enterprise_first_admin",
+                        Token = customToken,
+                        TenantId = tenant.Id,
+                        TenantName = tenant.Name,
+                        RequiresTenantSelection = false,
+                        IsNewOrganization = false,
+                        Message = "Successfully joined enterprise organization as administrator"
+                    };
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError($"Error handling enterprise first admin flow: {ex.Message}", ex);
+                    return new AuthCallbackResponseDto
+                    {
+                        Success = false,
+                        Flow = "enterprise_first_admin",
+                        RequiresTenantSelection = false,
+                        ErrorMessage = "An unexpected error occurred while joining enterprise organization"
+                    };
+                }
+            });
+        }
+
+        /// <summary>
+        /// Validates SSO user and handles auto-join or invitation acceptance for enterprise tenants
+        /// Returns true if user was authorized and assigned to tenant
+        /// Returns false if unauthorized (caller should delete Keycloak user and return error)
+        /// </summary>
+        private async Task<(bool authorized, string? errorMessage)> ValidateAndAssignSsoUserAsync(
+            Guid userId,
+            string keycloakUserId,
+            string? userEmail,
+            Tenant tenant,
+            string realm)
+        {
+            _logger.LogInformation($"Validating SSO user {userEmail ?? "no-email"} for enterprise tenant {tenant.Name}");
+
+            // 1. For ENTERPRISE tenants, email is REQUIRED
+            //    (Needed for invitation matching and domain-based auto-join)
+            if (tenant.TenantType == TenantType.Enterprise && string.IsNullOrEmpty(userEmail))
+            {
+                _logger.LogWarning($"Enterprise login without email for realm {realm}");
+                return (false, "Your authentication provider did not share your email address. Enterprise access requires a verified email.");
+            }
+
+            // 2. Email validation passed - continue with authorization checks
+
+            // 3. Check domain-based auto-join
+            var userDomain = userEmail!.Split('@')[1].ToLowerInvariant();
+
+            if (tenant.SsoAutoJoinDomains?.Contains(userDomain) == true)
+            {
+                _logger.LogInformation($"Auto-joining user {userId} from allowed domain {userDomain}");
+
+                // Assign to tenant
+                await _userTenantRepository.AssignUserToTenantAsync(
+                    userId,
+                    tenant.Id,
+                    isAdmin: false,
+                    keycloakUserId
+                );
+
+                // Assign default role
+                var roleId = tenant.SsoAutoJoinRoleId;
+
+                if (roleId == null)
+                {
+                    // Fallback to default "Member" role
+                    var defaultRole = await _dbContext.Roles
+                        .FirstOrDefaultAsync(r => r.TenantId == tenant.Id && r.Name == "Member");
+
+                    roleId = defaultRole?.Id;
+
+                    if (roleId == null)
+                    {
+                        _logger.LogWarning($"No default role found for tenant {tenant.Id}");
+                    }
+                }
+
+                if (roleId != null)
+                {
+                    await _dbContext.UserRoles.AddAsync(new UserRole
+                    {
+                        UserId = userId,
+                        RoleId = roleId.Value,
+                        TenantId = tenant.Id
+                    });
+
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                _logger.LogInformation($"User {userId} auto-joined tenant {tenant.Id} with role {roleId}");
+                return (true, null);
+            }
+
+            // 4. Check for pending invitation
+            var pendingInvitations = await _tenantInvitationRepository
+                .GetInvitationsForEmailAsync(userEmail!);
+
+            var tenantInvitation = pendingInvitations.Data
+                ?.FirstOrDefault(i => i.TenantId == tenant.Id && i.Status == "Pending");
+
+            if (tenantInvitation != null)
+            {
+                _logger.LogInformation($"Auto-accepting invitation for user {userId}");
+
+                // Accept the invitation (creates UserTenant and assigns roles)
+                var acceptResult = await _tenantInvitationRepository.AcceptInvitationAsync(
+                    tenantInvitation.InvitationToken,
+                    userId,
+                    keycloakUserId
+                );
+
+                if (acceptResult.Success)
+                {
+                    _logger.LogInformation($"User {userId} accepted invitation to tenant {tenant.Id}");
+                    return (true, null);
+                }
+                else
+                {
+                    _logger.LogError($"Failed to accept invitation: {acceptResult.Message}");
+                    return (false, $"Failed to process invitation: {acceptResult.Message}");
+                }
+            }
+
+            // 5. No authorization found - user is not allowed
+            _logger.LogWarning($"Unauthorized SSO login attempt for {userEmail} in tenant {tenant.Name}");
+            return (false, "Access denied. Please request an invitation from your administrator.");
         }
 
         private IEnumerable<Claim> ExtractClaims(string jwtToken)
@@ -856,18 +1162,19 @@ namespace GroundUp.api.Controllers
         }
 
         /// <summary>
-        /// Get registration URL for new user signup
-        /// Returns the Keycloak registration URL - client should redirect user to this URL
+        /// Get registration URL for new user signup (standard tenants only)
+        /// Returns the Keycloak registration URL in shared realm
+        /// Enterprise tenants get registration URL directly from enterprise signup endpoint
         /// </summary>
         [HttpGet("register")]
         [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<AuthUrlResponseDto>>> GetRegisterUrl(
-            [FromQuery] string? domain = null, 
             [FromQuery] string? returnUrl = null)
         {
             try
             {
-                var authUrl = await BuildAuthUrlAsync(domain, action: "register", returnUrl);
+                // Standard tenant registration - always uses shared realm
+                var authUrl = await BuildAuthUrlAsync(domain: null, action: "register", returnUrl);
                 
                 if (authUrl.StartsWith("ERROR:"))
                 {
@@ -1105,7 +1412,7 @@ namespace GroundUp.api.Controllers
                         SameSite = SameSiteMode.Lax,
                         Expires = DateTimeOffset.UtcNow.AddHours(1)
                     });
-                    
+
                     _logger.LogInformation("Token generated and cookie set");
                     
                     response = new ApiResponse<SetTenantResponseDto>(
@@ -1160,7 +1467,7 @@ namespace GroundUp.api.Controllers
                         SameSite = SameSiteMode.Lax,
                         Expires = DateTimeOffset.UtcNow.AddHours(1)
                     });
-                    
+
                     _logger.LogInformation("Token generated and cookie set");
                     
                     response = new ApiResponse<SetTenantResponseDto>(

@@ -30,6 +30,21 @@
         /// Realm name used for authentication
         /// </summary>
         public string RealmName { get; set; } = "groundup";
+
+        /// <summary>
+        /// List of email domains allowed for auto-join via SSO
+        /// </summary>
+        public List<string>? SsoAutoJoinDomains { get; set; }
+
+        /// <summary>
+        /// Default role ID for auto-joined users
+        /// </summary>
+        public int? SsoAutoJoinRoleId { get; set; }
+
+        /// <summary>
+        /// Name of the auto-join role (for display purposes)
+        /// </summary>
+        public string? SsoAutoJoinRoleName { get; set; }
     }
 
     /// <summary>
@@ -53,6 +68,16 @@
         /// Required for enterprise tenants, optional for standard tenants
         /// </summary>
         public string? CustomDomain { get; set; }
+
+        /// <summary>
+        /// List of email domains allowed for SSO auto-join
+        /// </summary>
+        public List<string>? SsoAutoJoinDomains { get; set; }
+
+        /// <summary>
+        /// Default role ID for auto-joined users
+        /// </summary>
+        public int? SsoAutoJoinRoleId { get; set; }
     }
 
     /// <summary>
@@ -70,6 +95,35 @@
         /// </summary>
         public string? CustomDomain { get; set; }
 
+        /// <summary>
+        /// List of email domains allowed for SSO auto-join
+        /// </summary>
+        public List<string>? SsoAutoJoinDomains { get; set; }
+
+        /// <summary>
+        /// Default role ID for auto-joined users
+        /// </summary>
+        public int? SsoAutoJoinRoleId { get; set; }
+
         // Note: TenantType cannot be changed after creation
+    }
+
+    /// <summary>
+    /// DTO for configuring SSO auto-join settings
+    /// </summary>
+    public class ConfigureSsoSettingsDto
+    {
+        /// <summary>
+        /// List of email domains allowed for auto-join
+        /// Example: ["acme.com", "acmecorp.com"]
+        /// Set to null or empty array to disable auto-join (invitation-only mode)
+        /// </summary>
+        public List<string>? SsoAutoJoinDomains { get; set; }
+
+        /// <summary>
+        /// Default role ID to assign when users auto-join
+        /// If null, uses tenant's default member role
+        /// </summary>
+        public int? SsoAutoJoinRoleId { get; set; }
     }
 }

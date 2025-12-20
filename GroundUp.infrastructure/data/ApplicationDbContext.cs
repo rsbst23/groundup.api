@@ -129,6 +129,17 @@ namespace GroundUp.infrastructure.data
                 .Property(t => t.CreatedAt)
                 .HasColumnType("DATETIME(6)");
 
+            // Tenant SSO auto-join configuration
+            modelBuilder.Entity<Tenant>()
+                .HasOne(t => t.SsoAutoJoinRole)
+                .WithMany()
+                .HasForeignKey(t => t.SsoAutoJoinRoleId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Tenant>()
+                .Property(t => t.SsoAutoJoinDomainsJson)
+                .HasColumnName("SsoAutoJoinDomains");
+
             // UserTenant configuration
             modelBuilder.Entity<UserTenant>()
                 .HasKey(ut => ut.Id);
