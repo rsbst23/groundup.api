@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using GroundUp.core.enums;
 
 namespace GroundUp.core.entities
@@ -80,6 +82,40 @@ namespace GroundUp.core.entities
         /// Onboarding mode for this tenant. Default = InvitationsRequired.
         /// </summary>
         public OnboardingMode Onboarding { get; set; } = OnboardingMode.InvitationsRequired;
+
+        /// <summary>
+        /// JSON array of email domains allowed for SSO auto-join
+        /// Example JSON: ["acme.com", "acmecorp.com"]
+        /// If null/empty: All users require explicit invitation
+        /// If populated: Users from these domains can auto-join on first SSO login
+        /// </summary>
+        public string? SsoAutoJoinDomainsJson { get; set; }
+        
+        /// <summary>
+        /// Parsed list of allowed domains (not mapped to database)
+        /// Use this property in application code
+        /// </summary>
+        [NotMapped]
+        public List<string>? SsoAutoJoinDomains
+        {
+            get => string.IsNullOrEmpty(SsoAutoJoinDomainsJson)
+                ? null
+                : JsonSerializer.Deserialize<List<string>>(SsoAutoJoinDomainsJson);
+            set => SsoAutoJoinDomainsJson = value == null || value.Count == 0
+                ? null
+                : JsonSerializer.Serialize(value);
+        }
+        
+        /// <summary>
+        /// Default role ID assigned when users auto-join via allowed domain
+        /// If null: Uses tenant's default member role (e.g., "Member")
+        /// </summary>
+        public int? SsoAutoJoinRoleId { get; set; }
+        
+        /// <summary>
+        /// Navigation property for auto-join role
+        /// </summary>
+        public Role? SsoAutoJoinRole { get; set; }
 
         // Navigation properties
         public ICollection<UserTenant> UserTenants { get; set; } = new List<UserTenant>();

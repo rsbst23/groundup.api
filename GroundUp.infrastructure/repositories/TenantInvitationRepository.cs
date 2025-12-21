@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
@@ -148,7 +148,7 @@ namespace GroundUp.infrastructure.repositories
                 // Set TenantId from context (not from DTO)
                 dto.TenantId = tenantId;
 
-                // Check if tenant exists
+                // Check if tenant exists and get realm
                 var tenant = await _context.Tenants.FindAsync(tenantId);
                 if (tenant == null)
                 {
@@ -178,6 +178,136 @@ namespace GroundUp.infrastructure.repositories
 
                 _context.TenantInvitations.Add(invitation);
                 await _context.SaveChangesAsync();
+
+                // FOR LOCAL ACCOUNT INVITATIONS ONLY: Create Keycloak user and send execute actions email
+                // FOR SSO INVITATIONS: Skip user creation - let the SSO provider (Google, Azure AD, etc.) create the user
+                if (dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise && !string.IsNullOrEmpty(tenant.RealmName))
+                {
+                    _logger.LogInformation($"Processing LOCAL ACCOUNT invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName}");
+                    
+                    // Check if user already exists in Keycloak
+                    var existingUserId = await _identityProvider.GetUserIdByEmailAsync(tenant.RealmName, dto.Email);
+                    
+                    string keycloakUserId;
+                    
+                    if (existingUserId == null)
+                    {
+                        _logger.LogInformation($"User {dto.Email} does not exist in realm {tenant.RealmName}, creating new LOCAL ACCOUNT user...");
+                        
+                        // Create Keycloak user for local account
+                        var createUserDto = new CreateUserDto
+                        {
+                            Username = dto.Email.Split('@')[0], // Use email prefix as username
+                            Email = dto.Email,
+                            FirstName = string.Empty, // Can be updated later
+                            LastName = string.Empty,
+                            Enabled = true,
+                            EmailVerified = false,
+                            SendWelcomeEmail = false // We'll send execute actions email instead
+                        };
+                        
+                        keycloakUserId = await _identityProvider.CreateUserAsync(tenant.RealmName, createUserDto);
+                        
+                        if (keycloakUserId == null)
+                        {
+                            _logger.LogError($"Failed to create Keycloak user for invitation {invitation.Id}");
+                            _logger.LogError($"CreateUserAsync returned null - check Keycloak logs for details");
+                            // Don't fail the invitation creation, but log the error
+                        }
+                        else
+                        {
+                            _logger.LogInformation($"✅ Successfully created Keycloak LOCAL ACCOUNT user {keycloakUserId} for invitation {invitation.Id}");
+                            
+                            // Verify user was actually created by fetching it
+                            var verifyUser = await _identityProvider.GetUserByIdAsync(keycloakUserId, tenant.RealmName);
+                            if (verifyUser == null)
+                            {
+                                _logger.LogError($"❌ User creation verification failed! User {keycloakUserId} not found after creation");
+                            }
+                            else
+                            {
+                                _logger.LogInformation($"✅ User creation verified: {verifyUser.Email}, Enabled={verifyUser.Enabled}, EmailVerified={verifyUser.EmailVerified}");
+                            }
+
+                            // Send execute actions email with BOTH client_id and redirect_uri
+                            // UPDATE_PROFILE: Prompts user to enter first name and last name
+                            // UPDATE_PASSWORD: Prompts user to set their password
+                            // VERIFY_EMAIL: Sends email verification (if SMTP configured)
+                            //var actions = new List<string> { "UPDATE_PROFILE", "UPDATE_PASSWORD", "VERIFY_EMAIL" };
+                            var actions = new List<string> { "UPDATE_PASSWORD", "VERIFY_EMAIL" };
+
+                            // Build redirect URI to invitation acceptance endpoint
+                            var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "http://localhost:5123";
+                            var invitationUrl = $"{apiUrl}/api/invitations/invite/{invitation.InvitationToken}";
+                            
+                            // Get client ID from configuration
+                            var clientId = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
+                            
+                            _logger.LogInformation($"📧 Attempting to send execute-actions email...");
+                            _logger.LogInformation($"   Realm: {tenant.RealmName}");
+                            _logger.LogInformation($"   User ID: {keycloakUserId}");
+                            _logger.LogInformation($"   Actions: {string.Join(", ", actions)}");
+                            _logger.LogInformation($"   Client ID: {clientId}");
+                            _logger.LogInformation($"   Redirect URI: {invitationUrl}");
+                            
+                            var emailSent = await _identityProvider.SendExecuteActionsEmailAsync(
+                                tenant.RealmName,
+                                keycloakUserId,
+                                actions,
+                                clientId,
+                                invitationUrl
+                            );
+                            
+                            if (!emailSent)
+                            {
+                                _logger.LogError($"❌ Failed to send execute actions email for invitation {invitation.Id}");
+                                _logger.LogError($"   Check the SendExecuteActionsEmailAsync logs above for specific error details");
+                                _logger.LogError($"   Common causes:");
+                                _logger.LogError($"   1. SMTP not configured in realm '{tenant.RealmName}'");
+                                _logger.LogError($"   2. Invalid client_id '{clientId}' for realm");
+                                _logger.LogError($"   3. Invalid redirect_uri '{invitationUrl}' not in client's valid redirect URIs");
+                                _logger.LogError($"   4. User email '{dto.Email}' is not set or invalid");
+                            }
+                            else
+                            {
+                                _logger.LogInformation($"✅ Successfully sent execute actions email for invitation {invitation.Id}");
+                                _logger.LogInformation($"   User {dto.Email} should receive email to set password and verify email");
+                                _logger.LogInformation($"   After completing actions, 'Back to application' link will redirect to: {invitationUrl}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        keycloakUserId = existingUserId;
+                        _logger.LogInformation($"User already exists in Keycloak: {keycloakUserId} for invitation {invitation.Id}");
+                        
+                        // User exists - optionally send execute actions email if they haven't verified email
+                        var keycloakUser = await _identityProvider.GetUserByIdAsync(keycloakUserId, tenant.RealmName);
+                        if (keycloakUser != null && !keycloakUser.EmailVerified)
+                        {
+                            _logger.LogInformation($"Existing user {keycloakUserId} hasn't verified email, sending execute actions email");
+							
+                            var actions = new List<string> { "VERIFY_EMAIL" };
+                            var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "http://localhost:5123";
+                            var invitationUrl = $"{apiUrl}/api/invitations/invite/{invitation.InvitationToken}";
+                            var clientId = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
+                            
+                            await _identityProvider.SendExecuteActionsEmailAsync(
+                                tenant.RealmName,
+                                keycloakUserId,
+                                actions,
+                                clientId,
+                                invitationUrl
+                            );
+                        }
+                    }
+                }
+                else if (!dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise)
+                {
+                    _logger.LogInformation($"Processing SSO invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName ?? "N/A"}");
+                    _logger.LogInformation($"Skipping Keycloak user creation - user will authenticate via SSO (Google, Azure AD, etc.)");
+                    _logger.LogInformation($"User will be created automatically by the SSO provider upon first login");
+                }
 
                 // Reload with navigation properties
                 var created = await _context.TenantInvitations

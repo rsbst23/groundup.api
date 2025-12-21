@@ -21,6 +21,14 @@ namespace GroundUp.core.dtos
         
         [Range(1, 365)]
         public int ExpirationDays { get; set; } = 7;
+        
+        /// <summary>
+        /// Indicates if this invitation is for a local account (password-based)
+        /// - TRUE: Creates Keycloak user and sends execute-actions email (password setup)
+        /// - FALSE: No Keycloak user created upfront - user will authenticate via SSO (Google, Azure AD, etc.)
+        /// Default: TRUE for backward compatibility
+        /// </summary>
+        public bool IsLocalAccount { get; set; } = true;
     }
 
     /// <summary>

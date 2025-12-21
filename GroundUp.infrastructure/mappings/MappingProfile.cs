@@ -62,14 +62,17 @@ namespace GroundUp.infrastructure.mappings
             CreateMap<Tenant, TenantDto>()
                 .ForMember(dest => dest.ParentTenantName, opt => opt.MapFrom(src => src.ParentTenant != null ? src.ParentTenant.Name : null))
                 .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
-                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName));
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName))
+                .ForMember(dest => dest.SsoAutoJoinDomains, opt => opt.MapFrom(src => src.SsoAutoJoinDomains))
+                .ForMember(dest => dest.SsoAutoJoinRoleName, opt => opt.MapFrom(src => src.SsoAutoJoinRole != null ? src.SsoAutoJoinRole.Name : null));
             
             CreateMap<TenantDto, Tenant>()
                 .ForMember(dest => dest.ParentTenant, opt => opt.Ignore())
                 .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
                 .ForMember(dest => dest.UserTenants, opt => opt.Ignore())
                 .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
-                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName));
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName))
+                .ForMember(dest => dest.SsoAutoJoinDomains, opt => opt.MapFrom(src => src.SsoAutoJoinDomains));
 
             CreateMap<CreateTenantDto, Tenant>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -78,7 +81,8 @@ namespace GroundUp.infrastructure.mappings
                 .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
                 .ForMember(dest => dest.UserTenants, opt => opt.Ignore())
                 .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
-                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.CustomDomain ?? "groundup"));
+                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.CustomDomain ?? "groundup"))
+                .ForMember(dest => dest.SsoAutoJoinDomains, opt => opt.MapFrom(src => src.SsoAutoJoinDomains));
 
             CreateMap<UpdateTenantDto, Tenant>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -86,8 +90,9 @@ namespace GroundUp.infrastructure.mappings
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.ParentTenant, opt => opt.Ignore())
                 .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
-                .ForMember(dest => dest.UserTenants, opt => opt.Ignore());
-
+                .ForMember(dest => dest.UserTenants, opt => opt.Ignore())
+                .ForMember(dest => dest.SsoAutoJoinDomains, opt => opt.MapFrom(src => src.SsoAutoJoinDomains));
+        
             // UserTenant mappings
             CreateMap<UserTenant, UserTenantDto>().ReverseMap();
 

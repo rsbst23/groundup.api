@@ -266,10 +266,14 @@ namespace GroundUp.api.Controllers
         #region Public Invitation Flow Endpoint
 
         /// <summary>
-        /// PUBLIC ENDPOINT: Validate invitation and return Keycloak auth URL
+        /// PUBLIC ENDPOINT: Validate invitation and return Keycloak registration URL
         /// GET /api/invitations/invite/{invitationToken}
         /// Works for both standard (shared realm) and enterprise (dedicated realm) invitations
         /// Realm is determined from the invitation's RealmName property
+        /// 
+        /// For NEW users: Returns registration URL
+        /// For EXISTING users: Returns login URL
+        /// 
         /// Client should redirect user to the returned AuthUrl
         /// </summary>
         [HttpGet("invite/{invitationToken}")]
@@ -343,14 +347,13 @@ namespace GroundUp.api.Controllers
                 {
                     Flow = "invitation",
                     InvitationToken = invitationToken,
-                    Realm = invitation.RealmName // Use realm from invitation (works for both standard and enterprise)
+                    Realm = invitation.RealmName
                 };
 
                 var stateJson = JsonSerializer.Serialize(state);
                 var stateEncoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(stateJson));
 
-                // Build Keycloak authorization URL
-                // Using correct environment variable names from .env
+                // Build Keycloak URLs
                 var keycloakAuthUrl = _configuration["KEYCLOAK_AUTH_SERVER_URL"];
                 var clientId = _configuration["KEYCLOAK_RESOURCE"];
                 var redirectUri = $"{Request.Scheme}://{Request.Host}/api/auth/callback";
@@ -382,23 +385,31 @@ namespace GroundUp.api.Controllers
                     ));
                 }
 
-                var authUrl = $"{keycloakAuthUrl}/realms/{invitation.RealmName}/protocol/openid-connect/auth" +
-                              $"?client_id={Uri.EscapeDataString(clientId)}" +
-                              $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-                              $"&response_type=code" +
-                              $"&scope=openid%20email%20profile" +
-                              $"&state={Uri.EscapeDataString(stateEncoded)}";
+                // Build OAuth parameters
+                // Build OAuth parameters with login_hint to pre-fill username
+                var oauthParams = $"?client_id={Uri.EscapeDataString(clientId)}" +
+                                $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+                                $"&response_type=code" +
+                                $"&scope=openid%20email%20profile" +
+                                $"&state={Uri.EscapeDataString(stateEncoded)}" +
+                                $"&login_hint={Uri.EscapeDataString(invitation.Email)}";
 
-                _logger.LogInformation($"Generated auth URL for Keycloak realm {invitation.RealmName} for invitation {invitationToken}");
+                // Use LOGIN URL (not registration) since user already exists after execute-actions
+                // User account was created during invitation creation, and they received execute-actions email
+                // After completing password setup, they click "Back to application" link which brings them here
+                // The login_hint parameter pre-fills the email field for better UX
+                var loginUrl = $"{keycloakAuthUrl}/realms/{invitation.RealmName}/protocol/openid-connect/auth{oauthParams}";
+
+                _logger.LogInformation($"Generated login URL with login_hint for Keycloak realm {invitation.RealmName} for invitation {invitationToken}");
                 
                 var response = new ApiResponse<AuthUrlResponseDto>(
                     new AuthUrlResponseDto 
                     { 
-                        AuthUrl = authUrl, 
+                        AuthUrl = loginUrl, 
                         Action = "invitation" 
                     },
                     true,
-                    "Invitation auth URL generated successfully",
+                    "Invitation login URL generated successfully",
                     null,
                     StatusCodes.Status200OK
                 );
