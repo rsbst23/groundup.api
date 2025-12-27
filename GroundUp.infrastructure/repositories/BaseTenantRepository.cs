@@ -31,8 +31,11 @@ namespace GroundUp.infrastructure.repositories
             _tenantContext = tenantContext;
         }
 
-        // Get All with Pagination and Filtering
-        public virtual async Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
+        #region Query Shaper Hooks (per method)
+
+        protected virtual async Task<ApiResponse<PaginatedData<TDto>>> GetAllInternalAsync(
+            FilterParams filterParams,
+            Func<IQueryable<T>, IQueryable<T>>? queryShaper = null)
         {
             try
             {
@@ -45,11 +48,14 @@ namespace GroundUp.infrastructure.repositories
                     query = query.Where(e => ((ITenantEntity)e).TenantId == tenantId);
                 }
 
-                // Apply filters and sorting
+                if (queryShaper != null)
+                {
+                    query = queryShaper(query);
+                }
+
                 query = ApplyFilters(query, filterParams);
                 query = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
 
-                // Apply Pagination
                 var totalRecords = await query.CountAsync();
                 var pagedItems = await query
                     .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
@@ -67,24 +73,44 @@ namespace GroundUp.infrastructure.repositories
             }
         }
 
-        // Get by ID
-        public virtual async Task<ApiResponse<TDto>> GetByIdAsync(int id)
+        protected virtual async Task<ApiResponse<TDto>> GetByIdInternalAsync(
+            int id,
+            Func<IQueryable<T>, IQueryable<T>>? queryShaper = null)
         {
             try
             {
-                var entity = await _dbSet.FindAsync(id);
-                // Multi-tenancy: check TenantId if applicable
-                if (entity is ITenantEntity tenantEntity)
+                T? entity;
+
+                if (queryShaper == null)
                 {
-                    if (tenantEntity.TenantId != _tenantContext.TenantId)
-                    {
-                        return new ApiResponse<TDto>(default!, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
-                    }
+                    entity = await _dbSet.FindAsync(id);
                 }
+                else
+                {
+                    var query = _dbSet.AsQueryable();
+
+                    // Multi-tenancy: filter by TenantId if applicable
+                    if (typeof(ITenantEntity).IsAssignableFrom(typeof(T)))
+                    {
+                        var tenantId = _tenantContext.TenantId;
+                        query = query.Where(e => ((ITenantEntity)e).TenantId == tenantId);
+                    }
+
+                    query = queryShaper(query);
+                    entity = await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
+                }
+
                 if (entity == null)
                 {
                     return new ApiResponse<TDto>(default!, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
                 }
+
+                // Multi-tenancy: check TenantId if applicable
+                if (entity is ITenantEntity tenantEntity && tenantEntity.TenantId != _tenantContext.TenantId)
+                {
+                    return new ApiResponse<TDto>(default!, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
+                }
+
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(entity));
             }
             catch (Exception ex)
@@ -92,6 +118,74 @@ namespace GroundUp.infrastructure.repositories
                 return new ApiResponse<TDto>(default!, false, "An error occurred while retrieving the item.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
             }
         }
+
+        protected virtual async Task<ApiResponse<byte[]>> ExportInternalAsync(
+            FilterParams filterParams,
+            string format = "csv",
+            Func<IQueryable<T>, IQueryable<T>>? queryShaper = null)
+        {
+            try
+            {
+                var query = _dbSet.AsQueryable();
+
+                // Multi-tenancy: filter by TenantId if applicable
+                if (typeof(ITenantEntity).IsAssignableFrom(typeof(T)))
+                {
+                    var tenantId = _tenantContext.TenantId;
+                    query = query.Where(e => ((ITenantEntity)e).TenantId == tenantId);
+                }
+
+                if (queryShaper != null)
+                {
+                    query = queryShaper(query);
+                }
+
+                query = ApplyFilters(query, filterParams);
+                var orderedQuery = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+
+                var items = await orderedQuery.ToListAsync();
+                var mappedItems = _mapper.Map<List<TDto>>(items);
+
+                _logger.LogInformation($"Exporting {items.Count} {typeof(T).Name} items in {format} format");
+
+                byte[] fileContent;
+                switch (format.ToLower())
+                {
+                    case "json":
+                        fileContent = await GenerateJsonFileAsync(mappedItems);
+                        break;
+                    case "csv":
+                    default:
+                        fileContent = await GenerateCsvFileAsync(mappedItems);
+                        break;
+                }
+
+                return new ApiResponse<byte[]>(fileContent, true, $"Exported {items.Count} items successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error exporting {typeof(T).Name} data: {ex.Message}", ex);
+                return new ApiResponse<byte[]>
+                (
+                    new byte[0],
+                    false,
+                    "An error occurred while exporting data.",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError
+                );
+            }
+        }
+
+        #endregion
+
+        // Get All with Pagination and Filtering
+        public virtual Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
+            => GetAllInternalAsync(filterParams);
+
+        // Get by ID
+        public virtual Task<ApiResponse<TDto>> GetByIdAsync(int id)
+            => GetByIdInternalAsync(id);
 
         // Add new entity
         public virtual async Task<ApiResponse<TDto>> AddAsync(TDto dto)
@@ -183,62 +277,8 @@ namespace GroundUp.infrastructure.repositories
             }
         }
 
-        public virtual async Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv")
-        {
-            try
-            {
-                var query = _dbSet.AsQueryable();
-
-                // Multi-tenancy: filter by TenantId if applicable
-                if (typeof(ITenantEntity).IsAssignableFrom(typeof(T)))
-                {
-                    var tenantId = _tenantContext.TenantId;
-                    query = query.Where(e => ((ITenantEntity)e).TenantId == tenantId);
-                }
-
-                // Apply filters using existing method
-                query = ApplyFilters(query, filterParams);
-
-                // Apply sorting using existing method (handles hyphen prefix for descending)
-                var orderedQuery = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
-
-                // Execute the query and get all matching items
-                var items = await orderedQuery.ToListAsync();
-                var mappedItems = _mapper.Map<List<TDto>>(items);
-
-                _logger.LogInformation($"Exporting {items.Count} {typeof(T).Name} items in {format} format");
-
-                // Generate the export content based on format
-                byte[] fileContent;
-                switch (format.ToLower())
-                {
-                    //case "xlsx":
-                    //    fileContent = await GenerateExcelFileAsync(mappedItems);
-                    //    break;
-                    case "json":
-                        fileContent = await GenerateJsonFileAsync(mappedItems);
-                        break;
-                    case "csv":
-                    default:
-                        fileContent = await GenerateCsvFileAsync(mappedItems);
-                        break;
-                }
-
-                return new ApiResponse<byte[]>(fileContent, true, $"Exported {items.Count} items successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error exporting {typeof(T).Name} data: {ex.Message}", ex);
-                return new ApiResponse<byte[]>(
-                    new byte[0],
-                    false,
-                    "An error occurred while exporting data.",
-                    new List<string> { ex.Message },
-                    StatusCodes.Status500InternalServerError,
-                    ErrorCodes.InternalServerError
-                );
-            }
-        }
+        public virtual Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv")
+            => ExportInternalAsync(filterParams, format);
 
         // Helper method to generate CSV file
         private async Task<byte[]> GenerateCsvFileAsync<T>(List<T> items)
@@ -284,47 +324,6 @@ namespace GroundUp.infrastructure.repositories
 
             return memoryStream.ToArray();
         }
-
-        // Helper method to generate Excel file
-        //        private async Task<byte[]> GenerateExcelFileAsync<T>(List<T> items)
-        //        {
-        //            // Note: This requires a NuGet package like EPPlus or ClosedXML
-        //            // This is a simplified implementation using a third-party library
-        //            using var memoryStream = new MemoryStream();
-
-        //#if USE_EPPLUS // You would define this constant if using EPPlus
-        //    using var package = new ExcelPackage(memoryStream);
-        //    var worksheet = package.Workbook.Worksheets.Add("Data");
-
-        //    // Add headers
-        //    var properties = typeof(T).GetProperties();
-        //    for (int i = 0; i < properties.Length; i++)
-        //    {
-        //        worksheet.Cells[1, i + 1].Value = properties[i].Name;
-        //        worksheet.Cells[1, i + 1].Style.Font.Bold = true;
-        //    }
-
-        //    // Add data
-        //    for (int row = 0; row < items.Count; row++)
-        //    {
-        //        for (int col = 0; col < properties.Length; col++)
-        //        {
-        //            worksheet.Cells[row + 2, col + 1].Value = properties[col].GetValue(items[row])?.ToString() ?? "";
-        //        }
-        //    }
-
-        //    // Auto-fit columns
-        //    worksheet.Cells.AutoFitColumns();
-
-        //    await package.SaveAsync();
-        //#else
-        //            // If you don't have an Excel library, you could return CSV as a fallback
-        //            // Or you can implement your own Excel generation logic
-        //            return await GenerateCsvFileAsync(items);
-        //#endif
-
-        //            return memoryStream.ToArray();
-        //        }
 
         // Apply Filters Dynamically
         private IQueryable<T> ApplyFilters(IQueryable<T> query, FilterParams filterParams)

@@ -31,95 +31,20 @@ namespace GroundUp.infrastructure.repositories
             _identityProvider = identityProvider;
         }
 
+        private static IQueryable<TenantInvitation> WithDetails(IQueryable<TenantInvitation> query) =>
+            query
+                .Include(ti => ti.Tenant)
+                .Include(ti => ti.CreatedByUser)
+                .Include(ti => ti.AcceptedByUser);
+
         #region Standard CRUD Operations
 
-        public async Task<ApiResponse<PaginatedData<TenantInvitationDto>>> GetAllAsync(FilterParams filterParams)
-        {
-            try
-            {
-                // Get tenant from context (same pattern as BaseTenantRepository)
-                var tenantId = _tenantContext.TenantId;
+        // Use base filtering/sorting/paging, but shape the query for this method.
+        public override Task<ApiResponse<PaginatedData<TenantInvitationDto>>> GetAllAsync(FilterParams filterParams)
+            => GetAllInternalAsync(filterParams, q => WithDetails((IQueryable<TenantInvitation>)q));
 
-                // Tenant-scoped query
-                var query = _dbSet
-                    .Include(ti => ti.Tenant)
-                    .Include(ti => ti.CreatedByUser)
-                    .Include(ti => ti.AcceptedByUser)
-                    .Where(ti => ti.TenantId == tenantId)
-                    .AsQueryable();
-
-                // Apply sorting
-                query = GroundUp.infrastructure.utilities.ExpressionHelper.ApplySorting(query, filterParams.SortBy);
-
-                var totalRecords = await query.CountAsync();
-                var pagedItems = await query
-                    .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
-                    .Take(filterParams.PageSize)
-                    .ToListAsync();
-
-                var mappedItems = _mapper.Map<List<TenantInvitationDto>>(pagedItems);
-                var paginatedData = new PaginatedData<TenantInvitationDto>(
-                    mappedItems,
-                    filterParams.PageNumber,
-                    filterParams.PageSize,
-                    totalRecords
-                );
-
-                return new ApiResponse<PaginatedData<TenantInvitationDto>>(paginatedData);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error retrieving invitations: {ex.Message}", ex);
-                return new ApiResponse<PaginatedData<TenantInvitationDto>>(
-                    default!,
-                    false,
-                    "Failed to retrieve invitations",
-                    new List<string> { ex.Message },
-                    StatusCodes.Status500InternalServerError,
-                    ErrorCodes.InternalServerError
-                );
-            }
-        }
-
-        public override async Task<ApiResponse<TenantInvitationDto>> GetByIdAsync(int id)
-        {
-            try
-            {
-                // Use base repository's tenant-scoped query with includes
-                var invitation = await _dbSet
-                    .Include(ti => ti.Tenant)
-                    .Include(ti => ti.CreatedByUser)
-                    .Include(ti => ti.AcceptedByUser)
-                    .FirstOrDefaultAsync(ti => ti.Id == id);
-
-                if (invitation == null)
-                {
-                    return new ApiResponse<TenantInvitationDto>(
-                        default!,
-                        false,
-                        "Invitation not found",
-                        null,
-                        StatusCodes.Status404NotFound,
-                        ErrorCodes.NotFound
-                    );
-                }
-
-                var invitationDto = _mapper.Map<TenantInvitationDto>(invitation);
-                return new ApiResponse<TenantInvitationDto>(invitationDto);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error retrieving invitation by ID: {ex.Message}", ex);
-                return new ApiResponse<TenantInvitationDto>(
-                    default!,
-                    false,
-                    "Failed to retrieve invitation",
-                    new List<string> { ex.Message },
-                    StatusCodes.Status500InternalServerError,
-                    ErrorCodes.InternalServerError
-                );
-            }
-        }
+        public override Task<ApiResponse<TenantInvitationDto>> GetByIdAsync(int id)
+            => GetByIdInternalAsync(id, q => WithDetails((IQueryable<TenantInvitation>)q));
 
         public async Task<ApiResponse<TenantInvitationDto>> AddAsync(CreateTenantInvitationDto dto, Guid createdByUserId)
         {
@@ -184,16 +109,16 @@ namespace GroundUp.infrastructure.repositories
                 if (dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise && !string.IsNullOrEmpty(tenant.RealmName))
                 {
                     _logger.LogInformation($"Processing LOCAL ACCOUNT invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName}");
-                    
+
                     // Check if user already exists in Keycloak
                     var existingUserId = await _identityProvider.GetUserIdByEmailAsync(tenant.RealmName, dto.Email);
-                    
+
                     string keycloakUserId;
-                    
+
                     if (existingUserId == null)
                     {
                         _logger.LogInformation($"User {dto.Email} does not exist in realm {tenant.RealmName}, creating new LOCAL ACCOUNT user...");
-                        
+
                         // Create Keycloak user for local account
                         var createUserDto = new CreateUserDto
                         {
@@ -205,9 +130,9 @@ namespace GroundUp.infrastructure.repositories
                             EmailVerified = false,
                             SendWelcomeEmail = false // We'll send execute actions email instead
                         };
-                        
+
                         keycloakUserId = await _identityProvider.CreateUserAsync(tenant.RealmName, createUserDto);
-                        
+
                         if (keycloakUserId == null)
                         {
                             _logger.LogError($"Failed to create Keycloak user for invitation {invitation.Id}");
@@ -217,7 +142,7 @@ namespace GroundUp.infrastructure.repositories
                         else
                         {
                             _logger.LogInformation($"✅ Successfully created Keycloak LOCAL ACCOUNT user {keycloakUserId} for invitation {invitation.Id}");
-                            
+
                             // Verify user was actually created by fetching it
                             var verifyUser = await _identityProvider.GetUserByIdAsync(keycloakUserId, tenant.RealmName);
                             if (verifyUser == null)
@@ -229,27 +154,22 @@ namespace GroundUp.infrastructure.repositories
                                 _logger.LogInformation($"✅ User creation verified: {verifyUser.Email}, Enabled={verifyUser.Enabled}, EmailVerified={verifyUser.EmailVerified}");
                             }
 
-                            // Send execute actions email with BOTH client_id and redirect_uri
-                            // UPDATE_PROFILE: Prompts user to enter first name and last name
-                            // UPDATE_PASSWORD: Prompts user to set their password
-                            // VERIFY_EMAIL: Sends email verification (if SMTP configured)
-                            //var actions = new List<string> { "UPDATE_PROFILE", "UPDATE_PASSWORD", "VERIFY_EMAIL" };
                             var actions = new List<string> { "UPDATE_PASSWORD", "VERIFY_EMAIL" };
 
                             // Build redirect URI to invitation acceptance endpoint
                             var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "http://localhost:5123";
                             var invitationUrl = $"{apiUrl}/api/invitations/invite/{invitation.InvitationToken}";
-                            
+
                             // Get client ID from configuration
                             var clientId = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
-                            
+
                             _logger.LogInformation($"📧 Attempting to send execute-actions email...");
                             _logger.LogInformation($"   Realm: {tenant.RealmName}");
                             _logger.LogInformation($"   User ID: {keycloakUserId}");
                             _logger.LogInformation($"   Actions: {string.Join(", ", actions)}");
                             _logger.LogInformation($"   Client ID: {clientId}");
                             _logger.LogInformation($"   Redirect URI: {invitationUrl}");
-                            
+
                             var emailSent = await _identityProvider.SendExecuteActionsEmailAsync(
                                 tenant.RealmName,
                                 keycloakUserId,
@@ -257,7 +177,7 @@ namespace GroundUp.infrastructure.repositories
                                 clientId,
                                 invitationUrl
                             );
-                            
+
                             if (!emailSent)
                             {
                                 _logger.LogError($"❌ Failed to send execute actions email for invitation {invitation.Id}");
@@ -280,18 +200,18 @@ namespace GroundUp.infrastructure.repositories
                     {
                         keycloakUserId = existingUserId;
                         _logger.LogInformation($"User already exists in Keycloak: {keycloakUserId} for invitation {invitation.Id}");
-                        
+
                         // User exists - optionally send execute actions email if they haven't verified email
                         var keycloakUser = await _identityProvider.GetUserByIdAsync(keycloakUserId, tenant.RealmName);
                         if (keycloakUser != null && !keycloakUser.EmailVerified)
                         {
                             _logger.LogInformation($"Existing user {keycloakUserId} hasn't verified email, sending execute actions email");
-							
+
                             var actions = new List<string> { "VERIFY_EMAIL" };
                             var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "http://localhost:5123";
                             var invitationUrl = $"{apiUrl}/api/invitations/invite/{invitation.InvitationToken}";
                             var clientId = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") ?? "groundup-api";
-                            
+
                             await _identityProvider.SendExecuteActionsEmailAsync(
                                 tenant.RealmName,
                                 keycloakUserId,
@@ -310,9 +230,7 @@ namespace GroundUp.infrastructure.repositories
                 }
 
                 // Reload with navigation properties
-                var created = await _context.TenantInvitations
-                    .Include(ti => ti.Tenant)
-                    .Include(ti => ti.CreatedByUser)
+                var created = await WithDetails(_context.TenantInvitations.AsQueryable())
                     .FirstAsync(ti => ti.Id == invitation.Id);
 
                 var invitationDto = _mapper.Map<TenantInvitationDto>(created);
@@ -343,9 +261,7 @@ namespace GroundUp.infrastructure.repositories
             try
             {
                 // Tenant-scoped: Only update invitations in current tenant
-                var invitation = await _dbSet
-                    .Include(ti => ti.Tenant)
-                    .Include(ti => ti.CreatedByUser)
+                var invitation = await WithDetails(_dbSet.AsQueryable())
                     .FirstOrDefaultAsync(ti => ti.Id == id);
 
                 if (invitation == null)
@@ -467,11 +383,9 @@ namespace GroundUp.infrastructure.repositories
 
                 var now = DateTime.UtcNow;
                 // Tenant-scoped: Only get pending invitations for current tenant
-                var invitations = await _dbSet
-                    .Include(ti => ti.Tenant)
-                    .Include(ti => ti.CreatedByUser)
-                    .Where(ti => ti.TenantId == tenantId 
-                        && ti.Status == InvitationStatus.Pending 
+                var invitations = await WithDetails(_dbSet.AsQueryable())
+                    .Where(ti => ti.TenantId == tenantId
+                        && ti.Status == InvitationStatus.Pending
                         && ti.ExpiresAt > now)
                     .OrderByDescending(ti => ti.CreatedAt)
                     .ToListAsync();
@@ -688,7 +602,7 @@ namespace GroundUp.infrastructure.repositories
                 }
 
                 // Verify email matches (case-insensitive)
-                if (!string.IsNullOrEmpty(user.Email) && 
+                if (!string.IsNullOrEmpty(user.Email) &&
                     !user.Email.Equals(invitation.ContactEmail, StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning($"User email {user.Email} does not match invitation email {invitation.ContactEmail}");
