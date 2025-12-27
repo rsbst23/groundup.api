@@ -1,6 +1,8 @@
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using GroundUp.core;
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.entities;
 using GroundUp.core.enums;
 using GroundUp.core.interfaces;
@@ -15,7 +17,7 @@ namespace GroundUp.infrastructure.repositories
     /// Inherits from BaseRepository for common CRUD operations
     /// Overrides methods requiring tenant-specific logic (navigation properties, realm management)
     /// </summary>
-    public class TenantRepository : BaseRepository<Tenant, TenantDto>, ITenantRepository
+    public class TenantRepository : BaseRepository<Tenant, TenantDetailDto>, ITenantRepository
     {
         private readonly IIdentityProviderAdminService _identityProviderAdminService;
 
@@ -29,52 +31,36 @@ namespace GroundUp.infrastructure.repositories
             _identityProviderAdminService = identityProviderAdminService;
         }
 
+        private static IQueryable<Tenant> WithParentAndSsoRole(IQueryable<Tenant> query)
+            => query
+                .Include(t => t.ParentTenant)
+                .Include(t => t.SsoAutoJoinRole);
+
         /// <summary>
-        /// Override GetAllAsync to include ParentTenant navigation property
+        /// Tenant list endpoint: includes ParentTenant so ParentTenantName can be mapped flat.
+        /// Avoids the previous "re-query" by paging entities once and projecting.
         /// </summary>
-        public override async Task<ApiResponse<PaginatedData<TenantDto>>> GetAllAsync(FilterParams filterParams)
+        public async Task<ApiResponse<PaginatedData<TenantListItemDto>>> GetAllAsync(FilterParams filterParams)
         {
             try
             {
-                var query = _dbSet
-                    .Include(t => t.ParentTenant)
-                    .AsQueryable();
-
-                // Apply sorting
+                var query = WithParentAndSsoRole(_dbSet.AsQueryable());
                 query = GroundUp.infrastructure.utilities.ExpressionHelper.ApplySorting(query, filterParams.SortBy);
 
                 var totalRecords = await query.CountAsync();
-                var pagedItems = await query
+
+                var items = await query
                     .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
                     .Take(filterParams.PageSize)
+                    .ProjectTo<TenantListItemDto>(_mapper.ConfigurationProvider)
                     .ToListAsync();
 
-                var mappedItems = pagedItems.Select(t => new TenantDto
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Description = t.Description,
-                    ParentTenantId = t.ParentTenantId,
-                    CreatedAt = t.CreatedAt,
-                    IsActive = t.IsActive,
-                    ParentTenantName = t.ParentTenant?.Name,
-                    TenantType = t.TenantType,
-                    CustomDomain = t.CustomDomain,
-                    RealmName = t.RealmName
-                }).ToList();
-
-                var paginatedData = new PaginatedData<TenantDto>(
-                    mappedItems,
-                    filterParams.PageNumber,
-                    filterParams.PageSize,
-                    totalRecords
-                );
-
-                return new ApiResponse<PaginatedData<TenantDto>>(paginatedData);
+                var paginatedData = new PaginatedData<TenantListItemDto>(items, filterParams.PageNumber, filterParams.PageSize, totalRecords);
+                return new ApiResponse<PaginatedData<TenantListItemDto>>(paginatedData);
             }
             catch (Exception ex)
             {
-                return new ApiResponse<PaginatedData<TenantDto>>(
+                return new ApiResponse<PaginatedData<TenantListItemDto>>(
                     default!,
                     false,
                     "An error occurred while retrieving tenants.",
@@ -86,19 +72,20 @@ namespace GroundUp.infrastructure.repositories
         }
 
         /// <summary>
-        /// Override GetByIdAsync to include ParentTenant navigation property
+        /// Tenant detail endpoint: includes ParentTenant and SsoAutoJoinRole so flat fields can be populated.
         /// </summary>
-        public override async Task<ApiResponse<TenantDto>> GetByIdAsync(int id)
+        public async Task<ApiResponse<TenantDetailDto>> GetByIdAsync(int id)
         {
             try
             {
-                var tenant = await _dbSet
-                    .Include(t => t.ParentTenant)
-                    .FirstOrDefaultAsync(t => t.Id == id);
+                var dto = await WithParentAndSsoRole(_dbSet.AsQueryable())
+                    .Where(t => t.Id == id)
+                    .ProjectTo<TenantDetailDto>(_mapper.ConfigurationProvider)
+                    .FirstOrDefaultAsync();
 
-                if (tenant == null)
+                if (dto == null)
                 {
-                    return new ApiResponse<TenantDto>(
+                    return new ApiResponse<TenantDetailDto>(
                         default!,
                         false,
                         "Tenant not found",
@@ -108,25 +95,11 @@ namespace GroundUp.infrastructure.repositories
                     );
                 }
 
-                var dto = new TenantDto
-                {
-                    Id = tenant.Id,
-                    Name = tenant.Name,
-                    Description = tenant.Description,
-                    ParentTenantId = tenant.ParentTenantId,
-                    CreatedAt = tenant.CreatedAt,
-                    IsActive = tenant.IsActive,
-                    ParentTenantName = tenant.ParentTenant?.Name,
-                    TenantType = tenant.TenantType,
-                    CustomDomain = tenant.CustomDomain,
-                    RealmName = tenant.RealmName
-                };
-
-                return new ApiResponse<TenantDto>(dto);
+                return new ApiResponse<TenantDetailDto>(dto);
             }
             catch (Exception ex)
             {
-                return new ApiResponse<TenantDto>(
+                return new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "An error occurred while retrieving the tenant.",
@@ -138,10 +111,9 @@ namespace GroundUp.infrastructure.repositories
         }
 
         /// <summary>
-        /// Override AddAsync to handle CreateTenantDto and implement realm creation logic
-        /// ITenantRepository expects CreateTenantDto, not TenantDto
+        /// Create tenant from CreateTenantDto; preserve existing realm creation behavior.
         /// </summary>
-        public async Task<ApiResponse<TenantDto>> AddAsync(CreateTenantDto dto)
+        public async Task<ApiResponse<TenantDetailDto>> AddAsync(CreateTenantDto dto)
         {
             try
             {
@@ -151,7 +123,7 @@ namespace GroundUp.infrastructure.repositories
                     var parentExists = await _dbSet.AnyAsync(t => t.Id == dto.ParentTenantId.Value);
                     if (!parentExists)
                     {
-                        return new ApiResponse<TenantDto>(
+                        return new ApiResponse<TenantDetailDto>(
                             default!,
                             false,
                             "Parent tenant not found",
@@ -165,7 +137,7 @@ namespace GroundUp.infrastructure.repositories
                 // Validate CustomDomain for enterprise tenants
                 if (dto.TenantType == TenantType.Enterprise && string.IsNullOrWhiteSpace(dto.CustomDomain))
                 {
-                    return new ApiResponse<TenantDto>(
+                    return new ApiResponse<TenantDetailDto>(
                         default!,
                         false,
                         "CustomDomain is required for enterprise tenants",
@@ -186,10 +158,10 @@ namespace GroundUp.infrastructure.repositories
                     };
 
                     var realmCreated = await CreateKeycloakRealmAsync(realmDto);
-                    
+
                     if (!realmCreated)
                     {
-                        return new ApiResponse<TenantDto>(
+                        return new ApiResponse<TenantDetailDto>(
                             default!,
                             false,
                             "Failed to create Keycloak realm for enterprise tenant",
@@ -210,33 +182,21 @@ namespace GroundUp.infrastructure.repositories
                     TenantType = dto.TenantType,
                     CustomDomain = dto.CustomDomain,
                     RealmName = dto.CustomDomain ?? "groundup",
+                    SsoAutoJoinDomains = dto.SsoAutoJoinDomains,
+                    SsoAutoJoinRoleId = dto.SsoAutoJoinRoleId,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 _dbSet.Add(tenant);
                 await _context.SaveChangesAsync();
 
-                // Reload with parent tenant for response
-                var created = await _dbSet
-                    .Include(t => t.ParentTenant)
-                    .FirstAsync(t => t.Id == tenant.Id);
+                var createdDto = await WithParentAndSsoRole(_dbSet.AsQueryable())
+                    .Where(t => t.Id == tenant.Id)
+                    .ProjectTo<TenantDetailDto>(_mapper.ConfigurationProvider)
+                    .FirstAsync();
 
-                var resultDto = new TenantDto
-                {
-                    Id = created.Id,
-                    Name = created.Name,
-                    Description = created.Description,
-                    ParentTenantId = created.ParentTenantId,
-                    CreatedAt = created.CreatedAt,
-                    IsActive = created.IsActive,
-                    ParentTenantName = created.ParentTenant?.Name,
-                    TenantType = created.TenantType,
-                    CustomDomain = created.CustomDomain,
-                    RealmName = created.RealmName
-                };
-
-                return new ApiResponse<TenantDto>(
-                    resultDto,
+                return new ApiResponse<TenantDetailDto>(
+                    createdDto,
                     true,
                     "Tenant created successfully",
                     null,
@@ -251,7 +211,7 @@ namespace GroundUp.infrastructure.repositories
                     await DeleteKeycloakRealmAsync(dto.Name.ToLowerInvariant());
                 }
 
-                return new ApiResponse<TenantDto>(
+                return new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "A tenant with this name may already exist.",
@@ -268,7 +228,7 @@ namespace GroundUp.infrastructure.repositories
                     await DeleteKeycloakRealmAsync(dto.Name.ToLowerInvariant());
                 }
 
-                return new ApiResponse<TenantDto>(
+                return new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "An error occurred while creating the tenant.",
@@ -280,17 +240,16 @@ namespace GroundUp.infrastructure.repositories
         }
 
         /// <summary>
-        /// Override UpdateAsync to handle UpdateTenantDto and reload with navigation properties
-        /// ITenantRepository expects UpdateTenantDto, not TenantDto
+        /// Update tenant from UpdateTenantDto; preserve existing behavior.
         /// </summary>
-        public async Task<ApiResponse<TenantDto>> UpdateAsync(int id, UpdateTenantDto dto)
+        public async Task<ApiResponse<TenantDetailDto>> UpdateAsync(int id, UpdateTenantDto dto)
         {
             try
             {
                 var tenant = await _dbSet.FindAsync(id);
                 if (tenant == null)
                 {
-                    return new ApiResponse<TenantDto>(
+                    return new ApiResponse<TenantDetailDto>(
                         default!,
                         false,
                         "Tenant not found",
@@ -304,31 +263,19 @@ namespace GroundUp.infrastructure.repositories
                 tenant.Description = dto.Description;
                 tenant.IsActive = dto.IsActive;
                 tenant.CustomDomain = dto.CustomDomain;
+                tenant.SsoAutoJoinDomains = dto.SsoAutoJoinDomains;
+                tenant.SsoAutoJoinRoleId = dto.SsoAutoJoinRoleId;
                 // Note: TenantType cannot be changed after creation
 
                 await _context.SaveChangesAsync();
 
-                // Reload with parent tenant for response
-                var updated = await _dbSet
-                    .Include(t => t.ParentTenant)
-                    .FirstAsync(t => t.Id == id);
+                var updatedDto = await WithParentAndSsoRole(_dbSet.AsQueryable())
+                    .Where(t => t.Id == id)
+                    .ProjectTo<TenantDetailDto>(_mapper.ConfigurationProvider)
+                    .FirstAsync();
 
-                var resultDto = new TenantDto
-                {
-                    Id = updated.Id,
-                    Name = updated.Name,
-                    Description = updated.Description,
-                    ParentTenantId = updated.ParentTenantId,
-                    CreatedAt = updated.CreatedAt,
-                    IsActive = updated.IsActive,
-                    ParentTenantName = updated.ParentTenant?.Name,
-                    TenantType = updated.TenantType,
-                    CustomDomain = updated.CustomDomain,
-                    RealmName = updated.RealmName
-                };
-
-                return new ApiResponse<TenantDto>(
-                    resultDto,
+                return new ApiResponse<TenantDetailDto>(
+                    updatedDto,
                     true,
                     "Tenant updated successfully",
                     null,
@@ -337,7 +284,7 @@ namespace GroundUp.infrastructure.repositories
             }
             catch (DbUpdateException ex)
             {
-                return new ApiResponse<TenantDto>(
+                return new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "A tenant with this name may already exist.",
@@ -346,10 +293,9 @@ namespace GroundUp.infrastructure.repositories
                     ErrorCodes.DuplicateEntry
                 );
             }
-
             catch (Exception ex)
             {
-                return new ApiResponse<TenantDto>(
+                return new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "An error occurred while updating the tenant.",
@@ -412,7 +358,7 @@ namespace GroundUp.infrastructure.repositories
                 if (tenant.TenantType == TenantType.Enterprise)
                 {
                     var realmDeleted = await DeleteKeycloakRealmAsync(tenant.RealmName ?? tenant.Name.ToLowerInvariant());
-                    
+
                     if (!realmDeleted)
                     {
                         // Continue anyway - realm might not exist
@@ -445,38 +391,22 @@ namespace GroundUp.infrastructure.repositories
 
         /// <summary>
         /// Override ExportAsync to include ParentTenant navigation property
+        /// Uses base export pipeline and preserves the custom CSV column order.
         /// </summary>
         public override async Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv")
         {
             try
             {
-                var query = _dbSet
-                    .Include(t => t.ParentTenant)
-                    .AsQueryable();
-
+                var query = WithParentAndSsoRole(_dbSet.AsQueryable());
                 query = GroundUp.infrastructure.utilities.ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+                var items = await query
+                    .ProjectTo<TenantDetailDto>(_mapper.ConfigurationProvider)
+                    .ToListAsync();
 
-                var items = await query.ToListAsync();
-
-                var mappedItems = items.Select(t => new TenantDto
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Description = t.Description,
-                    ParentTenantId = t.ParentTenantId,
-                    CreatedAt = t.CreatedAt,
-                    IsActive = t.IsActive,
-                    ParentTenantName = t.ParentTenant?.Name,
-                    TenantType = t.TenantType,
-                    CustomDomain = t.CustomDomain,
-                    RealmName = t.RealmName
-                }).ToList();
-
-                // Use base class CSV/JSON generation
                 byte[] fileContent;
                 if (format.ToLower() == "json")
                 {
-                    var json = System.Text.Json.JsonSerializer.Serialize(mappedItems, new System.Text.Json.JsonSerializerOptions
+                    var json = System.Text.Json.JsonSerializer.Serialize(items, new System.Text.Json.JsonSerializerOptions
                     {
                         WriteIndented = true
                     });
@@ -484,7 +414,7 @@ namespace GroundUp.infrastructure.repositories
                 }
                 else
                 {
-                    fileContent = GenerateCsvFile(mappedItems);
+                    fileContent = GenerateCsvFile(items);
                 }
 
                 return new ApiResponse<byte[]>(
@@ -584,7 +514,7 @@ namespace GroundUp.infrastructure.repositories
         /// <summary>
         /// Custom CSV generation to maintain specific column order
         /// </summary>
-        private byte[] GenerateCsvFile(List<TenantDto> items)
+        private byte[] GenerateCsvFile(List<TenantDetailDto> items)
         {
             using var memoryStream = new MemoryStream();
             using var streamWriter = new StreamWriter(memoryStream, System.Text.Encoding.UTF8);

@@ -1,4 +1,5 @@
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.security;
 
 namespace GroundUp.core.interfaces
@@ -10,16 +11,16 @@ namespace GroundUp.core.interfaces
     public interface ITenantRepository
     {
         [RequiresPermission("tenants.view", "SYSTEMADMIN")]
-        Task<ApiResponse<PaginatedData<TenantDto>>> GetAllAsync(FilterParams filterParams);
+        Task<ApiResponse<PaginatedData<TenantListItemDto>>> GetAllAsync(FilterParams filterParams);
 
         [RequiresPermission("tenants.view", "SYSTEMADMIN")]
-        Task<ApiResponse<TenantDto>> GetByIdAsync(int id);
+        Task<ApiResponse<TenantDetailDto>> GetByIdAsync(int id);
 
         [RequiresPermission("tenants.create", "SYSTEMADMIN")]
-        Task<ApiResponse<TenantDto>> AddAsync(CreateTenantDto dto);
+        Task<ApiResponse<TenantDetailDto>> AddAsync(CreateTenantDto dto);
 
         [RequiresPermission("tenants.update", "SYSTEMADMIN")]
-        Task<ApiResponse<TenantDto>> UpdateAsync(int id, UpdateTenantDto dto);
+        Task<ApiResponse<TenantDetailDto>> UpdateAsync(int id, UpdateTenantDto dto);
 
         [RequiresPermission("tenants.delete", "SYSTEMADMIN")]
         Task<ApiResponse<bool>> DeleteAsync(int id);

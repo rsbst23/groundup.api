@@ -1,5 +1,7 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.auth;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.entities;
 using GroundUp.core.enums;
 using GroundUp.core.interfaces;
@@ -1432,7 +1434,7 @@ namespace GroundUp.api.Controllers
                     response = new ApiResponse<SetTenantResponseDto>(
                         new SetTenantResponseDto {
                             SelectionRequired = true,
-                            AvailableTenants = userTenants.Select(ut => new TenantDto
+                            AvailableTenants = userTenants.Select(ut => new TenantListItemDto
                             {
                                 Id = ut.Tenant.Id,
                                 Name = ut.Tenant.Name,

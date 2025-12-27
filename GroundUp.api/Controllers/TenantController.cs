@@ -1,5 +1,6 @@
 using GroundUp.core;
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.entities;
 using GroundUp.core.enums;
 using GroundUp.core.interfaces;
@@ -93,7 +94,7 @@ namespace GroundUp.api.Controllers
         /// Get all tenants (paginated)
         /// </summary>
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<PaginatedData<TenantDto>>>> Get([FromQuery] FilterParams filterParams)
+        public async Task<ActionResult<ApiResponse<PaginatedData<TenantListItemDto>>>> Get([FromQuery] FilterParams filterParams)
         {
             var result = await _tenantRepository.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
@@ -153,7 +154,7 @@ namespace GroundUp.api.Controllers
         /// Get tenant by ID
         /// </summary>
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> GetById(int id)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> GetById(int id)
         {
             var result = await _tenantRepository.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
@@ -164,11 +165,11 @@ namespace GroundUp.api.Controllers
         /// For enterprise tenants, also creates a dedicated Keycloak realm
         /// </summary>
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> Create([FromBody] CreateTenantDto dto)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> Create([FromBody] CreateTenantDto dto)
         {
             if (dto == null)
             {
-                return BadRequest(new ApiResponse<TenantDto>(
+                return BadRequest(new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "Invalid tenant data.",
@@ -186,11 +187,11 @@ namespace GroundUp.api.Controllers
         /// Update an existing tenant
         /// </summary>
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> Update(int id, [FromBody] UpdateTenantDto dto)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> Update(int id, [FromBody] UpdateTenantDto dto)
         {
             if (dto == null)
             {
-                return BadRequest(new ApiResponse<TenantDto>(
+                return BadRequest(new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "Invalid tenant data.",
@@ -391,7 +392,7 @@ namespace GroundUp.api.Controllers
         /// POST /api/tenants/{id}/sso-settings
         /// </summary>
         [HttpPost("{id}/sso-settings")]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> ConfigureSsoSettings(
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> ConfigureSsoSettings(
             int id,
             [FromBody] ConfigureSsoSettingsDto dto)
         {
@@ -399,11 +400,12 @@ namespace GroundUp.api.Controllers
             {
                 var tenant = await _dbContext.Tenants
                     .Include(t => t.SsoAutoJoinRole)
+                    .Include(t => t.ParentTenant)
                     .FirstOrDefaultAsync(t => t.Id == id);
 
                 if (tenant == null)
                 {
-                    return NotFound(new ApiResponse<TenantDto>(
+                    return NotFound(new ApiResponse<TenantDetailDto>(
                         default!,
                         false,
                         "Tenant not found",
@@ -415,7 +417,7 @@ namespace GroundUp.api.Controllers
 
                 if (tenant.TenantType != TenantType.Enterprise)
                 {
-                    return BadRequest(new ApiResponse<TenantDto>(
+                    return BadRequest(new ApiResponse<TenantDetailDto>(
                         default!,
                         false,
                         "SSO settings only available for enterprise tenants",
@@ -425,17 +427,16 @@ namespace GroundUp.api.Controllers
                     ));
                 }
 
-                // Update SSO settings
                 tenant.SsoAutoJoinDomains = dto.SsoAutoJoinDomains;
                 tenant.SsoAutoJoinRoleId = dto.SsoAutoJoinRoleId;
 
                 await _dbContext.SaveChangesAsync();
 
-                var tenantDto = _mapper.Map<TenantDto>(tenant);
+                var tenantDto = _mapper.Map<TenantDetailDto>(tenant);
 
                 _logger.LogInformation($"Updated SSO settings for tenant {id}: Domains={string.Join(",", dto.SsoAutoJoinDomains ?? new List<string>())}, RoleId={dto.SsoAutoJoinRoleId}");
 
-                return Ok(new ApiResponse<TenantDto>(
+                return Ok(new ApiResponse<TenantDetailDto>(
                     tenantDto,
                     true,
                     "SSO settings updated successfully"
@@ -444,7 +445,7 @@ namespace GroundUp.api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"Error configuring SSO settings: {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<TenantDto>(
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "Failed to update SSO settings",
