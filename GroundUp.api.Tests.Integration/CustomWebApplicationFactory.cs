@@ -1,32 +1,63 @@
-﻿using GroundUp.infrastructure.data;
+﻿using GroundUp.core.interfaces;
+using GroundUp.infrastructure.data;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
-public class CustomWebApplicationFactory : WebApplicationFactory<Program>
+namespace GroundUp.Tests.Integration
 {
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
-        builder.ConfigureServices(services =>
+        private readonly string _databaseName = $"TestDb_{Guid.NewGuid():N}";
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            // Remove existing database context
-            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-            if (descriptor != null)
+            builder.ConfigureServices(services =>
             {
-                services.Remove(descriptor);
-            }
+                // Remove existing database context
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+                if (descriptor != null)
+                {
+                    services.Remove(descriptor);
+                }
 
-            // Add in-memory database for testing
-            services.AddDbContext<ApplicationDbContext>(options =>
-            {
-                options.UseInMemoryDatabase("TestDb");
+                // Add in-memory database for testing (unique per factory instance)
+                services.AddDbContext<ApplicationDbContext>(options =>
+                {
+                    options.UseInMemoryDatabase(_databaseName);
+                });
+
+                // Replace authentication with a test scheme
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestAuthHandler.Scheme;
+                    options.DefaultChallengeScheme = TestAuthHandler.Scheme;
+                }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.Scheme, _ => { });
+
+                // Replace authorization to use the test scheme for default/fallback
+                services.AddAuthorization(options =>
+                {
+                    var policy = new AuthorizationPolicyBuilder(TestAuthHandler.Scheme)
+                        .RequireAuthenticatedUser()
+                        .Build();
+
+                    options.DefaultPolicy = policy;
+                    options.FallbackPolicy = policy;
+                });
+
+                // Replace permission service so RequiresPermission checks don't block tests
+                services.RemoveAll<IPermissionService>();
+                services.AddSingleton<IPermissionService, TestPermissionService>();
+
+                // Ensure database is created
+                using var scope = services.BuildServiceProvider().CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Database.EnsureCreated();
             });
-
-            // Ensure database is created
-            using var scope = services.BuildServiceProvider().CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.Database.EnsureCreated();
-        });
+        }
     }
 }
