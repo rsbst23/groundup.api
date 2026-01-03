@@ -45,13 +45,13 @@ namespace GroundUp.infrastructure.repositories
             try
             {
                 var query = WithParentAndSsoRole(_dbSet.AsQueryable());
-                query = GroundUp.infrastructure.utilities.ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+
+                // Use base pipeline for filtering + sorting.
+                query = ApplyFilterParams(query, filterParams);
 
                 var totalRecords = await query.CountAsync();
 
-                var items = await query
-                    .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
-                    .Take(filterParams.PageSize)
+                var items = await ApplyPaging(query, filterParams)
                     .ProjectTo<TenantListItemDto>(_mapper.ConfigurationProvider)
                     .ToListAsync();
 
@@ -553,5 +553,76 @@ namespace GroundUp.infrastructure.repositories
         }
 
         #endregion
+
+        public async Task<ApiResponse<TenantDetailDto>> GetByRealmAsync(string realmName)
+        {
+            try
+            {
+                var dto = await WithParentAndSsoRole(_dbSet.AsQueryable())
+                    .Where(t => t.RealmName == realmName)
+                    .ProjectTo<TenantDetailDto>(_mapper.ConfigurationProvider)
+                    .FirstOrDefaultAsync();
+
+                if (dto == null)
+                {
+                    return new ApiResponse<TenantDetailDto>(
+                        default!,
+                        false,
+                        "Tenant not found",
+                        null,
+                        StatusCodes.Status404NotFound,
+                        ErrorCodes.NotFound);
+                }
+
+                return new ApiResponse<TenantDetailDto>(dto);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TenantDetailDto>(
+                    default!,
+                    false,
+                    "An error occurred while retrieving the tenant.",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError);
+            }
+        }
+
+        /// <summary>
+        /// Create a standard tenant for self-service registration
+        /// No SYSTEMADMIN permission required
+        /// </summary>
+        public async Task<ApiResponse<TenantDetailDto>> CreateStandardTenantForUserAsync(string realmName, string organizationName)
+        {
+            try
+            {
+                var tenant = new Tenant
+                {
+                    Name = organizationName,
+                    Description = "Created via self-service registration",
+                    IsActive = true,
+                    TenantType = TenantType.Standard,
+                    RealmName = realmName,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Tenants.Add(tenant);
+                await _context.SaveChangesAsync();
+
+                // include not needed here; map basic fields
+                var dto = _mapper.Map<TenantDetailDto>(tenant);
+                return new ApiResponse<TenantDetailDto>(dto, true, "Organization created successfully", null, StatusCodes.Status201Created);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<TenantDetailDto>(
+                    default!,
+                    false,
+                    "An unexpected error occurred while creating organization",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError);
+            }
+        }
     }
 }

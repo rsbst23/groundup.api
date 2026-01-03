@@ -164,6 +164,31 @@ namespace GroundUp.infrastructure.repositories
 
         #endregion
 
+        #region Query Helpers (for derived repositories)
+
+        /// <summary>
+        /// Applies the standard base filtering pipeline to a query.
+        /// Exposed for derived repos that need custom shaping/projection but still want the same filtering behavior.
+        /// </summary>
+        protected IQueryable<T> ApplyFilterParams(IQueryable<T> query, FilterParams filterParams)
+        {
+            query = ApplyFilters(query, filterParams);
+            query = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+            return query;
+        }
+
+        /// <summary>
+        /// Applies pagination for the given filter params.
+        /// </summary>
+        protected IQueryable<TQuery> ApplyPaging<TQuery>(IQueryable<TQuery> query, FilterParams filterParams)
+        {
+            return query
+                .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
+                .Take(filterParams.PageSize);
+        }
+
+        #endregion
+
         // Get All with Pagination and Filtering
         public virtual Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
             => GetAllInternalAsync(filterParams);

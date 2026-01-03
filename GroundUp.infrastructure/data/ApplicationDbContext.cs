@@ -8,8 +8,6 @@ namespace GroundUp.infrastructure.data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<User> Users { get; set; }
-        public DbSet<Book> Books { get; set; }
-
         public DbSet<InventoryCategory> InventoryCategories { get; set; }
         public DbSet<InventoryItem> InventoryItems { get; set; }
         public DbSet<InventoryAttribute> InventoryAttributes { get; set; }

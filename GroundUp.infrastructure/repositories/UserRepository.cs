@@ -96,53 +96,16 @@ namespace GroundUp.infrastructure.repositories
         /// NOT exposed via controller endpoint
         /// </summary>
         /// <param name="keycloakUser">User details from Keycloak (already created via auth flow)</param>
-        public async Task<ApiResponse<UserDetailsDto>> AddAsync(UserDetailsDto keycloakUser)
+        [Obsolete("Use EnsureLocalUserExistsAsync(Guid userId, string keycloakUserId, string realm). Keycloak sub should not be used as User.Id.")]
+        public Task<ApiResponse<UserDetailsDto>> AddAsync(UserDetailsDto keycloakUser)
         {
-            try
-            {
-                // User should already exist in Keycloak (created during registration/social auth)
-                // This method just syncs them to local database
-
-                _logger.LogInformation($"Syncing user '{keycloakUser.Username}' to local database");
-
-                // Create local database record
-                var dbUser = new User
-                {
-                    Id = Guid.Parse(keycloakUser.Id),
-                    Username = keycloakUser.Username,
-                    Email = keycloakUser.Email,
-                    FirstName = keycloakUser.FirstName,
-                    LastName = keycloakUser.LastName,
-                    IsActive = keycloakUser.Enabled,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _context.Users.Add(dbUser);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Successfully synced user '{keycloakUser.Username}' (ID: {keycloakUser.Id}) to local database");
-
-                return new ApiResponse<UserDetailsDto>(
-                    keycloakUser,
-                    true,
-                    "User synced to database successfully",
-                    null,
-                    StatusCodes.Status201Created
-                );
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to sync user to database: {ex.Message}", ex);
-
-                return new ApiResponse<UserDetailsDto>(
-                    default!,
-                    false,
-                    "Failed to sync user to database",
-                    new List<string> { ex.Message },
-                    StatusCodes.Status500InternalServerError,
-                    ErrorCodes.InternalServerError
-                );
-            }
+            return Task.FromResult(new ApiResponse<UserDetailsDto>(
+                default!,
+                false,
+                "Legacy sync method is disabled. Use EnsureLocalUserExistsAsync with a GroundUp user id.",
+                new List<string> { "User.Id must not be derived from Keycloak user id." },
+                StatusCodes.Status400BadRequest,
+                ErrorCodes.ValidationFailed));
         }
 
         #endregion
@@ -157,41 +120,56 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var userId = Guid.Parse(keycloakUser.Id);
-                var existingUser = await _context.Users.FindAsync(userId);
-
-                if (existingUser == null)
-                {
-                    // Create new user record
-                    var newUser = new User
-                    {
-                        Id = userId,
-                        Username = keycloakUser.Username,
-                        Email = keycloakUser.Email,
-                        FirstName = keycloakUser.FirstName,
-                        LastName = keycloakUser.LastName,
-                        IsActive = keycloakUser.Enabled,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.Users.Add(newUser);
-                }
-                else
-                {
-                    // Update existing user record
-                    existingUser.Username = keycloakUser.Username;
-                    existingUser.Email = keycloakUser.Email;
-                    existingUser.FirstName = keycloakUser.FirstName;
-                    existingUser.LastName = keycloakUser.LastName;
-                    existingUser.IsActive = keycloakUser.Enabled;
-                }
-
-                await _context.SaveChangesAsync();
-                _logger.LogInformation($"Successfully synced user {keycloakUser.Id} to database");
+                // We intentionally do NOT sync by Keycloak sub into User.Id.
+                // In this system, Keycloak sub is stored on UserTenant.ExternalUserId (realm-scoped),
+                // and a single GroundUp user may have multiple external IDs across tenants/realms.
+                _logger.LogInformation($"Skipping background user sync for Keycloak user {keycloakUser.Id} to avoid using Keycloak id as User.Id.");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Failed to sync user {keycloakUser.Id} to database: {ex.Message}", ex);
-                // Don't throw - this is a background operation
+                _logger.LogError($"Failed during background user sync noop for {keycloakUser.Id}: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<ApiResponse<bool>> EnsureLocalUserExistsAsync(Guid userId, string keycloakUserId, string realm)
+        {
+            try
+            {
+                var existingUser = await _context.Users.FindAsync(userId);
+                if (existingUser != null)
+                {
+                    return new ApiResponse<bool>(true, true, "User already exists.");
+                }
+
+                var keycloakUser = await _identityProvider.GetUserByIdAsync(keycloakUserId, realm);
+                if (keycloakUser == null)
+                {
+                    return new ApiResponse<bool>(false, false, "User not found in Keycloak.", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
+                }
+
+                var newUser = new User
+                {
+                    Id = userId,
+                    DisplayName = !string.IsNullOrEmpty(keycloakUser.FirstName)
+                        ? $"{keycloakUser.FirstName} {keycloakUser.LastName}".Trim()
+                        : keycloakUser.Username ?? "Unknown",
+                    Email = keycloakUser.Email,
+                    Username = keycloakUser.Username,
+                    FirstName = keycloakUser.FirstName,
+                    LastName = keycloakUser.LastName,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse<bool>(true, true, "User created.", null, StatusCodes.Status201Created);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to ensure local user exists for {userId}: {ex.Message}", ex);
+                return new ApiResponse<bool>(false, false, "Failed to ensure local user exists.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
             }
         }
 

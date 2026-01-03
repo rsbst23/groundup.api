@@ -32,6 +32,13 @@ namespace GroundUp.infrastructure.repositories
             return userTenant == null ? null : _mapper.Map<UserTenantDto>(userTenant);
         }
 
+        public Task<bool> TenantHasAnyMembersAsync(int tenantId)
+        {
+            return _context.UserTenants
+                .AsNoTracking()
+                .AnyAsync(ut => ut.TenantId == tenantId);
+        }
+
         public async Task<UserTenantDto?> GetByRealmAndExternalUserIdAsync(string realmName, string externalUserId)
         {
             _logger.LogInformation($"Looking up UserTenant: Realm='{realmName}', ExternalUserId='{externalUserId}'");

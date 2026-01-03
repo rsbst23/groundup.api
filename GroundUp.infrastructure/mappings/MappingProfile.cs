@@ -116,7 +116,8 @@ namespace GroundUp.infrastructure.mappings
 
             // TenantJoinLink mappings
             CreateMap<TenantJoinLink, TenantJoinLinkDto>()
-                .ForMember(dest => dest.JoinUrl, opt => opt.Ignore()); // Set by controller
+                .ForMember(dest => dest.JoinUrl, opt => opt.Ignore()) // Set by controller
+                .ForMember(dest => dest.TenantName, opt => opt.MapFrom(src => src.Tenant != null ? src.Tenant.Name : null));
         }
     }
 }

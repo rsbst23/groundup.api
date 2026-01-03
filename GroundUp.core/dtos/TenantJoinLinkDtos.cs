@@ -30,5 +30,10 @@ namespace GroundUp.core.dtos
         public DateTime ExpiresAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public int? DefaultRoleId { get; set; }
+
+        /// <summary>
+        /// Optional tenant name for display purposes (populated for token-based lookups).
+        /// </summary>
+        public string? TenantName { get; set; }
     }
 }

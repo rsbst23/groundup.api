@@ -22,17 +22,20 @@ namespace GroundUp.api.Controllers
         private readonly IUserTenantRepository _userTenantRepo;
         private readonly ILoggingService _logger;
         private readonly IConfiguration _configuration;
+        private readonly IAuthUrlBuilderService _authUrlBuilder;
 
         public InvitationController(
             ITenantInvitationRepository invitationRepo,
             IUserTenantRepository userTenantRepo,
             ILoggingService logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IAuthUrlBuilderService authUrlBuilder)
         {
             _invitationRepo = invitationRepo;
             _userTenantRepo = userTenantRepo;
             _logger = logger;
             _configuration = configuration;
+            _authUrlBuilder = authUrlBuilder;
         }
 
         #region Tenant-Scoped Admin Operations
@@ -284,7 +287,6 @@ namespace GroundUp.api.Controllers
             {
                 _logger.LogInformation($"Processing invite redirect for token: {invitationToken}");
 
-                // Validate invitation exists and is pending
                 var invitationResult = await _invitationRepo.GetByTokenAsync(invitationToken);
                 if (!invitationResult.Success || invitationResult.Data == null)
                 {
@@ -301,7 +303,6 @@ namespace GroundUp.api.Controllers
 
                 var invitation = invitationResult.Data;
 
-                // Check if invitation is still valid
                 if (invitation.Status != "Pending")
                 {
                     _logger.LogWarning($"Invitation {invitationToken} is not pending (Status: {invitation.Status})");
@@ -328,7 +329,6 @@ namespace GroundUp.api.Controllers
                     ));
                 }
 
-                // Validate realm name is present
                 if (string.IsNullOrEmpty(invitation.RealmName))
                 {
                     _logger.LogError($"RealmName missing for invitation {invitationToken}");
@@ -342,78 +342,40 @@ namespace GroundUp.api.Controllers
                     ));
                 }
 
-                // Create OIDC state with invitation flow metadata
-                var state = new AuthCallbackState
-                {
-                    Flow = "invitation",
-                    InvitationToken = invitationToken,
-                    Realm = invitation.RealmName
-                };
-
-                var stateJson = JsonSerializer.Serialize(state);
-                var stateEncoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(stateJson));
-
-                // Build Keycloak URLs
-                var keycloakAuthUrl = _configuration["KEYCLOAK_AUTH_SERVER_URL"];
-                var clientId = _configuration["KEYCLOAK_RESOURCE"];
                 var redirectUri = $"{Request.Scheme}://{Request.Host}/api/auth/callback";
+                var loginUrl = await _authUrlBuilder.BuildInvitationLoginUrlAsync(
+                    invitation.RealmName,
+                    invitationToken,
+                    invitation.Email,
+                    redirectUri);
 
-                // Validate configuration is loaded
-                if (string.IsNullOrEmpty(keycloakAuthUrl))
+                if (loginUrl.StartsWith("ERROR:"))
                 {
-                    _logger.LogError("KEYCLOAK_AUTH_SERVER_URL configuration is missing");
+                    var errorMessage = loginUrl.Substring(6);
                     return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<AuthUrlResponseDto>(
                         null,
                         false,
-                        "Keycloak configuration error",
-                        new List<string> { "Auth server URL not configured" },
+                        errorMessage,
+                        new List<string> { errorMessage },
                         StatusCodes.Status500InternalServerError,
                         "CONFIG_ERROR"
                     ));
                 }
-
-                if (string.IsNullOrEmpty(clientId))
-                {
-                    _logger.LogError("KEYCLOAK_RESOURCE configuration is missing");
-                    return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<AuthUrlResponseDto>(
-                        null,
-                        false,
-                        "Keycloak configuration error",
-                        new List<string> { "Client ID not configured" },
-                        StatusCodes.Status500InternalServerError,
-                        "CONFIG_ERROR"
-                    ));
-                }
-
-                // Build OAuth parameters
-                // Build OAuth parameters with login_hint to pre-fill username
-                var oauthParams = $"?client_id={Uri.EscapeDataString(clientId)}" +
-                                $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-                                $"&response_type=code" +
-                                $"&scope=openid%20email%20profile" +
-                                $"&state={Uri.EscapeDataString(stateEncoded)}" +
-                                $"&login_hint={Uri.EscapeDataString(invitation.Email)}";
-
-                // Use LOGIN URL (not registration) since user already exists after execute-actions
-                // User account was created during invitation creation, and they received execute-actions email
-                // After completing password setup, they click "Back to application" link which brings them here
-                // The login_hint parameter pre-fills the email field for better UX
-                var loginUrl = $"{keycloakAuthUrl}/realms/{invitation.RealmName}/protocol/openid-connect/auth{oauthParams}";
 
                 _logger.LogInformation($"Generated login URL with login_hint for Keycloak realm {invitation.RealmName} for invitation {invitationToken}");
-                
+
                 var response = new ApiResponse<AuthUrlResponseDto>(
-                    new AuthUrlResponseDto 
-                    { 
-                        AuthUrl = loginUrl, 
-                        Action = "invitation" 
+                    new AuthUrlResponseDto
+                    {
+                        AuthUrl = loginUrl,
+                        Action = "invitation"
                     },
                     true,
                     "Invitation login URL generated successfully",
                     null,
                     StatusCodes.Status200OK
                 );
-                
+
                 return Ok(response);
             }
             catch (Exception ex)

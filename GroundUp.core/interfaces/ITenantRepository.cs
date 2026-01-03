@@ -10,6 +10,12 @@ namespace GroundUp.core.interfaces
     /// </summary>
     public interface ITenantRepository
     {
+        /// <summary>
+        /// Lookup tenant by realm name. Intended for internal/auth flows.
+        /// Returns a detail DTO (flat) or NotFound.
+        /// </summary>
+        Task<ApiResponse<TenantDetailDto>> GetByRealmAsync(string realmName);
+
         [RequiresPermission("tenants.view", "SYSTEMADMIN")]
         Task<ApiResponse<PaginatedData<TenantListItemDto>>> GetAllAsync(FilterParams filterParams);
 
@@ -36,5 +42,15 @@ namespace GroundUp.core.interfaces
         /// <param name="url">The URL being accessed (e.g., 'acme.myapp.com', 'app.myapp.com')</param>
         /// <returns>Realm information including realm name, tenant details, and enterprise status</returns>
         Task<ApiResponse<RealmResolutionResponseDto>> ResolveRealmByUrlAsync(string url);
+
+        #region AuthFlow Helpers (Internal)
+
+        /// <summary>
+        /// Creates a standard tenant for self-service registration flows.
+        /// Intended for internal auth workflows so services don't write to DbContext directly.
+        /// </summary>
+        Task<ApiResponse<TenantDetailDto>> CreateStandardTenantForUserAsync(string realmName, string organizationName);
+
+        #endregion
     }
 }
