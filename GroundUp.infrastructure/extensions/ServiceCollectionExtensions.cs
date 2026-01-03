@@ -104,6 +104,18 @@ namespace GroundUp.infrastructure.extensions
                 }
             }
 
+            // Register AuthFlowService in DI so AuthController can delegate auth callback orchestration.
+            services.AddScoped<IAuthFlowService, AuthFlowService>();
+
+            // Register AuthUrlBuilderService so controllers can generate Keycloak auth URLs.
+            services.AddScoped<IAuthUrlBuilderService, AuthUrlBuilderService>();
+
+            // Register EnterpriseSignupService in DI so controllers can delegate enterprise signup orchestration to the service layer.
+            services.AddScoped<IEnterpriseSignupService, EnterpriseSignupService>();
+
+            // Register TenantSsoSettingsService so TenantController can stay thin.
+            services.AddScoped<ITenantSsoSettingsService, TenantSsoSettingsService>();
+
             return services;
         }
 

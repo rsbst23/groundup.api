@@ -1,5 +1,6 @@
 using GroundUp.core;
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.entities;
 using GroundUp.core.enums;
 using GroundUp.core.interfaces;
@@ -26,6 +27,7 @@ namespace GroundUp.api.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly ITenantSsoSettingsService _tenantSsoSettingsService;
 
         public TenantController(
             ITenantRepository tenantRepository,
@@ -33,7 +35,8 @@ namespace GroundUp.api.Controllers
             IIdentityProviderAdminService identityProviderAdminService,
             ApplicationDbContext dbContext,
             IConfiguration configuration,
-            IMapper mapper)
+            IMapper mapper,
+            ITenantSsoSettingsService tenantSsoSettingsService)
         {
             _tenantRepository = tenantRepository;
             _logger = logger;
@@ -41,6 +44,7 @@ namespace GroundUp.api.Controllers
             _dbContext = dbContext;
             _configuration = configuration;
             _mapper = mapper;
+            _tenantSsoSettingsService = tenantSsoSettingsService;
         }
 
         /// <summary>
@@ -93,7 +97,7 @@ namespace GroundUp.api.Controllers
         /// Get all tenants (paginated)
         /// </summary>
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<PaginatedData<TenantDto>>>> Get([FromQuery] FilterParams filterParams)
+        public async Task<ActionResult<ApiResponse<PaginatedData<TenantListItemDto>>>> Get([FromQuery] FilterParams filterParams)
         {
             var result = await _tenantRepository.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
@@ -153,7 +157,7 @@ namespace GroundUp.api.Controllers
         /// Get tenant by ID
         /// </summary>
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> GetById(int id)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> GetById(int id)
         {
             var result = await _tenantRepository.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
@@ -164,11 +168,11 @@ namespace GroundUp.api.Controllers
         /// For enterprise tenants, also creates a dedicated Keycloak realm
         /// </summary>
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> Create([FromBody] CreateTenantDto dto)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> Create([FromBody] CreateTenantDto dto)
         {
             if (dto == null)
             {
-                return BadRequest(new ApiResponse<TenantDto>(
+                return BadRequest(new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "Invalid tenant data.",
@@ -186,11 +190,11 @@ namespace GroundUp.api.Controllers
         /// Update an existing tenant
         /// </summary>
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> Update(int id, [FromBody] UpdateTenantDto dto)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> Update(int id, [FromBody] UpdateTenantDto dto)
         {
             if (dto == null)
             {
-                return BadRequest(new ApiResponse<TenantDto>(
+                return BadRequest(new ApiResponse<TenantDetailDto>(
                     default!,
                     false,
                     "Invalid tenant data.",
@@ -216,243 +220,16 @@ namespace GroundUp.api.Controllers
         }
 
         /// <summary>
-        /// Enterprise tenant signup
-        /// Creates new Keycloak realm and tenant, returns direct Keycloak registration URL
-        /// First admin registers directly in Keycloak (similar to standard tenants)
-        /// PUBLIC ENDPOINT - No authentication required (called during signup)
-        /// </summary>
-        [HttpPost("enterprise/signup")]
-        [AllowAnonymous]
-        public async Task<ActionResult<ApiResponse<EnterpriseSignupResponseDto>>> EnterpriseSignup(
-            [FromBody] EnterpriseSignupRequestDto request)
-        {
-            var strategy = _dbContext.Database.CreateExecutionStrategy();
-            
-            return await strategy.ExecuteAsync(async () =>
-            {
-                using var transaction = await _dbContext.Database.BeginTransactionAsync();
-                try
-                {
-                    _logger.LogInformation($"Enterprise signup request for company: {request.CompanyName}");
-                    
-                    // 1. Validate request
-                    if (string.IsNullOrWhiteSpace(request.CompanyName))
-                    {
-                        return BadRequest(new ApiResponse<EnterpriseSignupResponseDto>(
-                            default!,
-                            false,
-                            "Company name is required",
-                            new List<string> { "CompanyName cannot be empty" },
-                            StatusCodes.Status400BadRequest,
-                            ErrorCodes.ValidationFailed
-                        ));
-                    }
-                    
-                    if (string.IsNullOrWhiteSpace(request.ContactEmail))
-                    {
-                        return BadRequest(new ApiResponse<EnterpriseSignupResponseDto>(
-                            default!,
-                            false,
-                            "Contact email is required",
-                            new List<string> { "ContactEmail cannot be empty" },
-                            StatusCodes.Status400BadRequest,
-                            ErrorCodes.ValidationFailed
-                        ));
-                    }
-                    
-                    // 2. Generate unique realm name
-                    var slug = request.RequestedSubdomain ?? 
-                               request.CompanyName.ToLowerInvariant()
-                                   .Replace(" ", "")
-                                   .Replace(".", "")
-                                   .Replace("-", "");
-                    
-                    var shortGuid = Guid.NewGuid().ToString("N").Substring(0, 4);
-                    var realmName = $"tenant_{slug}_{shortGuid}";
-                    
-                    _logger.LogInformation($"Generated realm name: {realmName}");
-                    
-                    // 3. Create Keycloak realm with client configured for tenant's custom domain
-                    // IMPORTANT: Registration is ENABLED for first user
-                    var realmConfig = new CreateRealmDto
-                    {
-                        Realm = realmName,
-                        DisplayName = request.CompanyName,
-                        Enabled = true,
-                        RegistrationAllowed = true,  // ? Enable registration for first user
-                        RegistrationEmailAsUsername = false,
-                        LoginWithEmailAllowed = true,
-                        VerifyEmail = true,
-                        ResetPasswordAllowed = true,
-                        EditUsernameAllowed = false,
-                        RememberMe = true
-                    };
-                    
-                    var realmResult = await _identityProviderAdminService.CreateRealmWithClientAsync(
-                        realmConfig,
-                        request.CustomDomain);
-                    
-                    if (!realmResult.Success)
-                    {
-                        await transaction.RollbackAsync();
-                        _logger.LogError($"Failed to create Keycloak realm: {realmResult.Message}");
-                        return StatusCode(realmResult.StatusCode, new ApiResponse<EnterpriseSignupResponseDto>(
-                            default!,
-                            false,
-                            realmResult.Message,
-                            realmResult.Errors,
-                            realmResult.StatusCode,
-                            realmResult.ErrorCode
-                        ));
-                    }
-                    
-                    // 4. Create Tenant record
-                    var tenant = new Tenant
-                    {
-                        Name = request.CompanyName,
-                        TenantType = TenantType.Enterprise,
-                        RealmName = realmName,
-                        CustomDomain = request.CustomDomain,
-                        Plan = request.Plan,
-                        IsActive = true,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    
-                    _dbContext.Tenants.Add(tenant);
-                    await _dbContext.SaveChangesAsync();
-                    
-                    await transaction.CommitAsync();
-                    
-                    _logger.LogInformation($"Created enterprise tenant: {tenant.Name} (ID: {tenant.Id})");
-                    
-                    // 5. Build direct Keycloak registration URL
-                    var keycloakAuthUrl = Environment.GetEnvironmentVariable("KEYCLOAK_AUTH_SERVER_URL") 
-                        ?? _configuration["Keycloak:AuthServerUrl"];
-                    var clientId = Environment.GetEnvironmentVariable("KEYCLOAK_RESOURCE") 
-                        ?? _configuration["Keycloak:Resource"];
-                    var redirectUri = $"{Request.Scheme}://{Request.Host}/api/auth/callback";
-                    
-                    // Build state for callback
-                    var state = new AuthCallbackState
-                    {
-                        Flow = "enterprise_first_admin",  // Explicit flow for enterprise first user
-                        Realm = realmName
-                    };
-                    
-                    var stateJson = JsonSerializer.Serialize(state);
-                    var stateEncoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(stateJson));
-                    
-                    // Direct Keycloak registration URL
-                    var registrationUrl = $"{keycloakAuthUrl}/realms/{realmName}/protocol/openid-connect/registrations" +
-                                        $"?client_id={Uri.EscapeDataString(clientId)}" +
-                                        $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-                                        $"&response_type=code" +
-                                        $"&scope=openid%20email%20profile" +
-                                        $"&state={Uri.EscapeDataString(stateEncoded)}";
-                    
-                    _logger.LogInformation($"Enterprise tenant created successfully. Registration URL: {registrationUrl}");
-                    
-                    var response = new ApiResponse<EnterpriseSignupResponseDto>(
-                        new EnterpriseSignupResponseDto
-                        {
-                            TenantId = tenant.Id,
-                            TenantName = tenant.Name,
-                            RealmName = realmName,
-                            CustomDomain = request.CustomDomain,
-                            InvitationToken = "",  // Not used for first admin
-                            InvitationUrl = registrationUrl,  // Direct Keycloak URL
-                            EmailSent = false,  // No email sent
-                            Message = $"Enterprise tenant created. Please register at: {registrationUrl}"
-                        },
-                        true,
-                        "Enterprise tenant created successfully"
-                    );
-                    
-                    return Ok(response);
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    _logger.LogError($"Error creating enterprise tenant: {ex.Message}", ex);
-                    return StatusCode(500, new ApiResponse<EnterpriseSignupResponseDto>(
-                        default!,
-                        false,
-                        "Error creating enterprise tenant",
-                        new List<string> { ex.Message },
-                        StatusCodes.Status500InternalServerError,
-                        ErrorCodes.InternalServerError
-                    ));
-                }
-            });
-        }
-
-        /// <summary>
         /// Configure SSO auto-join settings for enterprise tenant
         /// POST /api/tenants/{id}/sso-settings
         /// </summary>
         [HttpPost("{id}/sso-settings")]
-        public async Task<ActionResult<ApiResponse<TenantDto>>> ConfigureSsoSettings(
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> ConfigureSsoSettings(
             int id,
             [FromBody] ConfigureSsoSettingsDto dto)
         {
-            try
-            {
-                var tenant = await _dbContext.Tenants
-                    .Include(t => t.SsoAutoJoinRole)
-                    .FirstOrDefaultAsync(t => t.Id == id);
-
-                if (tenant == null)
-                {
-                    return NotFound(new ApiResponse<TenantDto>(
-                        default!,
-                        false,
-                        "Tenant not found",
-                        null,
-                        StatusCodes.Status404NotFound,
-                        ErrorCodes.NotFound
-                    ));
-                }
-
-                if (tenant.TenantType != TenantType.Enterprise)
-                {
-                    return BadRequest(new ApiResponse<TenantDto>(
-                        default!,
-                        false,
-                        "SSO settings only available for enterprise tenants",
-                        null,
-                        StatusCodes.Status400BadRequest,
-                        ErrorCodes.ValidationFailed
-                    ));
-                }
-
-                // Update SSO settings
-                tenant.SsoAutoJoinDomains = dto.SsoAutoJoinDomains;
-                tenant.SsoAutoJoinRoleId = dto.SsoAutoJoinRoleId;
-
-                await _dbContext.SaveChangesAsync();
-
-                var tenantDto = _mapper.Map<TenantDto>(tenant);
-
-                _logger.LogInformation($"Updated SSO settings for tenant {id}: Domains={string.Join(",", dto.SsoAutoJoinDomains ?? new List<string>())}, RoleId={dto.SsoAutoJoinRoleId}");
-
-                return Ok(new ApiResponse<TenantDto>(
-                    tenantDto,
-                    true,
-                    "SSO settings updated successfully"
-                ));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error configuring SSO settings: {ex.Message}", ex);
-                return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<TenantDto>(
-                    default!,
-                    false,
-                    "Failed to update SSO settings",
-                    new List<string> { ex.Message },
-                    StatusCodes.Status500InternalServerError,
-                    ErrorCodes.InternalServerError
-                ));
-            }
+            var result = await _tenantSsoSettingsService.ConfigureSsoSettingsAsync(id, dto);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

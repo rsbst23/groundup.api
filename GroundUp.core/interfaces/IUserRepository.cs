@@ -49,18 +49,18 @@ namespace GroundUp.core.interfaces
         #region User Sync Operations (Internal - Called by Auth Callback)
 
         /// <summary>
-        /// Syncs a user from Keycloak to local database
-        /// INTERNAL USE ONLY - Called by auth callback handler after Keycloak authentication
-        /// NOT exposed via controller endpoint
-        /// 
-        /// Users are created in Keycloak via:
-        /// - OAuth flows (Google login, email/password registration)
-        /// - Keycloak Admin UI
-        /// 
-        /// This method just ensures they exist in our local DB for relational integrity
+        /// LEGACY: Syncs a user from Keycloak to local database assuming User.Id == Guid.Parse(keycloakUser.Id).
+        /// This conflicts with our multi-tenant identity model where Keycloak sub is stored on UserTenant.ExternalUserId.
+        /// Prefer <see cref="EnsureLocalUserExistsAsync"/>.
         /// </summary>
-        /// <param name="keycloakUser">User details from Keycloak (already created via auth flow)</param>
+        [Obsolete("Use EnsureLocalUserExistsAsync(Guid userId, string keycloakUserId, string realm). Keycloak sub should not be used as User.Id.")]
         Task<ApiResponse<UserDetailsDto>> AddAsync(UserDetailsDto keycloakUser);
+
+        /// <summary>
+        /// Ensures a local User record exists for the given GroundUp user id.
+        /// Intended for internal auth workflows so services don't write to DbContext directly.
+        /// </summary>
+        Task<ApiResponse<bool>> EnsureLocalUserExistsAsync(Guid userId, string keycloakUserId, string realm);
 
         #endregion
     }

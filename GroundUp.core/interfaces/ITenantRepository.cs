@@ -1,4 +1,5 @@
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.security;
 
 namespace GroundUp.core.interfaces
@@ -9,17 +10,23 @@ namespace GroundUp.core.interfaces
     /// </summary>
     public interface ITenantRepository
     {
-        [RequiresPermission("tenants.view", "SYSTEMADMIN")]
-        Task<ApiResponse<PaginatedData<TenantDto>>> GetAllAsync(FilterParams filterParams);
+        /// <summary>
+        /// Lookup tenant by realm name. Intended for internal/auth flows.
+        /// Returns a detail DTO (flat) or NotFound.
+        /// </summary>
+        Task<ApiResponse<TenantDetailDto>> GetByRealmAsync(string realmName);
 
         [RequiresPermission("tenants.view", "SYSTEMADMIN")]
-        Task<ApiResponse<TenantDto>> GetByIdAsync(int id);
+        Task<ApiResponse<PaginatedData<TenantListItemDto>>> GetAllAsync(FilterParams filterParams);
+
+        [RequiresPermission("tenants.view", "SYSTEMADMIN")]
+        Task<ApiResponse<TenantDetailDto>> GetByIdAsync(int id);
 
         [RequiresPermission("tenants.create", "SYSTEMADMIN")]
-        Task<ApiResponse<TenantDto>> AddAsync(CreateTenantDto dto);
+        Task<ApiResponse<TenantDetailDto>> AddAsync(CreateTenantDto dto);
 
         [RequiresPermission("tenants.update", "SYSTEMADMIN")]
-        Task<ApiResponse<TenantDto>> UpdateAsync(int id, UpdateTenantDto dto);
+        Task<ApiResponse<TenantDetailDto>> UpdateAsync(int id, UpdateTenantDto dto);
 
         [RequiresPermission("tenants.delete", "SYSTEMADMIN")]
         Task<ApiResponse<bool>> DeleteAsync(int id);
@@ -35,5 +42,15 @@ namespace GroundUp.core.interfaces
         /// <param name="url">The URL being accessed (e.g., 'acme.myapp.com', 'app.myapp.com')</param>
         /// <returns>Realm information including realm name, tenant details, and enterprise status</returns>
         Task<ApiResponse<RealmResolutionResponseDto>> ResolveRealmByUrlAsync(string url);
+
+        #region AuthFlow Helpers (Internal)
+
+        /// <summary>
+        /// Creates a standard tenant for self-service registration flows.
+        /// Intended for internal auth workflows so services don't write to DbContext directly.
+        /// </summary>
+        Task<ApiResponse<TenantDetailDto>> CreateStandardTenantForUserAsync(string realmName, string organizationName);
+
+        #endregion
     }
 }

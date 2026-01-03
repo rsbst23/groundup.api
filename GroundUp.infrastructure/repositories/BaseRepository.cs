@@ -28,46 +28,174 @@ namespace GroundUp.infrastructure.repositories
             _logger = logger;
         }
 
-        // Get All with Pagination and Filtering
-        public virtual async Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
+        #region Query Shaper Hooks (per method)
+
+        /// <summary>
+        /// Internal list pipeline that allows the caller (derived repository method) to shape the query
+        /// (e.g. Include/ThenInclude) before the base filtering/sorting/paging is applied.
+        /// </summary>
+        protected virtual async Task<ApiResponse<PaginatedData<TDto>>> GetAllInternalAsync(
+            FilterParams filterParams,
+            Func<IQueryable<T>, IQueryable<T>>? queryShaper = null)
         {
             try
             {
                 var query = _dbSet.AsQueryable();
+                if (queryShaper != null)
+                {
+                    query = queryShaper(query);
+                }
+
                 query = ApplyFilters(query, filterParams);
                 query = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+
                 var totalRecords = await query.CountAsync();
+
                 var pagedItems = await query
                     .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
                     .Take(filterParams.PageSize)
                     .ToListAsync();
+
                 var mappedItems = _mapper.Map<List<TDto>>(pagedItems);
                 var paginatedData = new PaginatedData<TDto>(mappedItems, filterParams.PageNumber, filterParams.PageSize, totalRecords);
                 return new ApiResponse<PaginatedData<TDto>>(paginatedData);
             }
             catch (Exception ex)
             {
-                return new ApiResponse<PaginatedData<TDto>>(default!, false, "An error occurred while retrieving data.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
+                return new ApiResponse<PaginatedData<TDto>>(
+                    default!,
+                    false,
+                    "An error occurred while retrieving data.",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError);
             }
         }
 
-        // Get by ID
-        public virtual async Task<ApiResponse<TDto>> GetByIdAsync(int id)
+        /// <summary>
+        /// Internal get-by-id pipeline that allows shaping. If no shaping is requested,
+        /// uses FindAsync (fast path) when possible.
+        /// </summary>
+        protected virtual async Task<ApiResponse<TDto>> GetByIdInternalAsync(
+            int id,
+            Func<IQueryable<T>, IQueryable<T>>? queryShaper = null)
         {
             try
             {
-                var entity = await _dbSet.FindAsync(id);
+                T? entity;
+
+                if (queryShaper == null)
+                {
+                    entity = await _dbSet.FindAsync(id);
+                }
+                else
+                {
+                    var query = queryShaper(_dbSet.AsQueryable());
+                    entity = await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
+                }
+
                 if (entity == null)
                 {
                     return new ApiResponse<TDto>(default!, false, "Item not found", null, StatusCodes.Status404NotFound, ErrorCodes.NotFound);
                 }
+
                 return new ApiResponse<TDto>(_mapper.Map<TDto>(entity));
             }
             catch (Exception ex)
             {
-                return new ApiResponse<TDto>(default!, false, "An error occurred while retrieving the item.", new List<string> { ex.Message }, StatusCodes.Status500InternalServerError, ErrorCodes.InternalServerError);
+                return new ApiResponse<TDto>(
+                    default!,
+                    false,
+                    "An error occurred while retrieving the item.",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError);
             }
         }
+
+        protected virtual async Task<ApiResponse<byte[]>> ExportInternalAsync(
+            FilterParams filterParams,
+            string format = "csv",
+            Func<IQueryable<T>, IQueryable<T>>? queryShaper = null)
+        {
+            try
+            {
+                var query = _dbSet.AsQueryable();
+                if (queryShaper != null)
+                {
+                    query = queryShaper(query);
+                }
+
+                query = ApplyFilters(query, filterParams);
+                var orderedQuery = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+
+                var items = await orderedQuery.ToListAsync();
+                var mappedItems = _mapper.Map<List<TDto>>(items);
+                _logger.LogInformation($"Exporting {items.Count} {typeof(T).Name} items in {format} format");
+
+                byte[] fileContent;
+                switch (format.ToLower())
+                {
+                    case "json":
+                        fileContent = await GenerateJsonFileAsync(mappedItems);
+                        break;
+                    case "csv":
+                    default:
+                        fileContent = await GenerateCsvFileAsync(mappedItems);
+                        break;
+                }
+
+                return new ApiResponse<byte[]>(fileContent, true, $"Exported {items.Count} items successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error exporting {typeof(T).Name} data: {ex.Message}", ex);
+                return new ApiResponse<byte[]>
+                (
+                    new byte[0],
+                    false,
+                    "An error occurred while exporting data.",
+                    new List<string> { ex.Message },
+                    StatusCodes.Status500InternalServerError,
+                    ErrorCodes.InternalServerError
+                );
+            }
+        }
+
+        #endregion
+
+        #region Query Helpers (for derived repositories)
+
+        /// <summary>
+        /// Applies the standard base filtering pipeline to a query.
+        /// Exposed for derived repos that need custom shaping/projection but still want the same filtering behavior.
+        /// </summary>
+        protected IQueryable<T> ApplyFilterParams(IQueryable<T> query, FilterParams filterParams)
+        {
+            query = ApplyFilters(query, filterParams);
+            query = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
+            return query;
+        }
+
+        /// <summary>
+        /// Applies pagination for the given filter params.
+        /// </summary>
+        protected IQueryable<TQuery> ApplyPaging<TQuery>(IQueryable<TQuery> query, FilterParams filterParams)
+        {
+            return query
+                .Skip((filterParams.PageNumber - 1) * filterParams.PageSize)
+                .Take(filterParams.PageSize);
+        }
+
+        #endregion
+
+        // Get All with Pagination and Filtering
+        public virtual Task<ApiResponse<PaginatedData<TDto>>> GetAllAsync(FilterParams filterParams)
+            => GetAllInternalAsync(filterParams);
+
+        // Get by ID
+        public virtual Task<ApiResponse<TDto>> GetByIdAsync(int id)
+            => GetByIdInternalAsync(id);
 
         // Add new entity
         public virtual async Task<ApiResponse<TDto>> AddAsync(TDto dto)
@@ -132,42 +260,8 @@ namespace GroundUp.infrastructure.repositories
             }
         }
 
-        public virtual async Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv")
-        {
-            try
-            {
-                var query = _dbSet.AsQueryable();
-                query = ApplyFilters(query, filterParams);
-                var orderedQuery = ExpressionHelper.ApplySorting(query, filterParams.SortBy);
-                var items = await orderedQuery.ToListAsync();
-                var mappedItems = _mapper.Map<List<TDto>>(items);
-                _logger.LogInformation($"Exporting {items.Count} {typeof(T).Name} items in {format} format");
-                byte[] fileContent;
-                switch (format.ToLower())
-                {
-                    case "json":
-                        fileContent = await GenerateJsonFileAsync(mappedItems);
-                        break;
-                    case "csv":
-                    default:
-                        fileContent = await GenerateCsvFileAsync(mappedItems);
-                        break;
-                }
-                return new ApiResponse<byte[]>(fileContent, true, $"Exported {items.Count} items successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error exporting {typeof(T).Name} data: {ex.Message}", ex);
-                return new ApiResponse<byte[]>(
-                    new byte[0],
-                    false,
-                    "An error occurred while exporting data.",
-                    new List<string> { ex.Message },
-                    StatusCodes.Status500InternalServerError,
-                    ErrorCodes.InternalServerError
-                );
-            }
-        }
+        public virtual Task<ApiResponse<byte[]>> ExportAsync(FilterParams filterParams, string format = "csv")
+            => ExportInternalAsync(filterParams, format);
 
         // Helper method to generate CSV file
         private async Task<byte[]> GenerateCsvFileAsync<T>(List<T> items)
@@ -181,7 +275,8 @@ namespace GroundUp.infrastructure.repositories
                 await streamWriter.WriteLineAsync(headers);
                 foreach (var item in items)
                 {
-                    var values = properties.Select(p => {
+                    var values = properties.Select(p =>
+                    {
                         var value = p.GetValue(item)?.ToString() ?? "";
                         return $"\"{value.Replace("\"", "\"\"")}\"";
                     });

@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using GroundUp.core.dtos;
+using GroundUp.core.dtos.tenants;
 using GroundUp.core.entities;
 using GroundUp.core.enums;
 using System.Text.Json;
@@ -59,20 +60,12 @@ namespace GroundUp.infrastructure.mappings
                     ?? new ErrorDetailsDto()));
 
             // Tenant mappings
-            CreateMap<Tenant, TenantDto>()
+            CreateMap<Tenant, TenantListItemDto>()
+                .ForMember(dest => dest.ParentTenantName, opt => opt.MapFrom(src => src.ParentTenant != null ? src.ParentTenant.Name : null));
+
+            CreateMap<Tenant, TenantDetailDto>()
                 .ForMember(dest => dest.ParentTenantName, opt => opt.MapFrom(src => src.ParentTenant != null ? src.ParentTenant.Name : null))
-                .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
-                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName))
-                .ForMember(dest => dest.SsoAutoJoinDomains, opt => opt.MapFrom(src => src.SsoAutoJoinDomains))
                 .ForMember(dest => dest.SsoAutoJoinRoleName, opt => opt.MapFrom(src => src.SsoAutoJoinRole != null ? src.SsoAutoJoinRole.Name : null));
-            
-            CreateMap<TenantDto, Tenant>()
-                .ForMember(dest => dest.ParentTenant, opt => opt.Ignore())
-                .ForMember(dest => dest.ChildTenants, opt => opt.Ignore())
-                .ForMember(dest => dest.UserTenants, opt => opt.Ignore())
-                .ForMember(dest => dest.TenantType, opt => opt.MapFrom(src => src.TenantType))
-                .ForMember(dest => dest.RealmName, opt => opt.MapFrom(src => src.RealmName))
-                .ForMember(dest => dest.SsoAutoJoinDomains, opt => opt.MapFrom(src => src.SsoAutoJoinDomains));
 
             CreateMap<CreateTenantDto, Tenant>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -123,7 +116,8 @@ namespace GroundUp.infrastructure.mappings
 
             // TenantJoinLink mappings
             CreateMap<TenantJoinLink, TenantJoinLinkDto>()
-                .ForMember(dest => dest.JoinUrl, opt => opt.Ignore()); // Set by controller
+                .ForMember(dest => dest.JoinUrl, opt => opt.Ignore()) // Set by controller
+                .ForMember(dest => dest.TenantName, opt => opt.MapFrom(src => src.Tenant != null ? src.Tenant.Name : null));
         }
     }
 }
