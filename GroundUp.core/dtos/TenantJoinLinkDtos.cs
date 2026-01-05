@@ -35,5 +35,12 @@ namespace GroundUp.core.dtos
         /// Optional tenant name for display purposes (populated for token-based lookups).
         /// </summary>
         public string? TenantName { get; set; }
+
+        /// <summary>
+        /// Realm to use for the join-link flow (populated for token-based lookups).
+        /// Standard tenants typically use the shared realm (e.g. "groundup");
+        /// enterprise tenants use their dedicated realm.
+        /// </summary>
+        public string? RealmName { get; set; }
     }
 }

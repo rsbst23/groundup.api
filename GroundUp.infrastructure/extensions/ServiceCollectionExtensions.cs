@@ -110,6 +110,9 @@ namespace GroundUp.infrastructure.extensions
             // Register AuthUrlBuilderService so controllers can generate Keycloak auth URLs.
             services.AddScoped<IAuthUrlBuilderService, AuthUrlBuilderService>();
 
+            // Register JoinLinkService so JoinLinkController can delegate public join flow orchestration.
+            services.AddScoped<IJoinLinkService, JoinLinkService>();
+
             // Register EnterpriseSignupService in DI so controllers can delegate enterprise signup orchestration to the service layer.
             services.AddScoped<IEnterpriseSignupService, EnterpriseSignupService>();
 

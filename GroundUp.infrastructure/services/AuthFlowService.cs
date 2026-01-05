@@ -230,83 +230,90 @@ namespace GroundUp.infrastructure.services
             string joinToken,
             string accessToken)
         {
-            using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            try
+            var strategy = _dbContext.Database.CreateExecutionStrategy();
+
+            return await strategy.ExecuteAsync(async () =>
             {
-                _logger.LogInformation($"Processing join link flow for Keycloak user {keycloakUserId} in realm {realm}");
+                await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    _logger.LogInformation($"Processing join link flow for Keycloak user {keycloakUserId} in realm {realm}");
 
-                await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
+                    // IMPORTANT: Validate join link BEFORE creating a local user record.
+                    // This prevents orphaned local Users when joinToken is invalid/revoked/expired.
+                    var joinLinkResult = await _tenantJoinLinkRepository.GetByTokenAsync(joinToken);
+                    if (!joinLinkResult.Success || joinLinkResult.Data == null)
+                    {
+                        await transaction.RollbackAsync();
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "join_link",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "Join link is invalid, revoked, or expired"
+                        };
+                    }
 
-                var joinLinkResult = await _tenantJoinLinkRepository.GetByTokenAsync(joinToken);
-                if (!joinLinkResult.Success || joinLinkResult.Data == null)
+                    if (joinLinkResult.Data.IsRevoked || joinLinkResult.Data.ExpiresAt <= DateTime.UtcNow)
+                    {
+                        await transaction.RollbackAsync();
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "join_link",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "Join link is invalid, revoked, or expired"
+                        };
+                    }
+
+                    var tenantId = joinLinkResult.Data.TenantId;
+
+                    var existingMembership = await _userTenantRepository.GetUserTenantAsync(userId, tenantId);
+                    if (existingMembership != null)
+                    {
+                        await transaction.RollbackAsync();
+                        return new AuthCallbackResponseDto
+                        {
+                            Success = false,
+                            Flow = "join_link",
+                            RequiresTenantSelection = false,
+                            ErrorMessage = "You are already a member of this tenant"
+                        };
+                    }
+
+                    // Safe to create local user record now.
+                    await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
+
+                    await _userTenantRepository.AssignUserToTenantAsync(userId, tenantId, isAdmin: false, externalUserId: keycloakUserId);
+
+                    await transaction.CommitAsync();
+
+                    var customToken = await _tokenService.GenerateTokenAsync(userId, tenantId, ExtractClaims(accessToken));
+
+                    return new AuthCallbackResponseDto
+                    {
+                        Success = true,
+                        Flow = "join_link",
+                        Token = customToken,
+                        TenantId = tenantId,
+                        TenantName = joinLinkResult.Data.TenantName,
+                        RequiresTenantSelection = false,
+                        Message = "Successfully joined tenant"
+                    };
+                }
+                catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
+                    _logger.LogError($"Error handling join link flow: {ex.Message}", ex);
                     return new AuthCallbackResponseDto
                     {
                         Success = false,
                         Flow = "join_link",
                         RequiresTenantSelection = false,
-                        ErrorMessage = "Join link is invalid, revoked, or expired"
+                        ErrorMessage = "An unexpected error occurred while joining tenant"
                     };
                 }
-
-                // Enforce validity (repo returns by token even if revoked/expired; auth flow enforces access rules)
-                if (joinLinkResult.Data.IsRevoked || joinLinkResult.Data.ExpiresAt <= DateTime.UtcNow)
-                {
-                    await transaction.RollbackAsync();
-                    return new AuthCallbackResponseDto
-                    {
-                        Success = false,
-                        Flow = "join_link",
-                        RequiresTenantSelection = false,
-                        ErrorMessage = "Join link is invalid, revoked, or expired"
-                    };
-                }
-
-                var tenantId = joinLinkResult.Data.TenantId;
-
-                var existingMembership = await _userTenantRepository.GetUserTenantAsync(userId, tenantId);
-                if (existingMembership != null)
-                {
-                    await transaction.RollbackAsync();
-                    return new AuthCallbackResponseDto
-                    {
-                        Success = false,
-                        Flow = "join_link",
-                        RequiresTenantSelection = false,
-                        ErrorMessage = "You are already a member of this tenant"
-                    };
-                }
-
-                await _userTenantRepository.AssignUserToTenantAsync(userId, tenantId, isAdmin: false, externalUserId: keycloakUserId);
-
-                await transaction.CommitAsync();
-
-                var customToken = await _tokenService.GenerateTokenAsync(userId, tenantId, ExtractClaims(accessToken));
-
-                return new AuthCallbackResponseDto
-                {
-                    Success = true,
-                    Flow = "join_link",
-                    Token = customToken,
-                    TenantId = tenantId,
-                    TenantName = joinLinkResult.Data.TenantName,
-                    RequiresTenantSelection = false,
-                    Message = "Successfully joined tenant"
-                };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError($"Error handling join link flow: {ex.Message}", ex);
-                return new AuthCallbackResponseDto
-                {
-                    Success = false,
-                    Flow = "join_link",
-                    RequiresTenantSelection = false,
-                    ErrorMessage = "An unexpected error occurred while joining tenant"
-                };
-            }
+            });
         }
 
         private async Task<AuthCallbackResponseDto> HandleNewOrganizationFlowAsync(
@@ -401,21 +408,10 @@ namespace GroundUp.infrastructure.services
             {
                 _logger.LogInformation($"Processing default flow for Keycloak user {keycloakUserId} in realm {realm}");
 
-                var existingUser = await _dbContext.Users.FindAsync(userId);
-                if (existingUser == null)
-                {
-                    using var transaction = await _dbContext.Database.BeginTransactionAsync();
-                    try
-                    {
-                        await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                }
+                // IMPORTANT:
+                // Do NOT eagerly create a local User record here. For enterprise SSO, we must first determine
+                // whether the user is authorized (allowlist or invitation). Otherwise, unauthorized SSO users
+                // would leave orphaned local Users.
 
                 var userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
 
@@ -467,10 +463,46 @@ namespace GroundUp.infrastructure.services
                             };
                         }
 
+                        // Authorized enterprise SSO (allowlist or invitation).
+                        // Now it's safe to ensure local user exists.
+                        var strategy = _dbContext.Database.CreateExecutionStrategy();
+                        await strategy.ExecuteAsync(async () =>
+                        {
+                            using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                            try
+                            {
+                                await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
+                                await transaction.CommitAsync();
+                            }
+                            catch
+                            {
+                                await transaction.RollbackAsync();
+                                throw;
+                            }
+                        });
+
                         userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
                     }
                     else
                     {
+                        // Standard tenants need a local user for org creation/naming.
+                        // Keep behavior: create local user before handing to new-org.
+                        var strategy = _dbContext.Database.CreateExecutionStrategy();
+                        await strategy.ExecuteAsync(async () =>
+                        {
+                            using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                            try
+                            {
+                                await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
+                                await transaction.CommitAsync();
+                            }
+                            catch
+                            {
+                                await transaction.RollbackAsync();
+                                throw;
+                            }
+                        });
+
                         return await HandleNewOrganizationFlowAsync(userId, keycloakUserId, realm, accessToken);
                     }
                 }
@@ -484,6 +516,28 @@ namespace GroundUp.infrastructure.services
                         RequiresTenantSelection = false,
                         ErrorMessage = "Unable to assign user to tenant. Please contact support."
                     };
+                }
+
+                // If user already had memberships, ensure local user exists before issuing tokens.
+                // (This should be a no-op for normal users; but keeps local DB consistent.)
+                var existingUser = await _dbContext.Users.FindAsync(userId);
+                if (existingUser == null)
+                {
+                    var strategy = _dbContext.Database.CreateExecutionStrategy();
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+                        try
+                        {
+                            await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
+                            await transaction.CommitAsync();
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    });
                 }
 
                 if (userTenants.Count == 1)
@@ -653,6 +707,10 @@ namespace GroundUp.infrastructure.services
             if (tenant.SsoAutoJoinDomains?.Contains(userDomain) == true)
             {
                 _logger.LogInformation($"Auto-joining user {userId} from allowed domain {userDomain}");
+
+                // We are about to create a UserTenant row. Ensure the local user exists first.
+                // This is still safe because we're in the authorized allowlist branch.
+                await EnsureLocalUserExistsAsync(userId, keycloakUserId, realm);
 
                 await _userTenantRepository.AssignUserToTenantAsync(userId, tenant.Id, isAdmin: false, keycloakUserId);
 

@@ -93,6 +93,23 @@ namespace GroundUp.infrastructure.services
                 loginHint: null));
         }
 
+        public Task<string> BuildJoinLinkLoginUrlAsync(string realm, string joinToken, string redirectUri)
+        {
+            var state = new AuthCallbackState
+            {
+                Flow = "join_link",
+                JoinToken = joinToken,
+                Realm = realm
+            };
+
+            return Task.FromResult(BuildAuthOrRegistrationUrl(
+                realm,
+                isRegistration: false,
+                redirectUri,
+                state,
+                loginHint: null));
+        }
+
         private async Task<(string realm, bool isEnterprise)> ResolveRealmFromDomainAsync(string? domain)
         {
             if (string.IsNullOrWhiteSpace(domain))
