@@ -29,5 +29,11 @@ namespace GroundUp.core.interfaces
         /// Uses the enterprise tenant realm and encodes state with Flow="enterprise_first_admin".
         /// </summary>
         Task<string> BuildEnterpriseFirstAdminRegistrationUrlAsync(string realm, string redirectUri);
+
+        /// <summary>
+        /// Builds the Keycloak login URL for the public join-link flow.
+        /// Encodes state with Flow="join_link" and JoinToken.
+        /// </summary>
+        Task<string> BuildJoinLinkLoginUrlAsync(string realm, string joinToken, string redirectUri);
     }
 }
