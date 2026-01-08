@@ -3,35 +3,23 @@ using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
 using GroundUp.core;
-using GroundUp.infrastructure.data;
-using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
 {
     public class SystemRoleRepository : ISystemRoleRepository
     {
-        //private readonly IIdentityProviderAdminService _identityProviderAdminService;
-        //private readonly ApplicationDbContext _context;
-        //private readonly IMapper _mapper;
-        //private readonly ILoggingService _logger;
+        private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
+        private readonly ILoggingService _logger;
 
-        //public SystemRoleRepository(
-        //    IIdentityProviderAdminService identityProviderAdminService,
-        //    ApplicationDbContext context,
-        //    IMapper mapper,
-        //    ILoggingService logger)
-        //{
-        //    _identityProviderAdminService = identityProviderAdminService;
-        //    _context = context;
-        //    _mapper = mapper;
-        //    _logger = logger;
-        //}
+        public SystemRoleRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
+        {
+            _context = context;
+            _mapper = mapper;
+            _logger = logger;
+        }
 
         //public async Task<ApiResponse<List<RoleDto>>> GetAllAsync()
         //{

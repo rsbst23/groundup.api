@@ -2,7 +2,7 @@ using AutoMapper;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,7 +17,7 @@ namespace GroundUp.infrastructure.repositories
 
         public async Task<List<UserTenantDto>> GetTenantsForUserAsync(Guid userId)
         {
-            var userTenants = await _context.UserTenants
+            var userTenants = await _context.Set<UserTenant>()
                 .Include(ut => ut.Tenant)
                 .Where(ut => ut.UserId == userId)
                 .ToListAsync();
@@ -26,7 +26,7 @@ namespace GroundUp.infrastructure.repositories
 
         public async Task<UserTenantDto?> GetUserTenantAsync(Guid userId, int tenantId)
         {
-            var userTenant = await _context.UserTenants
+            var userTenant = await _context.Set<UserTenant>()
                 .Include(ut => ut.Tenant)
                 .FirstOrDefaultAsync(ut => ut.UserId == userId && ut.TenantId == tenantId);
             return userTenant == null ? null : _mapper.Map<UserTenantDto>(userTenant);
@@ -34,7 +34,7 @@ namespace GroundUp.infrastructure.repositories
 
         public Task<bool> TenantHasAnyMembersAsync(int tenantId)
         {
-            return _context.UserTenants
+            return _context.Set<UserTenant>()
                 .AsNoTracking()
                 .AnyAsync(ut => ut.TenantId == tenantId);
         }
@@ -42,13 +42,13 @@ namespace GroundUp.infrastructure.repositories
         public async Task<UserTenantDto?> GetByRealmAndExternalUserIdAsync(string realmName, string externalUserId)
         {
             _logger.LogInformation($"Looking up UserTenant: Realm='{realmName}', ExternalUserId='{externalUserId}'");
-            
+
             // First try exact match
-            var userTenant = await _context.UserTenants
+            var userTenant = await _context.Set<UserTenant>()
                 .Include(ut => ut.Tenant)
                 .Include(ut => ut.User)
-                .FirstOrDefaultAsync(ut => 
-                    ut.Tenant.RealmName == realmName && 
+                .FirstOrDefaultAsync(ut =>
+                    ut.Tenant.RealmName == realmName &&
                     ut.ExternalUserId == externalUserId);
 
             if (userTenant != null)
@@ -58,7 +58,7 @@ namespace GroundUp.infrastructure.repositories
             }
 
             // If not found, log all matching records by ExternalUserId for debugging
-            var allMatches = await _context.UserTenants
+            var allMatches = await _context.Set<UserTenant>()
                 .Include(ut => ut.Tenant)
                 .Include(ut => ut.User)
                 .Where(ut => ut.ExternalUserId == externalUserId)
@@ -71,7 +71,7 @@ namespace GroundUp.infrastructure.repositories
                 {
                     _logger.LogWarning($"  - UserId={match.UserId}, TenantId={match.TenantId}, TenantRealm='{match.Tenant?.RealmName}'");
                 }
-                
+
                 // TEMPORARY: Return first match regardless of realm (for debugging)
                 _logger.LogWarning($"TEMPORARY FIX: Returning first match regardless of realm");
                 return _mapper.Map<UserTenantDto>(allMatches[0]);
@@ -83,8 +83,10 @@ namespace GroundUp.infrastructure.repositories
 
         public async Task<UserTenantDto> AssignUserToTenantAsync(Guid userId, int tenantId, bool isAdmin = false, string? externalUserId = null)
         {
+            var userTenants = _context.Set<UserTenant>();
+
             // Check if mapping already exists
-            var existing = await _context.UserTenants
+            var existing = await userTenants
                 .Include(ut => ut.Tenant)
                 .FirstOrDefaultAsync(ut => ut.UserId == userId && ut.TenantId == tenantId);
 
@@ -102,7 +104,7 @@ namespace GroundUp.infrastructure.repositories
                     existing.ExternalUserId = externalUserId;
                     updated = true;
                 }
-                
+
                 if (updated)
                 {
                     await _context.SaveChangesAsync();
@@ -125,11 +127,11 @@ namespace GroundUp.infrastructure.repositories
                 JoinedAt = DateTime.UtcNow
             };
 
-            _context.UserTenants.Add(userTenant);
+            userTenants.Add(userTenant);
             await _context.SaveChangesAsync();
 
             // Reload with Tenant navigation property
-            var created = await _context.UserTenants
+            var created = await userTenants
                 .Include(ut => ut.Tenant)
                 .FirstAsync(ut => ut.Id == userTenant.Id);
 
@@ -139,7 +141,9 @@ namespace GroundUp.infrastructure.repositories
 
         public async Task<bool> RemoveUserFromTenantAsync(Guid userId, int tenantId)
         {
-            var userTenant = await _context.UserTenants
+            var userTenants = _context.Set<UserTenant>();
+
+            var userTenant = await userTenants
                 .FirstOrDefaultAsync(ut => ut.UserId == userId && ut.TenantId == tenantId);
 
             if (userTenant == null)
@@ -148,7 +152,7 @@ namespace GroundUp.infrastructure.repositories
                 return false;
             }
 
-            _context.UserTenants.Remove(userTenant);
+            userTenants.Remove(userTenant);
             await _context.SaveChangesAsync();
 
             _logger.LogInformation($"Successfully removed user {userId} from tenant {tenantId}");

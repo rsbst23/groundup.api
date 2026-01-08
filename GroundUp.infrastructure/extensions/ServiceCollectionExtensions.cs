@@ -6,6 +6,7 @@ using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
 using GroundUp.core.validators;
 using GroundUp.infrastructure.interceptors;
+using GroundUp.infrastructure.repositories;
 using GroundUp.infrastructure.services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -26,23 +27,24 @@ namespace GroundUp.infrastructure.extensions
     public static class ServiceCollectionExtensions
     {
         /// <summary>
-        /// Registers infrastructure services, including logging, permission handling, and repository interception.
-        /// This sets up the core infrastructure layer services used throughout the application.
+        /// Registers infrastructure services (cross-cutting concerns).
+        ///
+        /// NOTE (service-layer refactor):
+        /// - Repositories are no longer auto-registered/proxied here.
+        /// - Permission enforcement is moving to the SERVICE boundary (service interfaces).
+        /// - Repository registrations should be explicit in `GroundUp.Repositories.*` projects.
         /// </summary>
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
         {
-            // Check if we're running EF Core migrations - if so, skip repository registration
+            // Check if we're running EF Core migrations - if so, skip optional registrations
             // to avoid dependency injection issues during database migrations
             var isEfCoreMigration = Environment.GetCommandLineArgs().Any(arg => arg.Contains("ef"));
 
-            if (isEfCoreMigration)
-            {
-                return services; // Skip registering repositories during migrations
-            }
-
             // Register core infrastructure services
             services.AddSingleton<ILoggingService, LoggingService>();
-            services.AddSingleton<ProxyGenerator>(); // Castle DynamicProxy for interceptors
+
+            // Castle DynamicProxy for interceptors (used to proxy SERVICES)
+            services.AddSingleton<ProxyGenerator>();
 
             // Register IHttpContextAccessor to access HTTP context (User, Request, etc.) in services
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
@@ -60,64 +62,39 @@ namespace GroundUp.infrastructure.extensions
             services.AddHttpClient<IIdentityProviderAdminService, IdentityProviderAdminService>();
             services.AddScoped<IIdentityProviderAdminService, IdentityProviderAdminService>();
 
-            // Register TenantJoinLinkRepository explicitly (not auto-discovered because of custom interface name)
-            services.AddScoped<GroundUp.infrastructure.repositories.TenantJoinLinkRepository>();
-            services.AddScoped<ITenantJoinLinkRepository>(provider =>
-            {
-                var proxyGenerator = provider.GetRequiredService<ProxyGenerator>();
-                var repositoryInstance = provider.GetRequiredService<GroundUp.infrastructure.repositories.TenantJoinLinkRepository>();
-                return proxyGenerator.CreateInterfaceProxyWithTarget<ITenantJoinLinkRepository>(repositoryInstance, new LazyInterceptor(provider));
-            });
-
-            // Register the permission interceptor used by repositories
+            // Register the permission interceptor (used by service proxies)
             services.AddScoped<PermissionInterceptor>();
 
             // Add memory cache for performance optimization
             services.AddMemoryCache();
 
-            // Auto-discover and register all repositories with interceptors
-            // This finds all classes ending with "Repository" and wraps them with dynamic proxies
-            // for automatic permission checking via the PermissionInterceptor
-            var repositoryTypes = Assembly.GetExecutingAssembly()
-                .GetTypes()
-                .Where(type => type.IsClass && !type.IsAbstract && type.Name.EndsWith("Repository"))
-                .ToList();
+            // NOTE: repository registration removed from here as part of refactor.
+            // Repositories should be registered explicitly in `GroundUp.Repositories.*`.
 
-            foreach (var repositoryType in repositoryTypes)
-            {
-                var interfaceType = repositoryType.GetInterfaces().FirstOrDefault();
-                if (interfaceType != null)
-                {
-                    // Register the actual repository implementation
-                    services.AddScoped(repositoryType);
-                    
-                    // Register the interface with a dynamic proxy that intercepts calls
-                    // This allows the PermissionInterceptor to check permissions before method execution
-                    services.AddScoped(interfaceType, provider =>
-                    {
-                        var proxyGenerator = provider.GetRequiredService<ProxyGenerator>();
-                        var repositoryInstance = provider.GetRequiredService(repositoryType);
-
-                        // Create a proxy that wraps the repository and applies the LazyInterceptor
-                        return proxyGenerator.CreateInterfaceProxyWithTarget(interfaceType, repositoryInstance, new LazyInterceptor(provider));
-                    });
-                }
-            }
+            // TEMP (Phase 3): Core bounded-context repos still live in `GroundUp.infrastructure`.
+            // Register narrowly-scoped repos needed by core services.
+            services.AddScoped<ITenantSsoSettingsRepository, TenantSsoSettingsRepository>();
+            services.AddScoped<IPermissionQueryRepository, PermissionQueryRepository>();
 
             // Register AuthFlowService in DI so AuthController can delegate auth callback orchestration.
-            services.AddScoped<IAuthFlowService, AuthFlowService>();
+            if (!isEfCoreMigration)
+            {
+                services.AddProxiedScoped<IAuthFlowService, AuthFlowService>();
 
-            // Register AuthUrlBuilderService so controllers can generate Keycloak auth URLs.
-            services.AddScoped<IAuthUrlBuilderService, AuthUrlBuilderService>();
+                // Register AuthUrlBuilderService so controllers can generate Keycloak auth URLs.
+                services.AddProxiedScoped<IAuthUrlBuilderService, AuthUrlBuilderService>();
 
-            // Register JoinLinkService so JoinLinkController can delegate public join flow orchestration.
-            services.AddScoped<IJoinLinkService, JoinLinkService>();
+                // Register JoinLinkService so JoinLinkController can delegate public join flow orchestration.
+                services.AddProxiedScoped<IJoinLinkService, JoinLinkService>();
 
-            // Register EnterpriseSignupService in DI so controllers can delegate enterprise signup orchestration to the service layer.
-            services.AddScoped<IEnterpriseSignupService, EnterpriseSignupService>();
+                // Register EnterpriseSignupService in DI so controllers can delegate enterprise signup orchestration to the service layer.
+                services.AddProxiedScoped<IEnterpriseSignupService, EnterpriseSignupService>();
 
-            // Register TenantSsoSettingsService so TenantController can stay thin.
-            services.AddScoped<ITenantSsoSettingsService, TenantSsoSettingsService>();
+                // Register TenantSsoSettingsService so TenantController can stay thin.
+                services.AddProxiedScoped<ITenantSsoSettingsService, TenantSsoSettingsService>();
+
+                services.AddProxiedScoped<IPermissionAdminService, PermissionAdminService>();
+            }
 
             return services;
         }
@@ -133,7 +110,7 @@ namespace GroundUp.infrastructure.extensions
 
             // Enable automatic validation on controller actions
             services.AddFluentValidationAutoValidation();
-            
+
             // Enable client-side validation adapters (for future SPA integration)
             services.AddFluentValidationClientsideAdapters();
 
@@ -183,12 +160,12 @@ namespace GroundUp.infrastructure.extensions
                     options.RequireHttpsMetadata = false;
                     options.Authority = keycloakIssuer;
                     options.Audience = keycloakAudience;
-                    
+
                     options.BackchannelHttpHandler = new HttpClientHandler
                     {
                         ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
                     };
-                    
+
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
                         ValidateIssuer = true,
@@ -198,7 +175,7 @@ namespace GroundUp.infrastructure.extensions
                         ValidateLifetime = true,
                         ClockSkew = TimeSpan.Zero
                     };
-                    
+
                     options.Events = new JwtBearerEvents
                     {
                         OnTokenValidated = context =>
@@ -210,7 +187,7 @@ namespace GroundUp.infrastructure.extensions
                                 try
                                 {
                                     var parsedResourceAccess = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string[]>>>(resourceAccessClaim);
-                                    if (parsedResourceAccess.TryGetValue(keycloakAudience, out var clientRoles) && clientRoles.TryGetValue("roles", out var roles))
+                                    if (parsedResourceAccess != null && parsedResourceAccess.TryGetValue(keycloakAudience, out var clientRoles) && clientRoles.TryGetValue("roles", out var roles))
                                     {
                                         var claimsIdentity = context.Principal.Identity as ClaimsIdentity;
                                         foreach (var role in roles)
@@ -232,7 +209,7 @@ namespace GroundUp.infrastructure.extensions
                 .AddJwtBearer("Custom", options =>
                 {
                     options.RequireHttpsMetadata = false;
-                    
+
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
                         ValidateIssuer = true,
@@ -245,14 +222,14 @@ namespace GroundUp.infrastructure.extensions
                         ClockSkew = TimeSpan.Zero,
                         AuthenticationType = "Bearer"
                     };
-                    
+
                     options.Events = new JwtBearerEvents
                     {
                         // Extract token from header or cookie
                         OnMessageReceived = context =>
                         {
                             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-                            
+
                             if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
                             {
                                 context.Token = authHeader.Substring("Bearer ".Length).Trim();
@@ -261,7 +238,7 @@ namespace GroundUp.infrastructure.extensions
                             {
                                 context.Token = context.Request.Cookies["AuthToken"];
                             }
-                            
+
                             return Task.CompletedTask;
                         },
 
@@ -270,7 +247,7 @@ namespace GroundUp.infrastructure.extensions
                         {
                             try
                             {
-                                var token = context.Request.Cookies["AuthToken"] ?? 
+                                var token = context.Request.Cookies["AuthToken"] ??
                                            context.Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "");
 
                                 if (!string.IsNullOrEmpty(token))
@@ -296,7 +273,7 @@ namespace GroundUp.infrastructure.extensions
 
                                             // Verify user still has access to tenant
                                             var userTenant = await userTenantRepository.GetUserTenantAsync(userId, tenantId);
-                                            
+
                                             if (userTenant != null)
                                             {
                                                 // Generate new token with fresh expiration

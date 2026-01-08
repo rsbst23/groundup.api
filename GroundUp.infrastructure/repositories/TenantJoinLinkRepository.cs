@@ -3,7 +3,7 @@ using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -100,7 +100,7 @@ namespace GroundUp.infrastructure.repositories
             try
             {
                 var tenantId = _tenantContext.TenantId;
-                
+
                 var joinLink = new TenantJoinLink
                 {
                     TenantId = tenantId,
@@ -110,13 +110,13 @@ namespace GroundUp.infrastructure.repositories
                     IsRevoked = false,
                     CreatedAt = DateTime.UtcNow
                 };
-                
-                _context.TenantJoinLinks.Add(joinLink);
+
+                _context.Set<TenantJoinLink>().Add(joinLink);
                 await _context.SaveChangesAsync();
-                
+
                 var result = _mapper.Map<TenantJoinLinkDto>(joinLink);
                 _logger.LogInformation($"Created join link {joinLink.Id} for tenant {tenantId}");
-                
+
                 return new ApiResponse<TenantJoinLinkDto>(result, true, "Join link created successfully");
             }
             catch (Exception ex)
@@ -177,10 +177,10 @@ namespace GroundUp.infrastructure.repositories
             try
             {
                 // Cross-tenant: no tenant filtering
-                var joinLink = await _context.TenantJoinLinks
+                var joinLink = await _context.Set<TenantJoinLink>()
                     .Include(j => j.Tenant)
                     .FirstOrDefaultAsync(j => j.JoinToken == token);
-                
+
                 if (joinLink == null)
                 {
                     return new ApiResponse<TenantJoinLinkDto>(
@@ -192,7 +192,7 @@ namespace GroundUp.infrastructure.repositories
                         ErrorCodes.NotFound
                     );
                 }
-                
+
                 var dto = _mapper.Map<TenantJoinLinkDto>(joinLink);
                 return new ApiResponse<TenantJoinLinkDto>(dto);
             }

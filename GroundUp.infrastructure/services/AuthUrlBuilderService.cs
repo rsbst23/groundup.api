@@ -1,7 +1,7 @@
 using GroundUp.core.dtos;
 using GroundUp.core.enums;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Text;

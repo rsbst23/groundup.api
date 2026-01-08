@@ -3,7 +3,7 @@ using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
 using GroundUp.core.security;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 
 namespace GroundUp.infrastructure.repositories
 {

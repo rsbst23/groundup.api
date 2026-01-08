@@ -1,10 +1,7 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
-using GroundUp.core.security;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 
 namespace GroundUp.api.Controllers
 {
@@ -12,54 +9,49 @@ namespace GroundUp.api.Controllers
     [ApiController]
     public class InventoryCategoryController : ControllerBase
     {
-        private readonly IInventoryCategoryRepository _inventoryCategoryRepository;
+        private readonly IInventoryCategoryService _inventoryCategoryService;
 
-        public InventoryCategoryController(IInventoryCategoryRepository inventoryCategoryRepository)
+        public InventoryCategoryController(IInventoryCategoryService inventoryCategoryService)
         {
-            _inventoryCategoryRepository = inventoryCategoryRepository;
+            _inventoryCategoryService = inventoryCategoryService;
         }
 
         // GET: api/inventory-categories (Paginated)
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<InventoryCategoryDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _inventoryCategoryRepository.GetAllAsync(filterParams);
-            return StatusCode(result.StatusCode, result);
+            var result = await _inventoryCategoryService.GetAllAsync(filterParams);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
 
         // GET: api/inventory-categories/export
         [HttpGet("export")]
-        public async Task<IActionResult> Export([FromQuery] string format = "csv", [FromQuery] string? sortBy = null, [FromQuery] bool exportAll = true, [FromQuery] FilterParams filterParams = null)
+        public async Task<IActionResult> Export([FromQuery] string format = "csv", [FromQuery] string? sortBy = null, [FromQuery] bool exportAll = true, [FromQuery] FilterParams? filterParams = null)
         {
-            // Use null-coalescing for filterParams
             filterParams ??= new FilterParams();
 
-            // If exportAll is true, set a large page size to get all records
             if (exportAll)
             {
-                filterParams.PageSize = 10000;  // Set to a high number
+                filterParams.PageSize = 10000;
                 filterParams.PageNumber = 1;
             }
 
-            // Set sorting parameter - respects your existing sort pattern with hyphen prefix
             if (!string.IsNullOrEmpty(sortBy))
             {
                 filterParams.SortBy = sortBy;
             }
 
-            // Get export data
-            var result = await _inventoryCategoryRepository.ExportAsync(filterParams, format);
+            var result = await _inventoryCategoryService.ExportAsync(filterParams, format);
 
             if (!result.Success)
             {
-                return StatusCode(result.StatusCode, result);
+                return StatusCode(result.StatusCode, ToApiResponse(result));
             }
 
-            // Set the content type and filename based on the requested format
             string contentType;
             string filename;
 
-            switch (format.ToLower())
+            switch (format.ToLowerInvariant())
             {
                 case "xlsx":
                     contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -76,20 +68,16 @@ namespace GroundUp.api.Controllers
                     break;
             }
 
-            // Set response headers
             Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{filename}\"");
-
-            // Return the file
-            return File(result.Data, contentType, filename);
+            return File(result.Data!, contentType, filename);
         }
 
         // GET: api/inventory-categories/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<InventoryCategoryDto>>> GetById(int id)
         {
-            var result = await _inventoryCategoryRepository.GetByIdAsync(id);
-
-            return StatusCode(result.StatusCode, result);
+            var result = await _inventoryCategoryService.GetByIdAsync(id);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
 
         // POST: api/inventory-categories
@@ -108,9 +96,8 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _inventoryCategoryRepository.AddAsync(inventoryCategoryDto);
-
-            return StatusCode(result.StatusCode, result);
+            var result = await _inventoryCategoryService.AddAsync(inventoryCategoryDto);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
 
         // PUT: api/inventory-categories/{id}
@@ -141,17 +128,26 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _inventoryCategoryRepository.UpdateAsync(id, inventoryCategoryDto);
-
-            return StatusCode(result.StatusCode, result);
+            var result = await _inventoryCategoryService.UpdateAsync(id, inventoryCategoryDto);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
 
         // DELETE: api/inventory-categories/{id}
         [HttpDelete("{id}")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _inventoryCategoryRepository.DeleteAsync(id);
-            return StatusCode(result.StatusCode, result);
+            var result = await _inventoryCategoryService.DeleteAsync(id);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
+
+        private static ApiResponse<T> ToApiResponse<T>(OperationResult<T> result)
+            => new(
+                result.Data!,
+                result.Success,
+                result.Message,
+                result.Errors,
+                result.StatusCode,
+                result.ErrorCode
+            );
     }
 }

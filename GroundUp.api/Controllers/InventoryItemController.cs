@@ -1,7 +1,6 @@
-﻿using GroundUp.core.interfaces;
-using GroundUp.core.dtos;
+﻿using GroundUp.core.dtos;
+using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
 namespace GroundUp.api.Controllers
 {
@@ -9,31 +8,27 @@ namespace GroundUp.api.Controllers
     [ApiController]
     public class InventoryItemController : ControllerBase
     {
-        private readonly IInventoryItemRepository _inventoryItemRepository;
+        private readonly IInventoryItemService _inventoryItemService;
 
-        public InventoryItemController(IInventoryItemRepository inventoryItemRepository)
+        public InventoryItemController(IInventoryItemService inventoryItemService)
         {
-            _inventoryItemRepository = inventoryItemRepository;
+            _inventoryItemService = inventoryItemService;
         }
 
         // GET: api/inventory-items (Paginated)
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<InventoryItemDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _inventoryItemRepository.GetAllAsync(filterParams);
-            return Ok(result);
+            var result = await _inventoryItemService.GetAllAsync(filterParams);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
 
         // GET: api/inventory-items/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<InventoryItemDto>>> GetById(int id)
         {
-            var result = await _inventoryItemRepository.GetByIdAsync(id);
-            if (!result.Success)
-            {
-                return NotFound(result);
-            }
-            return Ok(result);
+            var result = await _inventoryItemService.GetByIdAsync(id);
+            return StatusCode(result.StatusCode, ToApiResponse(result));
         }
 
         // POST: api/inventory-items
@@ -42,11 +37,17 @@ namespace GroundUp.api.Controllers
         {
             if (inventoryItemDto == null)
             {
-                return BadRequest(new ApiResponse<InventoryItemDto>(default!, false, "Invalid inventory category data."));
+                return BadRequest(new ApiResponse<InventoryItemDto>(default!, false, "Invalid inventory item data."));
             }
 
-            var result = await _inventoryItemRepository.AddAsync(inventoryItemDto);
-            return CreatedAtAction(nameof(GetById), new { id = result.Data?.Id }, result);
+            var result = await _inventoryItemService.AddAsync(inventoryItemDto);
+
+            if (!result.Success)
+            {
+                return StatusCode(result.StatusCode, ToApiResponse(result));
+            }
+
+            return CreatedAtAction(nameof(GetById), new { id = result.Data?.Id }, ToApiResponse(result));
         }
 
         // PUT: api/inventory-items/{id}
@@ -58,10 +59,11 @@ namespace GroundUp.api.Controllers
                 return BadRequest(new ApiResponse<InventoryItemDto>(default!, false, "ID mismatch."));
             }
 
-            var result = await _inventoryItemRepository.UpdateAsync(id, inventoryItemDto);
+            var result = await _inventoryItemService.UpdateAsync(id, inventoryItemDto);
+
             if (!result.Success)
             {
-                return NotFound(result);
+                return StatusCode(result.StatusCode, ToApiResponse(result));
             }
 
             return NoContent();
@@ -71,13 +73,24 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var result = await _inventoryItemRepository.DeleteAsync(id);
+            var result = await _inventoryItemService.DeleteAsync(id);
+
             if (!result.Success)
             {
-                return NotFound(result);
+                return StatusCode(result.StatusCode, ToApiResponse(result));
             }
 
             return NoContent();
         }
+
+        private static ApiResponse<T> ToApiResponse<T>(OperationResult<T> result)
+            => new(
+                result.Data!,
+                result.Success,
+                result.Message,
+                result.Errors,
+                result.StatusCode,
+                result.ErrorCode
+            );
     }
 }

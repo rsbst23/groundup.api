@@ -2,7 +2,7 @@
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
@@ -38,14 +38,16 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
+                var userRoles = _context.Set<UserRole>();
+
                 // idempotent: do nothing if already assigned
-                var exists = await _context.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.TenantId == tenantId && ur.RoleId == roleId);
+                var exists = await userRoles.AnyAsync(ur => ur.UserId == userId && ur.TenantId == tenantId && ur.RoleId == roleId);
                 if (exists)
                 {
                     return new ApiResponse<bool>(true, true, "Role already assigned.");
                 }
 
-                await _context.UserRoles.AddAsync(new UserRole
+                await userRoles.AddAsync(new UserRole
                 {
                     UserId = userId,
                     TenantId = tenantId,
@@ -66,7 +68,7 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var roleId = await _context.Roles
+                var roleId = await _context.Set<Role>()
                     .Where(r => r.TenantId == tenantId && r.Name == roleName)
                     .Select(r => (int?)r.Id)
                     .FirstOrDefaultAsync();

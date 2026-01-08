@@ -81,11 +81,15 @@ Later contexts can be split out when needed (roles/policies/permissions could be
 - `GroundUp.Repositories.Core`
 - `GroundUp.Repositories.Inventory`
 
-> **Note**: If you want *one database* and *one* EF Core migrations assembly initially, you can:
-> - keep `ApplicationDbContext` + migrations inside `GroundUp.Repositories.Core`
-> - allow other repository projects to reference that assembly
-> - or keep a dedicated `GroundUp.Repositories.Data` project.  
-> Decide this early because it affects migrations.
+### Database decision (CONFIRMED)
+? **Single database + single EF Core `DbContext`**.
+
+- `ApplicationDbContext` and EF migrations will live in **one** repository project: **`GroundUp.Repositories.Core`**.
+- Other repository projects (e.g., `GroundUp.Repositories.Inventory`) will:
+  - reference `GroundUp.Repositories.Core` (to access `ApplicationDbContext`)
+  - add their entity types and configure mappings via `IEntityTypeConfiguration<T>` and/or `DbContext` model-building hooks.
+
+> This gives you modular repository projects while keeping migrations and DB configuration centralized.
 
 ---
 
@@ -100,7 +104,11 @@ Later contexts can be split out when needed (roles/policies/permissions could be
 - Services: ideally no (prefer DTOs). If needed, only via repository return types (but the goal is DTO boundary).
 - Controllers: no.
 
-> **Important**: EF `ApplicationDbContext` must reference entity CLR types. Under Option B, the entity types must live in repository projects referenced by the DbContext project.
+### EF Core ownership rule
+- `ApplicationDbContext` (in `GroundUp.Repositories.Core`) must reference *all* entity CLR types.
+- Entities living in other projects (like Inventory) is fine as long as:
+  - `GroundUp.Repositories.Core` references those projects, or
+  - `ApplicationDbContext` discovers configurations via assembly scanning.
 
 ---
 
@@ -140,7 +148,7 @@ Implement in repository project using EF:
   - Repository projects reference `GroundUp.core` and EF dependencies.
 
 **DI changes**
-- Move service registrations out of `GroundUp.infrastructure/extensions/ServiceCollectionExtensions.cs` into a new registration surface in service projects (or create new extension methods) so API can call something like:
+- Move service registrations out of `GroundUp.infrastructure/extensions/ServiceCollectionExtensions.cs` into a new registration surface in service/repository projects (or create new extension methods) so API can call something like:
   - `AddCoreServices()`
   - `AddInventoryServices()`
   - `AddCoreRepositories()`
@@ -157,7 +165,8 @@ Implement in repository project using EF:
    - Pure orchestration, mostly pass-through for CRUD.
 3) Move inventory repositories into `GroundUp.Repositories.Inventory`.
 4) Move inventory entities into `GroundUp.Repositories.Inventory/Entities`.
-5) Update `ApplicationDbContext` to reference new entity namespaces/assemblies.
+5) Update `ApplicationDbContext` (now in `GroundUp.Repositories.Core`) to include inventory entities/configurations.
+   - Prefer `ApplyConfigurationsFromAssembly(...)` for the inventory repo assembly.
 6) Update controllers:
    - `InventoryCategoryController` injects `IInventoryCategoryService` only.
    - `InventoryItemController` injects `IInventoryItemService` only.
@@ -210,7 +219,7 @@ Core DTOs / Interfaces:
 - `GroundUp.core/interfaces/IInventoryCategoryRepository.cs`
 - `GroundUp.core/interfaces/IInventoryItemRepository.cs`
 
-Entities (move to repo project under Option B):
+Entities (move to inventory repo project under Option B):
 - `GroundUp.core/entities/InventoryCategory.cs`
 - `GroundUp.core/entities/InventoryItem.cs`
 
@@ -229,11 +238,10 @@ Integration tests:
 
 ---
 
-## 9. Open decisions to confirm before coding
+## 9. Open decisions (updated)
 
-1) **Single DB context vs per-bounded-context DB context**
-   - If single DB: keep one `ApplicationDbContext` + migrations in one repository project (recommended now).
-   - If per bounded context DB: split contexts/migrations per repo project (more modular, more overhead).
+1) ? **Single DB context / migrations**
+   - Confirmed: One `ApplicationDbContext` and one migrations assembly in `GroundUp.Repositories.Core`.
 
 2) **Where do repository interfaces live?**
    - Keep in `GroundUp.core/interfaces` (API depends only on core; services depend on core; repositories implement core interfaces).
@@ -253,6 +261,7 @@ Implement **Phase 1 + Phase 2 (Inventory)** first:
 - Add `OperationResult<T>` + `IUnitOfWork`
 - Create inventory services
 - Move inventory entities and repos
+- Move `ApplicationDbContext` (+ migrations) into `GroundUp.Repositories.Core`
 - Update DI + controllers
 - Run build + integration tests
 

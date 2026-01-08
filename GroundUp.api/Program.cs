@@ -1,9 +1,13 @@
 using Amazon.CloudWatchLogs;
 using GroundUp.api.Infrastructure.Swagger;
 using GroundUp.api.Middleware;
-using GroundUp.infrastructure.data;
+using GroundUp.core.interfaces;
 using GroundUp.infrastructure.extensions;
 using GroundUp.infrastructure.mappings;
+using GroundUp.Repositories.Core.Data;
+using GroundUp.Repositories.Inventory;
+using GroundUp.Repositories.Inventory.Data;
+using GroundUp.Services.Inventory;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -54,10 +58,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         new MySqlServerVersion(new Version(9, 1, 0)),
         mysqlOptions =>
         {
-            mysqlOptions.MigrationsAssembly("GroundUp.infrastructure");
+            mysqlOptions.MigrationsAssembly("GroundUp.Repositories.Core");
             mysqlOptions.EnableRetryOnFailure();
         }
     ));
+
+// Core repository services
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
@@ -90,8 +97,12 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-// Register infrastructure services (Repositories, Proxies, etc.)
+// Register infrastructure services (cross-cutting: token, tenant context, permission, etc.)
 builder.Services.AddInfrastructureServices();
+
+// Register inventory bounded context (DbContext + repositories) + services
+builder.Services.AddInventoryRepositories(connectionString);
+builder.Services.AddInventoryServices();
 
 // Add additional application services
 builder.Services.AddControllers();
@@ -104,7 +115,7 @@ builder.Services.AddAuthorization(options =>
     options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder("Keycloak", "Custom")
         .RequireAuthenticatedUser()
         .Build();
-    
+
     // Set fallback policy to require authentication
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder("Keycloak", "Custom")
         .RequireAuthenticatedUser()
@@ -203,6 +214,27 @@ builder.Services.AddRateLimiter(options =>
 
 // Build the application
 var app = builder.Build();
+
+// Dev-only: apply migrations for all bounded contexts (single DB, ordered)
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+
+    // Core first
+    var coreDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    if (coreDb.Database.IsRelational())
+    {
+        coreDb.Database.Migrate();
+    }
+
+    // Inventory next
+    var inventoryDb = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+    if (inventoryDb.Database.IsRelational())
+    {
+        inventoryDb.Database.Migrate();
+    }
+}
+
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

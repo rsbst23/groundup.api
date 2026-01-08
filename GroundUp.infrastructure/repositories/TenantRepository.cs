@@ -6,7 +6,8 @@ using GroundUp.core.dtos.tenants;
 using GroundUp.core.entities;
 using GroundUp.core.enums;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
+using GroundUp.infrastructure.utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +18,7 @@ namespace GroundUp.infrastructure.repositories
     /// Inherits from BaseRepository for common CRUD operations
     /// Overrides methods requiring tenant-specific logic (navigation properties, realm management)
     /// </summary>
-    public class TenantRepository : BaseRepository<Tenant, TenantDetailDto>, ITenantRepository
+    public class TenantRepository : BaseTenantRepository<Tenant, TenantDetailDto>, ITenantRepository
     {
         private readonly IIdentityProviderAdminService _identityProviderAdminService;
 
@@ -25,8 +26,9 @@ namespace GroundUp.infrastructure.repositories
             ApplicationDbContext context,
             IMapper mapper,
             ILoggingService logger,
+            ITenantContext tenantContext,
             IIdentityProviderAdminService identityProviderAdminService)
-            : base(context, mapper, logger)
+            : base(context, mapper, logger, tenantContext)
         {
             _identityProviderAdminService = identityProviderAdminService;
         }
@@ -187,7 +189,7 @@ namespace GroundUp.infrastructure.repositories
                     CreatedAt = DateTime.UtcNow
                 };
 
-                _dbSet.Add(tenant);
+                _context.Set<Tenant>().Add(tenant);
                 await _context.SaveChangesAsync();
 
                 var createdDto = await WithParentAndSsoRole(_dbSet.AsQueryable())
@@ -341,7 +343,7 @@ namespace GroundUp.infrastructure.repositories
                 }
 
                 // Check if tenant has users
-                var hasUsers = await _context.UserTenants.AnyAsync(ut => ut.TenantId == id);
+                var hasUsers = await _context.Set<UserTenant>().AnyAsync(ut => ut.TenantId == id);
                 if (hasUsers)
                 {
                     return new ApiResponse<bool>(
@@ -606,7 +608,7 @@ namespace GroundUp.infrastructure.repositories
                     CreatedAt = DateTime.UtcNow
                 };
 
-                _context.Tenants.Add(tenant);
+                _context.Set<Tenant>().Add(tenant);
                 await _context.SaveChangesAsync();
 
                 // include not needed here; map basic fields

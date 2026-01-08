@@ -41,6 +41,8 @@
   <ItemGroup>
     <ProjectReference Include="..\GroundUp.core\GroundUp.core.csproj" />
     <ProjectReference Include="..\GroundUp.infrastructure\GroundUp.infrastructure.csproj" />
+    <ProjectReference Include="..\GroundUp.Repositories.Inventory\GroundUp.Repositories.Inventory.csproj" />
+    <ProjectReference Include="..\GroundUp.Services.Inventory\GroundUp.Services.Inventory.csproj" />
   </ItemGroup>
 
 </Project>
