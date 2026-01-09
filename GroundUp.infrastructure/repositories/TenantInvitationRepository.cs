@@ -3,7 +3,7 @@ using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,7 +56,7 @@ namespace GroundUp.infrastructure.repositories
                 _logger.LogInformation($"Creating invitation for {dto.Email} to tenant {tenantId} by user {createdByUserId}");
 
                 // Verify that the user exists in the database
-                var creatingUser = await _context.Users.FindAsync(createdByUserId);
+                var creatingUser = await _context.Set<User>().FindAsync(createdByUserId);
                 if (creatingUser == null)
                 {
                     _logger.LogError($"User {createdByUserId} not found in Users table");
@@ -74,7 +74,7 @@ namespace GroundUp.infrastructure.repositories
                 dto.TenantId = tenantId;
 
                 // Check if tenant exists and get realm
-                var tenant = await _context.Tenants.FindAsync(tenantId);
+                var tenant = await _context.Set<Tenant>().FindAsync(tenantId);
                 if (tenant == null)
                 {
                     return new ApiResponse<TenantInvitationDto>(
@@ -101,7 +101,7 @@ namespace GroundUp.infrastructure.repositories
                     CreatedAt = DateTime.UtcNow
                 };
 
-                _context.TenantInvitations.Add(invitation);
+                _context.Set<TenantInvitation>().Add(invitation);
                 await _context.SaveChangesAsync();
 
                 // FOR LOCAL ACCOUNT INVITATIONS ONLY: Create Keycloak user and send execute actions email
@@ -230,7 +230,7 @@ namespace GroundUp.infrastructure.repositories
                 }
 
                 // Reload with navigation properties
-                var created = await WithDetails(_context.TenantInvitations.AsQueryable())
+                var created = await WithDetails(_context.Set<TenantInvitation>().AsQueryable())
                     .FirstAsync(ti => ti.Id == invitation.Id);
 
                 var invitationDto = _mapper.Map<TenantInvitationDto>(created);
@@ -346,7 +346,7 @@ namespace GroundUp.infrastructure.repositories
                     );
                 }
 
-                _context.TenantInvitations.Remove(invitation);
+                _context.Set<TenantInvitation>().Remove(invitation);
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Deleted invitation {id}");
@@ -477,7 +477,7 @@ namespace GroundUp.infrastructure.repositories
             {
                 // Special case: Token lookup should work across ALL tenants
                 // This allows users without a tenant to accept invitations
-                var invitation = await _context.TenantInvitations
+                var invitation = await _context.Set<TenantInvitation>()
                     .Include(ti => ti.Tenant)
                     .Include(ti => ti.CreatedByUser)
                     .Include(ti => ti.AcceptedByUser)
@@ -519,7 +519,7 @@ namespace GroundUp.infrastructure.repositories
                 // Special case: Email lookup should work across ALL tenants
                 // This allows users to see all their invitations regardless of current tenant context
                 var normalizedEmail = email.ToLowerInvariant();
-                var invitations = await _context.TenantInvitations
+                var invitations = await _context.Set<TenantInvitation>()
                     .Include(ti => ti.Tenant)
                     .Include(ti => ti.CreatedByUser)
                     .Include(ti => ti.AcceptedByUser)
@@ -569,7 +569,7 @@ namespace GroundUp.infrastructure.repositories
                 }
 
                 // Get the actual entity for updating
-                var invitation = await _context.TenantInvitations
+                var invitation = await _context.Set<TenantInvitation>()
                     .Include(ti => ti.Tenant)
                     .FirstOrDefaultAsync(ti => ti.InvitationToken == token);
 
@@ -587,7 +587,7 @@ namespace GroundUp.infrastructure.repositories
                 }
 
                 // Get user to verify email matches
-                var user = await _context.Users.FindAsync(userId);
+                var user = await _context.Set<User>().FindAsync(userId);
                 if (user == null)
                 {
                     _logger.LogWarning($"User {userId} not found");

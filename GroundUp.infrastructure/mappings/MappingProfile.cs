@@ -11,10 +11,8 @@ namespace GroundUp.infrastructure.mappings
     {
         public MappingProfile()
         {
-            // Existing mappings
-            CreateMap<InventoryItem, InventoryItemDto>().ReverseMap();
-            CreateMap<InventoryCategory, InventoryCategoryDto>().ReverseMap();
-            CreateMap<InventoryAttribute, InventoryAttributeDto>().ReverseMap();
+            // Inventory mappings are registered in `GroundUp.Services.Inventory` to avoid
+            // a dependency cycle between `GroundUp.infrastructure` and `GroundUp.Repositories.Inventory`.
 
             // Permission mappings
             CreateMap<Permission, PermissionDto>().ReverseMap();

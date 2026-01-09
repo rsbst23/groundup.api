@@ -1,26 +1,25 @@
 using AutoMapper;
 using GroundUp.core;
 using GroundUp.core.dtos;
-using GroundUp.infrastructure.data;
+using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using System.Linq.Expressions;
 using System.Text;
 using System.Text.Json;
-using GroundUp.core.interfaces;
 using GroundUp.infrastructure.utilities;
 
 namespace GroundUp.infrastructure.repositories
 {
     public abstract class BaseRepository<T, TDto> where T : class
     {
-        protected readonly ApplicationDbContext _context;
+        protected readonly DbContext _context;
         protected readonly IMapper _mapper;
         protected readonly DbSet<T> _dbSet;
-        private readonly ILoggingService _logger;
+        protected readonly ILoggingService _logger;
 
-        public BaseRepository(ApplicationDbContext context, IMapper mapper, ILoggingService logger)
+        protected BaseRepository(DbContext context, IMapper mapper, ILoggingService logger)
         {
             _context = context;
             _mapper = mapper;

@@ -2,7 +2,7 @@ using AutoMapper;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
@@ -16,7 +16,7 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var policy = await _context.Policies
+                var policy = await _context.Set<Policy>()
                     .Include(p => p.PolicyPermissions)
                     .ThenInclude(pp => pp.Permission)
                     .FirstOrDefaultAsync(p => p.Name == name);
@@ -40,7 +40,7 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var permissions = await _context.PolicyPermissions
+                var permissions = await _context.Set<PolicyPermission>()
                     .Where(pp => pp.PolicyId == policyId)
                     .Include(pp => pp.Permission)
                     .Select(pp => _mapper.Map<PermissionDto>(pp.Permission))
@@ -58,14 +58,16 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var existing = await _context.PolicyPermissions
+                var policyPermissions = _context.Set<PolicyPermission>();
+
+                var existing = await policyPermissions
                     .Where(pp => pp.PolicyId == policyId && permissionIds.Contains(pp.PermissionId))
                     .ToListAsync();
 
                 var toAdd = permissionIds.Except(existing.Select(pp => pp.PermissionId)).ToList();
                 foreach (var permissionId in toAdd)
                 {
-                    _context.PolicyPermissions.Add(new PolicyPermission
+                    policyPermissions.Add(new PolicyPermission
                     {
                         PolicyId = policyId,
                         PermissionId = permissionId
@@ -84,13 +86,15 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var policyPermission = await _context.PolicyPermissions
+                var policyPermissions = _context.Set<PolicyPermission>();
+
+                var policyPermission = await policyPermissions
                     .FirstOrDefaultAsync(pp => pp.PolicyId == policyId && pp.PermissionId == permissionId);
                 if (policyPermission == null)
                 {
                     return new ApiResponse<bool>(false, false, "Permission not assigned to policy.", null, 404);
                 }
-                _context.PolicyPermissions.Remove(policyPermission);
+                policyPermissions.Remove(policyPermission);
                 await _context.SaveChangesAsync();
                 return new ApiResponse<bool>(true);
             }

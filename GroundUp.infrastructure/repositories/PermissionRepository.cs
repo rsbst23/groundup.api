@@ -2,7 +2,8 @@
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.infrastructure.repositories
 {

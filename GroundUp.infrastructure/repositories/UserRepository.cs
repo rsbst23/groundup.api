@@ -4,7 +4,7 @@ using GroundUp.core.configuration;
 using GroundUp.core.dtos;
 using GroundUp.core.entities;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Core.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -135,7 +135,7 @@ namespace GroundUp.infrastructure.repositories
         {
             try
             {
-                var existingUser = await _context.Users.FindAsync(userId);
+                var existingUser = await _context.Set<User>().FindAsync(userId);
                 if (existingUser != null)
                 {
                     return new ApiResponse<bool>(true, true, "User already exists.");
@@ -161,7 +161,7 @@ namespace GroundUp.infrastructure.repositories
                     CreatedAt = DateTime.UtcNow
                 };
 
-                _context.Users.Add(newUser);
+                _context.Set<User>().Add(newUser);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse<bool>(true, true, "User created.", null, StatusCodes.Status201Created);

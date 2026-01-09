@@ -1,29 +1,52 @@
-﻿using GroundUp.core.entities;
-using GroundUp.infrastructure.data;
+using GroundUp.Repositories.Inventory.Data;
+using GroundUp.Repositories.Inventory.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.Tests.Integration
 {
-    public static class TestDataSeeder
+    internal static class TestDataSeeder
     {
-        public static async Task SeedAsync(ApplicationDbContext dbContext)
+        public static async Task SeedInventoryAsync(InventoryDbContext inventoryDb)
         {
-            if (!dbContext.InventoryCategories.Any())
+            // Idempotent seed to keep tests stable.
+            if (await inventoryDb.InventoryCategories.AsNoTracking().AnyAsync())
             {
-                await dbContext.InventoryCategories.AddRangeAsync(
-                    new InventoryCategory { Id = 1, Name = "Electronics", TenantId = TestData.TenantId },
-                    new InventoryCategory { Id = 2, Name = "Books", TenantId = TestData.TenantId }
-                );
+                return;
             }
 
-            if (!dbContext.InventoryItems.Any())
+            var category = new InventoryCategory
             {
-                await dbContext.InventoryItems.AddRangeAsync(
-                    new InventoryItem { Id = 1, Name = "Laptop", PurchasePrice = 999.99m, Condition = "New", InventoryCategoryId = 1, PurchaseDate = DateTime.UtcNow, TenantId = TestData.TenantId },
-                    new InventoryItem { Id = 2, Name = "The Great Gatsby", PurchasePrice = 12.99m, Condition = "Used", InventoryCategoryId = 2, PurchaseDate = DateTime.UtcNow, TenantId = TestData.TenantId }
-                );
-            }
+                Name = "Seed Category",
+                CreatedDate = DateTime.UtcNow,
+                TenantId = 1
+            };
 
-            await dbContext.SaveChangesAsync();
+            inventoryDb.InventoryCategories.Add(category);
+            await inventoryDb.SaveChangesAsync();
+
+            var item = new InventoryItem
+            {
+                Name = "Seed Item",
+                InventoryCategoryId = category.Id,
+                PurchasePrice = 9.99m,
+                Condition = "New",
+                PurchaseDate = DateTime.UtcNow.Date,
+                TenantId = 1
+            };
+
+            inventoryDb.InventoryItems.Add(item);
+
+            var attr = new InventoryAttribute
+            {
+                InventoryItem = item,
+                FieldName = "color",
+                FieldValue = "blue",
+                TenantId = 1
+            };
+
+            inventoryDb.InventoryAttributes.Add(attr);
+
+            await inventoryDb.SaveChangesAsync();
         }
     }
 }

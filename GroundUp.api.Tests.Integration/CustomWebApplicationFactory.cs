@@ -1,5 +1,6 @@
-﻿using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
+﻿using GroundUp.Repositories.Core.Data;
+using GroundUp.Repositories.Inventory.Data;
+using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
@@ -25,8 +26,20 @@ namespace GroundUp.Tests.Integration
                     services.Remove(descriptor);
                 }
 
+                // Remove existing inventory db context (if registered by Program.cs)
+                var inventoryDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<InventoryDbContext>));
+                if (inventoryDescriptor != null)
+                {
+                    services.Remove(inventoryDescriptor);
+                }
+
                 // Add in-memory database for testing (unique per factory instance)
                 services.AddDbContext<ApplicationDbContext>(options =>
+                {
+                    options.UseInMemoryDatabase(_databaseName);
+                });
+
+                services.AddDbContext<InventoryDbContext>(options =>
                 {
                     options.UseInMemoryDatabase(_databaseName);
                 });
@@ -53,10 +66,13 @@ namespace GroundUp.Tests.Integration
                 services.RemoveAll<IPermissionService>();
                 services.AddSingleton<IPermissionService, TestPermissionService>();
 
-                // Ensure database is created
+                // Ensure databases are created
                 using var scope = services.BuildServiceProvider().CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                db.Database.EnsureCreated();
+                var coreDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                coreDb.Database.EnsureCreated();
+
+                var inventoryDb = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+                inventoryDb.Database.EnsureCreated();
             });
         }
     }

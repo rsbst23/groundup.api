@@ -1,15 +1,11 @@
+using AutoMapper;
+using GroundUp.Repositories.Core.Data;
 using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.dtos.tenants;
-using GroundUp.core.entities;
-using GroundUp.core.enums;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using AutoMapper;
 
 namespace GroundUp.api.Controllers
 {
@@ -24,7 +20,6 @@ namespace GroundUp.api.Controllers
         private readonly ITenantRepository _tenantRepository;
         private readonly ILoggingService _logger;
         private readonly IIdentityProviderAdminService _identityProviderAdminService;
-        private readonly ApplicationDbContext _dbContext;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
         private readonly ITenantSsoSettingsService _tenantSsoSettingsService;
@@ -33,7 +28,6 @@ namespace GroundUp.api.Controllers
             ITenantRepository tenantRepository,
             ILoggingService logger,
             IIdentityProviderAdminService identityProviderAdminService,
-            ApplicationDbContext dbContext,
             IConfiguration configuration,
             IMapper mapper,
             ITenantSsoSettingsService tenantSsoSettingsService)
@@ -41,7 +35,6 @@ namespace GroundUp.api.Controllers
             _tenantRepository = tenantRepository;
             _logger = logger;
             _identityProviderAdminService = identityProviderAdminService;
-            _dbContext = dbContext;
             _configuration = configuration;
             _mapper = mapper;
             _tenantSsoSettingsService = tenantSsoSettingsService;
