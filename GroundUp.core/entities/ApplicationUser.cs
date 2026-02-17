@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace GroundUp.core.entities
+namespace GroundUp.Core.entities
 {
     public class ApplicationUser : IdentityUser
     {

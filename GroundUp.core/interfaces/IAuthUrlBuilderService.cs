@@ -1,6 +1,6 @@
-using GroundUp.core.dtos;
+using GroundUp.Core.dtos;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     /// <summary>
     /// Builds Keycloak authorization URLs (login/registration) and encodes the OIDC state.

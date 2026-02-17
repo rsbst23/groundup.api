@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     public interface ITokenService
     {

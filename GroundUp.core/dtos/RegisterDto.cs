@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     // This would be in your DTO file or directly in your AuthController.cs
     public class RegisterDto

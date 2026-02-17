@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
-using GroundUp.core.enums;
+using GroundUp.Core.enums;
 
-namespace GroundUp.core.entities
+namespace GroundUp.Core.entities
 {
     public class Tenant
     {

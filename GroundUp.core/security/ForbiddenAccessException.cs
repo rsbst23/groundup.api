@@ -1,4 +1,4 @@
-﻿namespace GroundUp.core.security
+﻿namespace GroundUp.Core.security
 {
     public class ForbiddenAccessException : Exception
     {

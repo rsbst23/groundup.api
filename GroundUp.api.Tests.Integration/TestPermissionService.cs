@@ -1,6 +1,6 @@
-using GroundUp.core.dtos;
-using GroundUp.core.entities;
-using GroundUp.core.interfaces;
+using GroundUp.Core.dtos;
+using GroundUp.Core.entities;
+using GroundUp.Core.interfaces;
 
 namespace GroundUp.Tests.Integration
 {

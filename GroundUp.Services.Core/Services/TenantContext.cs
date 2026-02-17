@@ -1,4 +1,4 @@
-using GroundUp.core.interfaces;
+using GroundUp.Core.interfaces;
 using Microsoft.AspNetCore.Http;
 
 namespace GroundUp.Services.Core.Services;

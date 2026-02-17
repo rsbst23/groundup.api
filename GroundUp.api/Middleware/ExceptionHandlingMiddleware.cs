@@ -1,5 +1,5 @@
-﻿using GroundUp.core;
-using GroundUp.core.dtos;
+﻿using GroundUp.Core;
+using GroundUp.Core.dtos;
 using Microsoft.AspNetCore.Http;
 using Serilog;
 using System.Net;

@@ -1,4 +1,4 @@
-namespace GroundUp.core.dtos.auth
+namespace GroundUp.Core.dtos.auth
 {
     /// <summary>
     /// Request DTO for selecting a tenant after authentication.

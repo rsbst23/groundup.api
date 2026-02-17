@@ -1,4 +1,4 @@
-﻿namespace GroundUp.core.dtos
+﻿namespace GroundUp.Core.dtos
 {
     public class PermissionDto
     {

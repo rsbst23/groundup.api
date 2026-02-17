@@ -1,7 +1,7 @@
-using GroundUp.core.dtos;
-using GroundUp.core.security;
+using GroundUp.Core.dtos;
+using GroundUp.Core.security;
 
-namespace GroundUp.core.interfaces;
+namespace GroundUp.Core.interfaces;
 
 /// <summary>
 /// Service boundary for user queries.

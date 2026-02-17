@@ -1,6 +1,6 @@
-using GroundUp.core.dtos;
+using GroundUp.Core.dtos;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     /// <summary>
     /// Orchestrates the user authentication callback flows (invitation/join-link/new-org/default/etc.).

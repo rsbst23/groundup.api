@@ -115,7 +115,7 @@ At some point, the `requiredActions` was added to the user creation payload (pos
 
 - `GroundUp.infrastructure/services/IdentityProviderAdminService.cs` - Fixed user creation
 - `GroundUp.infrastructure/repositories/TenantInvitationRepository.cs` - Calls CreateUserAsync + SendExecuteActionsEmailAsync
-- `GroundUp.core/dtos/UserDtos.cs` - CreateUserDto (note: SendWelcomeEmail property is not used by Keycloak)
+- `GroundUp.Core/dtos/UserDtos.cs` - CreateUserDto (note: SendWelcomeEmail property is not used by Keycloak)
 
 ## Notes
 

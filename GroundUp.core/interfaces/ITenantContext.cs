@@ -1,6 +1,6 @@
 using System;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     public interface ITenantContext
     {

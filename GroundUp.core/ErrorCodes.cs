@@ -1,4 +1,4 @@
-﻿namespace GroundUp.core
+﻿namespace GroundUp.Core
 {
     public static class ErrorCodes
     {

@@ -1,7 +1,7 @@
 using AutoMapper;
 using GroundUp.Data.Abstractions.Interfaces;
-using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Core.dtos;
+using GroundUp.Core.interfaces;
 using GroundUp.Repositories.Inventory.Data;
 using GroundUp.Repositories.Inventory.Entities;
 using GroundUp.Repositories.Inventory.Repositories.Base;

@@ -1,4 +1,4 @@
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     /// <summary>
     /// Response from Keycloak token endpoint

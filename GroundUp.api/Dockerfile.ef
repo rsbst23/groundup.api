@@ -8,7 +8,7 @@ ENV PATH="${PATH}:/root/.dotnet/tools"
 
 # Copy only the necessary project files (EXCLUDING TEST PROJECTS)
 #COPY ["GroundUp.Api/GroundUp.Api.csproj", "GroundUp.Api/"]
-#COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
+#COPY ["GroundUp.Core/GroundUp.Core.csproj", "GroundUp.Core/"]
 #COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
 # Restore dependencies (EXCLUDES TESTS)
@@ -27,7 +27,7 @@ RUN dotnet restore "GroundUp.Api.csproj" --disable-parallel --ignore-failed-sour
 
 # **CLEAN OLD BUILD ARTIFACTS TO AVOID CONFLICTS**
 #RUN rm -rf /app/GroundUp.Api/bin /app/GroundUp.Api/obj
-#RUN rm -rf /app/GroundUp.core/bin /app/GroundUp.core/obj
+#RUN rm -rf /app/GroundUp.Core/bin /app/GroundUp.Core/obj
 #RUN rm -rf /app/GroundUp.infrastructure/bin /app/GroundUp.infrastructure/obj
 
 # **Build Each Project Separately**

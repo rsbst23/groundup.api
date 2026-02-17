@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     /// <summary>
     /// DTO for creating a new join link

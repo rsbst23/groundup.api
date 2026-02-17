@@ -1,4 +1,4 @@
-﻿namespace GroundUp.core.configuration
+﻿namespace GroundUp.Core.configuration
 {
     public class KeycloakConfiguration
     {

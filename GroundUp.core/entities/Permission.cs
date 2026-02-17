@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace GroundUp.core.entities
+namespace GroundUp.Core.entities
 {
     public class Permission
     {

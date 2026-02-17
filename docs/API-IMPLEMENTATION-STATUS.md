@@ -122,7 +122,7 @@ public async Task<TokenResponseDto?> ExchangeCodeForTokensAsync(string code, str
 
 **DTO Needed:**
 ```csharp
-// Already exists in: GroundUp.core/dtos/AuthCallbackDtos.cs
+// Already exists in: GroundUp.Core/dtos/AuthCallbackDtos.cs
 public class TokenResponseDto
 {
     [JsonPropertyName("access_token")]
@@ -488,7 +488,7 @@ public async Task<TokenResponseDto?> ExchangeCodeForTokensAsync(string code, str
 
 **Update interface:**
 
-**File:** `GroundUp.core/interfaces/IIdentityProviderService.cs`
+**File:** `GroundUp.Core/interfaces/IIdentityProviderService.cs`
 
 **Add:**
 ```csharp
@@ -505,7 +505,7 @@ Task<TokenResponseDto?> ExchangeCodeForTokensAsync(string code, string redirectU
 
 **What's Needed:**
 ```csharp
-// GroundUp.core/interfaces/IEmailService.cs
+// GroundUp.Core/interfaces/IEmailService.cs
 public interface IEmailService
 {
     Task<bool> SendInvitationEmailAsync(string toEmail, string invitationLink, string tenantName);
@@ -605,7 +605,7 @@ public async Task<IActionResult> Logout()
    - Add method implementation (see Priority 1 above)
 
 2. **Update IIdentityProviderService interface**
-   - File: `GroundUp.core/interfaces/IIdentityProviderService.cs`
+   - File: `GroundUp.Core/interfaces/IIdentityProviderService.cs`
    - Add method signature
 
 3. **Test the complete flow**

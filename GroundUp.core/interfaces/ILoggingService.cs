@@ -1,4 +1,4 @@
-﻿namespace GroundUp.core.interfaces
+﻿namespace GroundUp.Core.interfaces
 {
     public interface ILoggingService
     {

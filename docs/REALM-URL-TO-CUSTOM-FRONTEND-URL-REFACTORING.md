@@ -216,10 +216,10 @@ private CreateClientDto BuildClientConfiguration(string tenantFrontendUrl)
 ## Files Modified
 
 ### **Core:**
-- `GroundUp.core/entities/Tenant.cs` - Added `CustomFrontendUrl`, removed (conceptually) `RealmUrl`
-- `GroundUp.core/dtos/TenantDto.cs` - Updated DTOs
-- `GroundUp.core/dtos/EnterpriseSignupDtos.cs` - Added `FrontendUrl` field
-- `GroundUp.core/interfaces/IIdentityProviderAdminService.cs` - Added `CreateRealmWithClientAsync`
+- `GroundUp.Core/entities/Tenant.cs` - Added `CustomFrontendUrl`, removed (conceptually) `RealmUrl`
+- `GroundUp.Core/dtos/TenantDto.cs` - Updated DTOs
+- `GroundUp.Core/dtos/EnterpriseSignupDtos.cs` - Added `FrontendUrl` field
+- `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs` - Added `CreateRealmWithClientAsync`
 
 ### **Infrastructure:**
 - `GroundUp.infrastructure/services/IdentityProviderAdminService.cs` - Implemented new method

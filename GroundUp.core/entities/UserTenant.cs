@@ -2,7 +2,7 @@ using GroundUp.Core.interfaces;
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace GroundUp.core.entities
+namespace GroundUp.Core.entities
 {
     /// <summary>
     /// Junction table linking users to tenants.

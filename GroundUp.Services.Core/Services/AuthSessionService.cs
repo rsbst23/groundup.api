@@ -1,9 +1,9 @@
 using GroundUp.Data.Abstractions.Interfaces;
-using GroundUp.core;
-using GroundUp.core.dtos;
-using GroundUp.core.dtos.auth;
-using GroundUp.core.dtos.tenants;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
+using GroundUp.Core.dtos.auth;
+using GroundUp.Core.dtos.tenants;
+using GroundUp.Core.interfaces;
 using Microsoft.AspNetCore.Http;
 
 namespace GroundUp.Services.Core.Services;

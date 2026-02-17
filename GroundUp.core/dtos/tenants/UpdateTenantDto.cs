@@ -1,4 +1,4 @@
-namespace GroundUp.core.dtos.tenants
+namespace GroundUp.Core.dtos.tenants
 {
     /// <summary>
     /// DTO for updating an existing tenant.

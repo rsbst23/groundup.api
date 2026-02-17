@@ -228,7 +228,7 @@ else
 2. **GroundUp.infrastructure/repositories/UserRepository.cs** (if needed)
    - Add `UpdateAsync` method to update LastLoginAt
 
-3. **GroundUp.core/dtos/UserDtos.cs** (if needed)
+3. **GroundUp.Core/dtos/UserDtos.cs** (if needed)
    - Create `UpdateUserDto` if it doesn't exist
 
 ---
@@ -269,7 +269,7 @@ dotnet run
 - Design Doc: `groundup-auth-architecture.md`
 - Phase 1 Summary: `docs/MULTI-REALM-IDENTITY-PHASE1-COMPLETE.md`
 - Identity Repository: `GroundUp.infrastructure/repositories/UserKeycloakIdentityRepository.cs`
-- Interface: `GroundUp.core/interfaces/IUserKeycloakIdentityRepository.cs`
+- Interface: `GroundUp.Core/interfaces/IUserKeycloakIdentityRepository.cs`
 
 ---
 

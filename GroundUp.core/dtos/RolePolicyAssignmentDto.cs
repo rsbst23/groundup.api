@@ -1,6 +1,6 @@
-﻿using GroundUp.core.entities;
+﻿using GroundUp.Core.entities;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     public class RolePolicyAssignmentDto
     {

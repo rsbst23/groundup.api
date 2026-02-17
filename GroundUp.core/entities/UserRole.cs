@@ -1,6 +1,6 @@
 ﻿using GroundUp.Core.interfaces;
 
-namespace GroundUp.core.entities
+namespace GroundUp.Core.entities
 {
     public class UserRole : ITenantEntity
     {

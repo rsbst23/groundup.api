@@ -14,10 +14,10 @@ Keycloak's `execute-actions-email` doesn't automatically redirect users after th
 
 ### Step 1: Create IEmailService Interface
 
-**File:** `GroundUp.core/interfaces/IEmailService.cs`
+**File:** `GroundUp.Core/interfaces/IEmailService.cs`
 
 ```csharp
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     /// <summary>
     /// Service for sending application emails via SMTP
@@ -55,7 +55,7 @@ namespace GroundUp.core.interfaces
 **File:** `GroundUp.infrastructure/services/EmailService.cs`
 
 ```csharp
-using GroundUp.core.interfaces;
+using GroundUp.Core.interfaces;
 using System.Net;
 using System.Net.Mail;
 

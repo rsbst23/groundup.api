@@ -1,8 +1,8 @@
 ﻿using FluentValidation;
-using GroundUp.core.dtos;
-using GroundUp.core.entities;
+using GroundUp.Core.dtos;
+using GroundUp.Core.entities;
 
-namespace GroundUp.core.validators
+namespace GroundUp.Core.validators
 {
     public class CreateRoleDtoValidator : AbstractValidator<CreateRoleDto>
     {

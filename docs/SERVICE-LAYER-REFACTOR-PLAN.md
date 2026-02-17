@@ -41,7 +41,7 @@
 
 | Project | Packaged? | Responsibility | References |
 |---|---:|---|---|
-| `GroundUp.Core` (currently `GroundUp.core`) | ✅ | **API-safe** shared contracts: DTOs, service interfaces (`I*Service`), attributes (`RequiresPermission`), enums, shared result primitives | None (or minimal) |
+| `GroundUp.Core` (currently `GroundUp.Core`) | ✅ | **API-safe** shared contracts: DTOs, service interfaces (`I*Service`), attributes (`RequiresPermission`), enums, shared result primitives | None (or minimal) |
 | `GroundUp.Data.Abstractions` *(new)* | ✅ | **Data-boundary contracts only**: repository interfaces (`I*Repository`), `IUnitOfWork`, other persistence abstractions | `GroundUp.Core` |
 | `GroundUp.Api` (currently `GroundUp.Api`) | ✅ | Controller layer + HTTP concerns (status codes, cookies, headers), middleware, swagger helpers | `GroundUp.Core`, `GroundUp.Services.Core` *(no data abstractions, no data impl)* |
 | `GroundUp.Services.Core` | ✅ | Core service layer (auth/tenant/roles/permissions/etc.). Orchestration + business logic. Depends on **repository interfaces** only. | `GroundUp.Core`, `GroundUp.Data.Abstractions` |

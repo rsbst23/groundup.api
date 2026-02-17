@@ -1,6 +1,6 @@
-﻿using GroundUp.core.entities;
+﻿using GroundUp.Core.entities;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     // DTO for System role representation 
     public class SystemRoleDto

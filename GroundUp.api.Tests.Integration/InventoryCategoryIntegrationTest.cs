@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using GroundUp.core.dtos;
+using GroundUp.Core.dtos;
 using Newtonsoft.Json;
 using System.Text;
 

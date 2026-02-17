@@ -1,7 +1,7 @@
-using GroundUp.core;
-using GroundUp.core.dtos;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     /// <summary>
     /// Orchestrates enterprise onboarding (tenant + realm provisioning) and produces the first-admin registration URL.

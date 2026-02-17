@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     // Basic DTO for displaying user info in lists
     public class UserSummaryDto

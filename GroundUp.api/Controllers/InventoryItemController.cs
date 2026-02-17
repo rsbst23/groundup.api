@@ -1,4 +1,4 @@
-﻿using GroundUp.core.dtos;
+﻿using GroundUp.Core.dtos;
 using GroundUp.Services.Inventory.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 

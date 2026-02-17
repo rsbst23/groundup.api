@@ -25,7 +25,7 @@ namespace GroundUp.Data.Core.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("GroundUp.core.entities.ErrorFeedback", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.ErrorFeedback", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -72,7 +72,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("ErrorFeedback");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Permission", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Permission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -306,7 +306,7 @@ namespace GroundUp.Data.Core.Migrations
                         });
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Policy", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Policy", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -334,7 +334,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("Policies");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.PolicyPermission", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.PolicyPermission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -361,7 +361,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("PolicyPermissions");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Role", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Role", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -398,7 +398,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("Roles");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.RolePolicy", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.RolePolicy", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -433,7 +433,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("RolePolicies");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Tenant", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Tenant", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -500,7 +500,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("Tenants");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.TenantInvitation", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.TenantInvitation", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -563,7 +563,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("TenantInvitations");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.TenantJoinLink", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.TenantJoinLink", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -598,7 +598,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("TenantJoinLinks");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.User", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -645,7 +645,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.UserRole", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.UserRole", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -672,7 +672,7 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("UserRoles");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.UserTenant", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.UserTenant", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -706,15 +706,15 @@ namespace GroundUp.Data.Core.Migrations
                     b.ToTable("UserTenants");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.PolicyPermission", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.PolicyPermission", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.Permission", "Permission")
+                    b.HasOne("GroundUp.Core.entities.Permission", "Permission")
                         .WithMany("PolicyPermissions")
                         .HasForeignKey("PermissionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("GroundUp.core.entities.Policy", "Policy")
+                    b.HasOne("GroundUp.Core.entities.Policy", "Policy")
                         .WithMany("PolicyPermissions")
                         .HasForeignKey("PolicyId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -725,9 +725,9 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("Policy");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.RolePolicy", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.RolePolicy", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.Policy", "Policy")
+                    b.HasOne("GroundUp.Core.entities.Policy", "Policy")
                         .WithMany("RolePolicies")
                         .HasForeignKey("PolicyId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -736,14 +736,14 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("Policy");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Tenant", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Tenant", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.Tenant", "ParentTenant")
+                    b.HasOne("GroundUp.Core.entities.Tenant", "ParentTenant")
                         .WithMany("ChildTenants")
                         .HasForeignKey("ParentTenantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("GroundUp.core.entities.Role", "SsoAutoJoinRole")
+                    b.HasOne("GroundUp.Core.entities.Role", "SsoAutoJoinRole")
                         .WithMany()
                         .HasForeignKey("SsoAutoJoinRoleId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -753,17 +753,17 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("SsoAutoJoinRole");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.TenantInvitation", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.TenantInvitation", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.User", "AcceptedByUser")
+                    b.HasOne("GroundUp.Core.entities.User", "AcceptedByUser")
                         .WithMany()
                         .HasForeignKey("AcceptedByUserId");
 
-                    b.HasOne("GroundUp.core.entities.User", "CreatedByUser")
+                    b.HasOne("GroundUp.Core.entities.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId");
 
-                    b.HasOne("GroundUp.core.entities.Tenant", "Tenant")
+                    b.HasOne("GroundUp.Core.entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -776,9 +776,9 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("Tenant");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.TenantJoinLink", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.TenantJoinLink", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.Tenant", "Tenant")
+                    b.HasOne("GroundUp.Core.entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -787,15 +787,15 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("Tenant");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.UserRole", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.UserRole", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.Role", "Role")
+                    b.HasOne("GroundUp.Core.entities.Role", "Role")
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("GroundUp.core.entities.User", null)
+                    b.HasOne("GroundUp.Core.entities.User", null)
                         .WithMany("UserRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -804,15 +804,15 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.UserTenant", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.UserTenant", b =>
                 {
-                    b.HasOne("GroundUp.core.entities.Tenant", "Tenant")
+                    b.HasOne("GroundUp.Core.entities.Tenant", "Tenant")
                         .WithMany("UserTenants")
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("GroundUp.core.entities.User", "User")
+                    b.HasOne("GroundUp.Core.entities.User", "User")
                         .WithMany("UserTenants")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -823,26 +823,26 @@ namespace GroundUp.Data.Core.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Permission", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Permission", b =>
                 {
                     b.Navigation("PolicyPermissions");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Policy", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Policy", b =>
                 {
                     b.Navigation("PolicyPermissions");
 
                     b.Navigation("RolePolicies");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.Tenant", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.Tenant", b =>
                 {
                     b.Navigation("ChildTenants");
 
                     b.Navigation("UserTenants");
                 });
 
-            modelBuilder.Entity("GroundUp.core.entities.User", b =>
+            modelBuilder.Entity("GroundUp.Core.entities.User", b =>
                 {
                     b.Navigation("UserRoles");
 

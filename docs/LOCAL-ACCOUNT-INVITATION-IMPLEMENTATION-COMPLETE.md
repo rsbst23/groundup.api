@@ -7,7 +7,7 @@ Implemented the **local account invitation flow** for enterprise tenants as spec
 ## Changes Made
 
 ### 1. `IIdentityProviderAdminService` Interface
-**File:** `GroundUp.core/interfaces/IIdentityProviderAdminService.cs`
+**File:** `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs`
 
 Added 3 new methods:
 ```csharp
@@ -160,7 +160,7 @@ Body:
 
 ## Files Modified
 
-1. `GroundUp.core/interfaces/IIdentityProviderAdminService.cs` - Added 3 new methods
+1. `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs` - Added 3 new methods
 2. `GroundUp.infrastructure/services/IdentityProviderAdminService.cs` - Implemented 3 new methods
 3. `GroundUp.infrastructure/repositories/TenantInvitationRepository.cs` - Added Keycloak user creation logic
 

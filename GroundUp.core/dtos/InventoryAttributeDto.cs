@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     public class InventoryAttributeDto
     {

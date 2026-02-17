@@ -13,7 +13,7 @@ Successfully implemented the core authentication callback improvements and publi
   - Updated `AssignUserToTenantAsync` to accept and populate `ExternalUserId` parameter
   - ExternalUserId is now stored when creating/updating UserTenant records
 
-- **GroundUp.core/interfaces/IUserTenantRepository.cs**
+- **GroundUp.Core/interfaces/IUserTenantRepository.cs**
   - Added interface method signatures for new functionality
 
 #### Purpose:
@@ -28,7 +28,7 @@ Successfully implemented the core authentication callback improvements and publi
   - Updated `AcceptInvitationAsync` to accept optional `externalUserId` parameter
   - Passes `externalUserId` to `AssignUserToTenantAsync` when accepting invitations
 
-- **GroundUp.core/interfaces/ITenantInvitationRepository.cs**
+- **GroundUp.Core/interfaces/ITenantInvitationRepository.cs**
   - Updated interface signature with `externalUserId` parameter
 
 - **GroundUp.api/Controllers/AuthController.cs**
@@ -67,7 +67,7 @@ Successfully implemented the core authentication callback improvements and publi
 ### 4. ? TenantInvitationDto Enhancements
 
 #### Updated Files:
-- **GroundUp.core/dtos/TenantInvitationDtos.cs**
+- **GroundUp.Core/dtos/TenantInvitationDtos.cs**
   - Added `Status` property (string: "Pending", "Accepted", "Revoked", "Expired")
   - Added `RealmName` property (nullable) for enterprise realm routing
 
@@ -197,9 +197,9 @@ When user logs in again:
 ## Files Modified
 
 ### Core
-- `GroundUp.core/interfaces/IUserTenantRepository.cs`
-- `GroundUp.core/interfaces/ITenantInvitationRepository.cs`
-- `GroundUp.core/dtos/TenantInvitationDtos.cs`
+- `GroundUp.Core/interfaces/IUserTenantRepository.cs`
+- `GroundUp.Core/interfaces/ITenantInvitationRepository.cs`
+- `GroundUp.Core/dtos/TenantInvitationDtos.cs`
 
 ### Infrastructure
 - `GroundUp.infrastructure/repositories/UserTenantRepository.cs`

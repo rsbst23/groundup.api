@@ -1,5 +1,5 @@
-using GroundUp.core;
-using GroundUp.core.dtos;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
 
 namespace GroundUp.Data.Abstractions.Interfaces;
 

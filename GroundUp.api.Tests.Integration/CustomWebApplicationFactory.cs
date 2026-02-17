@@ -1,6 +1,6 @@
 ﻿using GroundUp.Data.Core.Data;
 using GroundUp.Repositories.Inventory.Data;
-using GroundUp.core.interfaces;
+using GroundUp.Core.interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;

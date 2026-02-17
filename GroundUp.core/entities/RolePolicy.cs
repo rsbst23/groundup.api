@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GroundUp.core.entities
+namespace GroundUp.Core.entities
 {
     public class RolePolicy : ITenantEntity
     {

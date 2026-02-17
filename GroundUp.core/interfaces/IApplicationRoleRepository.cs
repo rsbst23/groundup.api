@@ -1,6 +1,6 @@
-﻿using GroundUp.core.dtos;
+﻿using GroundUp.Core.dtos;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     public interface IApplicationRoleRepository
     {

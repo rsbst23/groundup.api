@@ -1,8 +1,8 @@
-using GroundUp.core.dtos;
-using GroundUp.core.dtos.tenants;
-using GroundUp.core.security;
+using GroundUp.Core.dtos;
+using GroundUp.Core.dtos.tenants;
+using GroundUp.Core.security;
 
-namespace GroundUp.core.interfaces;
+namespace GroundUp.Core.interfaces;
 
 public interface ITenantService
 {

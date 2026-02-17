@@ -1,4 +1,4 @@
-using GroundUp.core.entities;
+using GroundUp.Core.entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace GroundUp.Data.Core.Data;

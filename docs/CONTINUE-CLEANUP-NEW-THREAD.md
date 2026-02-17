@@ -54,7 +54,7 @@ We are in the middle of cleaning up `IIdentityProviderAdminService` and removing
 
 **Option A: Delete SystemRoleRepository entirely**
 - Delete file: `GroundUp.infrastructure/repositories/SystemRoleRepository.cs`
-- Delete interface: `GroundUp.core/interfaces/ISystemRoleRepository.cs`
+- Delete interface: `GroundUp.Core/interfaces/ISystemRoleRepository.cs`
 - Delete controller: `GroundUp.api/Controllers/SystemRolesController.cs`
 - System roles (SYSTEMADMIN, TENANTADMIN) are managed in Keycloak Admin UI
 
@@ -126,7 +126,7 @@ I'm continuing a cleanup of our authentication architecture. We're removing Keyc
 **Files to check:**
 - `GroundUp.infrastructure/repositories/SystemRoleRepository.cs`
 - `GroundUp.infrastructure/services/PermissionService.cs`
-- `GroundUp.core/interfaces/ISystemRoleRepository.cs`
+- `GroundUp.Core/interfaces/ISystemRoleRepository.cs`
 - `GroundUp.api/Controllers/SystemRolesController.cs`
 
 **Context:** We've already cleaned up:
@@ -146,9 +146,9 @@ Open these files to give context:
 
 1. `GroundUp.infrastructure/repositories/SystemRoleRepository.cs` ?? **Needs fixing**
 2. `GroundUp.infrastructure/services/PermissionService.cs` ?? **Needs fixing**
-3. `GroundUp.core/interfaces/ISystemRoleRepository.cs` ?? Context
+3. `GroundUp.Core/interfaces/ISystemRoleRepository.cs` ?? Context
 4. `GroundUp.api/Controllers/SystemRolesController.cs` ?? Context
-5. `GroundUp.core/interfaces/IIdentityProviderAdminService .cs` ? **Already cleaned**
+5. `GroundUp.Core/interfaces/IIdentityProviderAdminService .cs` ? **Already cleaned**
 6. `GroundUp.infrastructure/services/IdentityProviderAdminService.cs` ? **Already cleaned**
 
 ---

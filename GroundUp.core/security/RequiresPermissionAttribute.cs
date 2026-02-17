@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace GroundUp.core.security
+namespace GroundUp.Core.security
 {
     [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = true)]
     public class RequiresPermissionAttribute : Attribute

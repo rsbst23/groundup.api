@@ -1,6 +1,6 @@
-using GroundUp.core;
-using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
+using GroundUp.Core.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;

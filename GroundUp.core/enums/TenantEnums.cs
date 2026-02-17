@@ -1,4 +1,4 @@
-namespace GroundUp.core.enums
+namespace GroundUp.Core.enums
 {
     public enum TenantType
     {

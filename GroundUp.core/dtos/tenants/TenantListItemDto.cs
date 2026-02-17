@@ -1,6 +1,6 @@
-using GroundUp.core.enums;
+using GroundUp.Core.enums;
 
-namespace GroundUp.core.dtos.tenants
+namespace GroundUp.Core.dtos.tenants
 {
     /// <summary>
     /// Read DTO for tenant list views (tables, dropdowns, etc.).

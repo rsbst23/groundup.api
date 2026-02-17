@@ -1,6 +1,6 @@
-using GroundUp.core.dtos.tenants;
+using GroundUp.Core.dtos.tenants;
 
-namespace GroundUp.core.dtos.auth
+namespace GroundUp.Core.dtos.auth
 {
     /// <summary>
     /// Response DTO for tenant selection after authentication.

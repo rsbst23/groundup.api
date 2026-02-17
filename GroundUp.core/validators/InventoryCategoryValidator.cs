@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
-using GroundUp.core.dtos;
+using GroundUp.Core.dtos;
 
-namespace GroundUp.core.validators
+namespace GroundUp.Core.validators
 {
     public class InventoryCategoryValidator : AbstractValidator<InventoryCategoryDto>
     {

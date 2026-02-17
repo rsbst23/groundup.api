@@ -377,25 +377,25 @@ JoinedAt
 ## ?? Key Files Modified
 
 ### **Entities**
-- `GroundUp.core/entities/User.cs` ??
-- `GroundUp.core/entities/Tenant.cs` ??
-- `GroundUp.core/entities/TenantInvitation.cs` ??
-- `GroundUp.core/entities/UserKeycloakIdentity.cs` ? NEW
-- `GroundUp.core/entities/AccountLinkToken.cs` ? NEW
+- `GroundUp.Core/entities/User.cs` ??
+- `GroundUp.Core/entities/Tenant.cs` ??
+- `GroundUp.Core/entities/TenantInvitation.cs` ??
+- `GroundUp.Core/entities/UserKeycloakIdentity.cs` ? NEW
+- `GroundUp.Core/entities/AccountLinkToken.cs` ? NEW
 
 ### **Repositories**
 - `GroundUp.infrastructure/repositories/UserKeycloakIdentityRepository.cs` ? NEW
 - `GroundUp.infrastructure/repositories/TenantInvitationRepository.cs` ?? (Email ? ContactEmail)
 
 ### **Interfaces**
-- `GroundUp.core/interfaces/IUserKeycloakIdentityRepository.cs` ? NEW
+- `GroundUp.Core/interfaces/IUserKeycloakIdentityRepository.cs` ? NEW
 
 ### **Database**
 - `GroundUp.infrastructure/data/ApplicationDbContext.cs` ??
 - `GroundUp.infrastructure/Migrations/20251130051913_AddMultiRealmIdentitySupport.cs` ? NEW
 
 ### **Configuration**
-- `GroundUp.core/ErrorCodes.cs` ?? (Added `Conflict`)
+- `GroundUp.Core/ErrorCodes.cs` ?? (Added `Conflict`)
 
 ---
 

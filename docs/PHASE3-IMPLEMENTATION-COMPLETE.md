@@ -10,11 +10,11 @@
 
 ### Files Created:
 
-1. **`GroundUp.core/dtos/TenantJoinLinkDtos.cs`**
+1. **`GroundUp.Core/dtos/TenantJoinLinkDtos.cs`**
    - `CreateTenantJoinLinkDto` - Request DTO for creating join links
    - `TenantJoinLinkDto` - Response DTO with join link details
 
-2. **`GroundUp.core/interfaces/ITenantJoinLinkRepository.cs`**
+2. **`GroundUp.Core/interfaces/ITenantJoinLinkRepository.cs`**
    - Repository interface with 5 methods:
      - `GetAllAsync` - List join links (tenant-scoped)
      - `GetByIdAsync` - Get specific join link
@@ -94,9 +94,9 @@ Authorization: Bearer {token}
 
 ### Files Removed:
 
-1. ? `GroundUp.core/entities/UserKeycloakIdentity.cs` - **DELETED**
-2. ? `GroundUp.core/entities/AccountLinkToken.cs` - **DELETED**
-3. ? `GroundUp.core/interfaces/IUserKeycloakIdentityRepository.cs` - **DELETED**
+1. ? `GroundUp.Core/entities/UserKeycloakIdentity.cs` - **DELETED**
+2. ? `GroundUp.Core/entities/AccountLinkToken.cs` - **DELETED**
+3. ? `GroundUp.Core/interfaces/IUserKeycloakIdentityRepository.cs` - **DELETED**
 4. ? `GroundUp.infrastructure/repositories/UserKeycloakIdentityRepository.cs` - **DELETED**
 
 ### Files Updated:
@@ -107,7 +107,7 @@ Authorization: Bearer {token}
    - ? Removed UserKeycloakIdentity configuration from OnModelCreating
    - ? Removed AccountLinkToken configuration from OnModelCreating
 
-2. **`GroundUp.core/entities/User.cs`**
+2. **`GroundUp.Core/entities/User.cs`**
    - ? Removed `KeycloakIdentities` navigation property
    - ? Updated class documentation to remove UserKeycloakIdentities reference
 
@@ -272,8 +272,8 @@ SHOW INDEXES FROM UserTenants WHERE Key_name = 'IX_UserTenants_TenantId_External
 ## Files Summary
 
 ### Created (5 files):
-1. `GroundUp.core/dtos/TenantJoinLinkDtos.cs`
-2. `GroundUp.core/interfaces/ITenantJoinLinkRepository.cs`
+1. `GroundUp.Core/dtos/TenantJoinLinkDtos.cs`
+2. `GroundUp.Core/interfaces/ITenantJoinLinkRepository.cs`
 3. `GroundUp.infrastructure/repositories/TenantJoinLinkRepository.cs`
 4. `GroundUp.api/Controllers/TenantJoinLinkController.cs`
 5. `GroundUp.infrastructure/Migrations/20251214175058_RemoveUserKeycloakIdentity.cs`
@@ -282,12 +282,12 @@ SHOW INDEXES FROM UserTenants WHERE Key_name = 'IX_UserTenants_TenantId_External
 1. `GroundUp.infrastructure/mappings/MappingProfile.cs`
 2. `GroundUp.infrastructure/extensions/ServiceCollectionExtensions.cs`
 3. `GroundUp.infrastructure/data/ApplicationDbContext.cs`
-4. `GroundUp.core/entities/User.cs`
+4. `GroundUp.Core/entities/User.cs`
 
 ### Deleted (4 files):
-1. `GroundUp.core/entities/UserKeycloakIdentity.cs`
-2. `GroundUp.core/entities/AccountLinkToken.cs`
-3. `GroundUp.core/interfaces/IUserKeycloakIdentityRepository.cs`
+1. `GroundUp.Core/entities/UserKeycloakIdentity.cs`
+2. `GroundUp.Core/entities/AccountLinkToken.cs`
+3. `GroundUp.Core/interfaces/IUserKeycloakIdentityRepository.cs`
 4. `GroundUp.infrastructure/repositories/UserKeycloakIdentityRepository.cs`
 
 ---

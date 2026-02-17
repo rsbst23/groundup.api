@@ -1,11 +1,11 @@
-﻿using GroundUp.core.entities;
+﻿using GroundUp.Core.entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     public class RolePolicyDto
     {
