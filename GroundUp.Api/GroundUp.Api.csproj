@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GroundUp.Core\GroundUp.Core.csproj" />
+    <ProjectReference Include="..\GroundUp.Core\GroundUp.Core_temp2.csproj" />
     <ProjectReference Include="..\GroundUp.Services.Core\GroundUp.Services.Core.csproj" />
     <ProjectReference Include="..\GroundUp.Services.Inventory\GroundUp.Services.Inventory.csproj" />
   </ItemGroup>
