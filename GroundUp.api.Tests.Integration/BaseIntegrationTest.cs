@@ -1,6 +1,7 @@
 ﻿using System.Net.Http;
 using Xunit;
-using GroundUp.infrastructure.data;
+using GroundUp.Data.Core.Data;
+using GroundUp.Repositories.Inventory.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Tasks;
@@ -16,19 +17,23 @@ namespace GroundUp.Tests.Integration
     {
         protected readonly HttpClient _client;
         protected readonly IServiceScope _scope;
-        protected readonly ApplicationDbContext _dbContext;
+        protected readonly ApplicationDbContext _coreDbContext;
+        protected readonly InventoryDbContext _inventoryDbContext;
 
         protected BaseIntegrationTest(CustomWebApplicationFactory factory)
         {
             _client = factory.CreateClient();
             _scope = factory.Services.CreateScope();
-            _dbContext = _scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            _coreDbContext = _scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            _inventoryDbContext = _scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         }
 
         public async Task InitializeAsync()
         {
-            await ResetDatabaseAsync(_dbContext);
-            await TestDataSeeder.SeedAsync(_dbContext);
+            await ResetDatabaseAsync(_inventoryDbContext);
+            await ResetDatabaseAsync(_coreDbContext);
+
+            await TestDataSeeder.SeedInventoryAsync(_inventoryDbContext);
         }
 
         public Task DisposeAsync()
@@ -38,19 +43,10 @@ namespace GroundUp.Tests.Integration
             return Task.CompletedTask;
         }
 
-        private static async Task ResetDatabaseAsync(ApplicationDbContext dbContext)
+        private static async Task ResetDatabaseAsync(DbContext dbContext)
         {
-            // IMPORTANT:
-            // Integration tests use EF Core InMemory (see CustomWebApplicationFactory).
-            // EnsureDeleted/EnsureCreated is not reliable here when multiple DbContext instances exist
-            // (test context vs API request contexts created per HTTP request).
-            //
-            // Instead, delete all rows from all mapped entity sets using EF metadata.
-
             dbContext.ChangeTracker.Clear();
 
-            // Delete dependent types first. InMemory doesn't enforce FK constraints,
-            // but ordering reduces surprises if you later switch providers.
             var orderedEntityTypes = dbContext.Model.GetEntityTypes()
                 .Where(et => !et.IsOwned() && et.FindPrimaryKey() != null)
                 .OrderByDescending(et => et.GetForeignKeys().Count())
@@ -58,7 +54,6 @@ namespace GroundUp.Tests.Integration
                 .Distinct()
                 .ToList();
 
-            // Cache MethodInfo for DbContext.Set<TEntity>()
             var setMethod = typeof(DbContext).GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Single(m => m.Name == nameof(DbContext.Set) && m.IsGenericMethodDefinition && m.GetParameters().Length == 0);
 

@@ -3,7 +3,7 @@ using GroundUp.Tests.Integration;
 using Newtonsoft.Json;
 using System.Text;
 
-namespace GroundUp.api.Tests.Integration
+namespace GroundUp.Api.Tests.Integration
 {
     public class ExampleIntegrationTest : BaseIntegrationTest
     {

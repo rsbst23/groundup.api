@@ -7,30 +7,27 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/auth")]
     [ApiController]
     public class AuthController : ControllerBase
     {
         private readonly ILoggingService _logger;
-        private readonly IUserTenantRepository _userTenantRepository;
-        private readonly ITokenService _tokenService;
+        private readonly IAuthSessionService _authSessionService;
         private readonly IAuthFlowService _authFlowService;
         private readonly IAuthUrlBuilderService _authUrlBuilder;
         private readonly IEnterpriseSignupService _enterpriseSignupService;
 
         public AuthController(
             ILoggingService logger,
-            IUserTenantRepository userTenantRepository,
-            ITokenService tokenService,
+            IAuthSessionService authSessionService,
             IAuthFlowService authFlowService,
             IAuthUrlBuilderService authUrlBuilder,
             IEnterpriseSignupService enterpriseSignupService)
         {
             _logger = logger;
-            _userTenantRepository = userTenantRepository;
-            _tokenService = tokenService;
+            _authSessionService = authSessionService;
             _authFlowService = authFlowService;
             _authUrlBuilder = authUrlBuilder;
             _enterpriseSignupService = enterpriseSignupService;
@@ -265,102 +262,26 @@ namespace GroundUp.api.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<SetTenantResponseDto>>> SetTenant([FromBody] SetTenantRequestDto request)
         {
-            ApiResponse<SetTenantResponseDto> response;
-
             var userIdStr = User.FindFirstValue("ApplicationUserId");
 
             if (!Guid.TryParse(userIdStr, out var userId))
             {
                 _logger.LogWarning("Failed to parse userId as Guid");
-                response = new ApiResponse<SetTenantResponseDto>(default!, false, "Unauthorized access.", null, StatusCodes.Status401Unauthorized, ErrorCodes.Unauthorized);
-                return StatusCode(response.StatusCode, response);
+                var unauthorized = new ApiResponse<SetTenantResponseDto>(default!, false, "Unauthorized access.", null, StatusCodes.Status401Unauthorized, ErrorCodes.Unauthorized);
+                return StatusCode(unauthorized.StatusCode, unauthorized);
             }
 
-            var userTenants = await _userTenantRepository.GetTenantsForUserAsync(userId);
+            var response = await _authSessionService.SetTenantAsync(userId, request, User.Claims);
 
-            if (request.TenantId == null)
+            if (response.Success && !string.IsNullOrWhiteSpace(response.Data?.Token))
             {
-                if (userTenants.Count == 1)
+                Response.Cookies.Append("AuthToken", response.Data.Token, new CookieOptions
                 {
-                    var token = await _tokenService.GenerateTokenAsync(userId, userTenants[0].TenantId, User.Claims);
-
-                    Response.Cookies.Append("AuthToken", token, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddHours(1)
-                    });
-
-                    _logger.LogInformation("Token generated and cookie set");
-
-                    response = new ApiResponse<SetTenantResponseDto>(
-                        new SetTenantResponseDto {
-                            SelectionRequired = false,
-                            AvailableTenants = null,
-                            Token = token
-                        },
-                        true,
-                        "Tenant set and token issued.",
-                        null,
-                        StatusCodes.Status200OK
-                    );
-                }
-                else
-                {
-                    response = new ApiResponse<SetTenantResponseDto>(
-                        new SetTenantResponseDto {
-                            SelectionRequired = true,
-                            AvailableTenants = userTenants.Select(ut => new TenantListItemDto
-                            {
-                                Id = ut.Tenant.Id,
-                                Name = ut.Tenant.Name,
-                                Description = ut.Tenant.Description
-                            }).ToList(),
-                            Token = null
-                        },
-                        true,
-                        "Tenant selection required.",
-                        null,
-                        StatusCodes.Status200OK
-                    );
-                }
-            }
-            else
-            {
-                var userTenant = await _userTenantRepository.GetUserTenantAsync(userId, request.TenantId.Value);
-                if (userTenant == null)
-                {
-                    _logger.LogWarning("User is not assigned to the selected tenant");
-                    response = new ApiResponse<SetTenantResponseDto>(
-                        default!, false, "User is not assigned to the selected tenant.", null, StatusCodes.Status403Forbidden, ErrorCodes.Unauthorized);
-                }
-                else
-                {
-                    var token = await _tokenService.GenerateTokenAsync(userId, request.TenantId.Value, User.Claims);
-
-                    Response.Cookies.Append("AuthToken", token, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddHours(1)
-                    });
-
-                    _logger.LogInformation("Token generated and cookie set");
-
-                    response = new ApiResponse<SetTenantResponseDto>(
-                        new SetTenantResponseDto {
-                            SelectionRequired = false,
-                            AvailableTenants = null,
-                            Token = token
-                        },
-                        true,
-                        "Tenant set and token issued.",
-                        null,
-                        StatusCodes.Status200OK
-                    );
-                }
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTimeOffset.UtcNow.AddHours(1)
+                });
             }
 
             return StatusCode(response.StatusCode, response);

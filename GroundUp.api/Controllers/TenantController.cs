@@ -1,17 +1,12 @@
 using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.dtos.tenants;
-using GroundUp.core.entities;
-using GroundUp.core.enums;
 using GroundUp.core.interfaces;
-using GroundUp.infrastructure.data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using AutoMapper;
+using Microsoft.Extensions.Configuration;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     /// <summary>
     /// Controller for tenant management
@@ -21,29 +16,23 @@ namespace GroundUp.api.Controllers
     [ApiController]
     public class TenantController : ControllerBase
     {
-        private readonly ITenantRepository _tenantRepository;
+        private readonly ITenantService _tenantService;
         private readonly ILoggingService _logger;
         private readonly IIdentityProviderAdminService _identityProviderAdminService;
-        private readonly ApplicationDbContext _dbContext;
         private readonly IConfiguration _configuration;
-        private readonly IMapper _mapper;
         private readonly ITenantSsoSettingsService _tenantSsoSettingsService;
 
         public TenantController(
-            ITenantRepository tenantRepository,
+            ITenantService tenantService,
             ILoggingService logger,
             IIdentityProviderAdminService identityProviderAdminService,
-            ApplicationDbContext dbContext,
             IConfiguration configuration,
-            IMapper mapper,
             ITenantSsoSettingsService tenantSsoSettingsService)
         {
-            _tenantRepository = tenantRepository;
+            _tenantService = tenantService;
             _logger = logger;
             _identityProviderAdminService = identityProviderAdminService;
-            _dbContext = dbContext;
             _configuration = configuration;
-            _mapper = mapper;
             _tenantSsoSettingsService = tenantSsoSettingsService;
         }
 
@@ -58,8 +47,8 @@ namespace GroundUp.api.Controllers
             try
             {
                 _logger.LogInformation($"Realm resolution requested for URL: {dto.Url}");
-                
-                var result = await _tenantRepository.ResolveRealmByUrlAsync(dto.Url);
+
+                var result = await _tenantService.ResolveRealmByUrlAsync(dto.Url);
 
                 var response = new ApiResponse<RealmResolutionResponseDto>(
                     result.Data!,
@@ -75,20 +64,20 @@ namespace GroundUp.api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"Error resolving realm for URL {dto.Url}: {ex.Message}", ex);
-                
+
                 // Return default realm on error to avoid blocking authentication
                 var response = new ApiResponse<RealmResolutionResponseDto>(
-                    new RealmResolutionResponseDto 
-                    { 
+                    new RealmResolutionResponseDto
+                    {
                         Realm = "groundup", // TODO: Get from system settings
-                        IsEnterprise = false 
+                        IsEnterprise = false
                     },
                     false,
                     "Error resolving realm, using default",
                     new List<string> { ex.Message },
                     StatusCodes.Status200OK
                 );
-                
+
                 return StatusCode(response.StatusCode, response);
             }
         }
@@ -99,7 +88,7 @@ namespace GroundUp.api.Controllers
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<TenantListItemDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _tenantRepository.GetAllAsync(filterParams);
+            var result = await _tenantService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -126,7 +115,7 @@ namespace GroundUp.api.Controllers
                 filterParams.SortBy = sortBy;
             }
 
-            var result = await _tenantRepository.ExportAsync(filterParams, format);
+            var result = await _tenantService.ExportAsync(filterParams, format);
 
             if (!result.Success)
             {
@@ -159,7 +148,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ApiResponse<TenantDetailDto>>> GetById(int id)
         {
-            var result = await _tenantRepository.GetByIdAsync(id);
+            var result = await _tenantService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -182,7 +171,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _tenantRepository.AddAsync(dto);
+            var result = await _tenantService.AddAsync(dto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -204,7 +193,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _tenantRepository.UpdateAsync(id, dto);
+            var result = await _tenantService.UpdateAsync(id, dto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -215,7 +204,7 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _tenantRepository.DeleteAsync(id);
+            var result = await _tenantService.DeleteAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -224,9 +213,7 @@ namespace GroundUp.api.Controllers
         /// POST /api/tenants/{id}/sso-settings
         /// </summary>
         [HttpPost("{id}/sso-settings")]
-        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> ConfigureSsoSettings(
-            int id,
-            [FromBody] ConfigureSsoSettingsDto dto)
+        public async Task<ActionResult<ApiResponse<TenantDetailDto>>> ConfigureSsoSettings(int id, [FromBody] ConfigureSsoSettingsDto dto)
         {
             var result = await _tenantSsoSettingsService.ConfigureSsoSettingsAsync(id, dto);
             return StatusCode(result.StatusCode, result);

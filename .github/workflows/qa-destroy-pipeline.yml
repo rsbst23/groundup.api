@@ -20,8 +20,8 @@ env:
   TF_VAR_availability_zones: '["us-east-1a", "us-east-1b"]'
   TF_VAR_ecs_task_cpu: 256
   TF_VAR_ecs_task_memory: 512
-  TF_VAR_dockerfile_path: GroundUp.api/Dockerfile
-  TF_VAR_dockerfile_ef_path: GroundUp.api/Dockerfile.ef
+  TF_VAR_dockerfile_path: GroundUp.Api/Dockerfile
+  TF_VAR_dockerfile_ef_path: GroundUp.Api/Dockerfile.ef
   TF_VAR_backend_bucket: rsbst23-ground-up-qa-terraform-state
   TF_VAR_backend_key: terraform.state
   TF_VAR_backend_region: "us-east-1"

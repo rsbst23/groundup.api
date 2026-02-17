@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: GroundUp.api/Dockerfile
+      dockerfile: GroundUp.Api/Dockerfile
     ports:
       - "5000:8080"
       - "5001:8081"
@@ -18,22 +18,31 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      # ef:
-      #   condition: service_completed_successfully  # API starts only after migrations finish
     entrypoint: ["/app/startup.sh"]
 
   ef:
     build:
       context: .
-      dockerfile: GroundUp.api/Dockerfile
+      dockerfile: GroundUp.Api/Dockerfile
       target: build  # Use SDK for migrations
     environment:
+      # Ensure the startup project can resolve configuration the same way as local dev
+      ASPNETCORE_ENVIRONMENT: Development
       MYSQL_SERVER: mysql
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
-    entrypoint: ["/bin/sh", "-c", "dotnet ef database update"]
+    working_dir: /src
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        dotnet tool restore &&
+        dotnet ef database update \
+          --project ./GroundUp.Data.Core/GroundUp.Data.Core.csproj \
+          --startup-project ./GroundUp.Sample/GroundUp.Sample.csproj \
+          --context ApplicationDbContext
     depends_on:
       mysql:
         condition: service_healthy

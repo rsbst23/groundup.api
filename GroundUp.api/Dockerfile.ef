@@ -7,26 +7,26 @@ RUN dotnet tool install --global dotnet-ef
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
 # Copy only the necessary project files (EXCLUDING TEST PROJECTS)
-#COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
+#COPY ["GroundUp.Api/GroundUp.Api.csproj", "GroundUp.Api/"]
 #COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
 #COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
 
 # Restore dependencies (EXCLUDES TESTS)
-#WORKDIR /app/GroundUp.api
-#RUN dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
+#WORKDIR /app/GroundUp.Api
+#RUN dotnet restore "GroundUp.Api.csproj" --disable-parallel --ignore-failed-sources
 
 # Copy the full source code **AFTER** restoring dependencies
 COPY . .
 
 # Remove test projects before building
-RUN rm -rf /app/GroundUp.api.Tests.*
+RUN rm -rf /app/GroundUp.Api.Tests.*
 
 # Restore dependencies (EXCLUDES TESTS)
-WORKDIR /app/GroundUp.api
-RUN dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
+WORKDIR /app/GroundUp.Api
+RUN dotnet restore "GroundUp.Api.csproj" --disable-parallel --ignore-failed-sources
 
 # **CLEAN OLD BUILD ARTIFACTS TO AVOID CONFLICTS**
-#RUN rm -rf /app/GroundUp.api/bin /app/GroundUp.api/obj
+#RUN rm -rf /app/GroundUp.Api/bin /app/GroundUp.Api/obj
 #RUN rm -rf /app/GroundUp.core/bin /app/GroundUp.core/obj
 #RUN rm -rf /app/GroundUp.infrastructure/bin /app/GroundUp.infrastructure/obj
 
@@ -34,10 +34,10 @@ RUN dotnet restore "GroundUp.api.csproj" --disable-parallel --ignore-failed-sour
 #WORKDIR /app/GroundUp.infrastructure
 #RUN dotnet build "GroundUp.infrastructure.csproj" -c Release
 
-#WORKDIR /app/GroundUp.api
-#RUN dotnet build "GroundUp.api.csproj" -c Release
+#WORKDIR /app/GroundUp.Api
+#RUN dotnet build "GroundUp.Api.csproj" -c Release
 
-RUN dotnet build /app/GroundUp.api/GroundUp.api.csproj --configuration Release
+RUN dotnet build /app/GroundUp.Api/GroundUp.Api.csproj --configuration Release
 
 
 # **Re-Copy the Migrations Folder AFTER Build**
@@ -47,4 +47,4 @@ RUN dotnet build /app/GroundUp.api/GroundUp.api.csproj --configuration Release
 #RUN ls -lah /app/GroundUp.infrastructure/Migrations || echo "Migrations folder missing"
 
 # Run EF migrations directly
-CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.api/GroundUp.api.csproj"]
+CMD ["dotnet", "ef", "database", "update", "--project", "/app/GroundUp.Api/GroundUp.Api.csproj"]

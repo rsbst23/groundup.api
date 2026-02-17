@@ -4,7 +4,7 @@ using GroundUp.core.security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/system-roles")]
     [ApiController]

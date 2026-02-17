@@ -4,7 +4,7 @@ using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     /// <summary>
     /// Unified controller for all join link operations.
@@ -14,12 +14,12 @@ namespace GroundUp.api.Controllers
     [ApiController]
     public class JoinLinkController : ControllerBase
     {
-        private readonly ITenantJoinLinkRepository _joinLinkRepo;
+        private readonly ITenantJoinLinkService _tenantJoinLinkService;
         private readonly IJoinLinkService _joinLinkService;
 
-        public JoinLinkController(ITenantJoinLinkRepository joinLinkRepo, IJoinLinkService joinLinkService)
+        public JoinLinkController(ITenantJoinLinkService tenantJoinLinkService, IJoinLinkService joinLinkService)
         {
-            _joinLinkRepo = joinLinkRepo;
+            _tenantJoinLinkService = tenantJoinLinkService;
             _joinLinkService = joinLinkService;
         }
 
@@ -35,7 +35,7 @@ namespace GroundUp.api.Controllers
             [FromQuery] FilterParams filterParams,
             [FromQuery] bool includeRevoked = false)
         {
-            var result = await _joinLinkRepo.GetAllAsync(filterParams, includeRevoked);
+            var result = await _tenantJoinLinkService.GetAllAsync(filterParams, includeRevoked);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -47,7 +47,7 @@ namespace GroundUp.api.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<TenantJoinLinkDto>>> GetById(int id)
         {
-            var result = await _joinLinkRepo.GetByIdAsync(id);
+            var result = await _tenantJoinLinkService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -59,7 +59,7 @@ namespace GroundUp.api.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<TenantJoinLinkDto>>> Create([FromBody] CreateTenantJoinLinkDto dto)
         {
-            var result = await _joinLinkRepo.CreateAsync(dto);
+            var result = await _tenantJoinLinkService.CreateAsync(dto);
 
             // Add full join URL to response
             if (result.Success && result.Data != null)
@@ -78,7 +78,7 @@ namespace GroundUp.api.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<bool>>> Revoke(int id)
         {
-            var result = await _joinLinkRepo.RevokeAsync(id);
+            var result = await _tenantJoinLinkService.RevokeAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 

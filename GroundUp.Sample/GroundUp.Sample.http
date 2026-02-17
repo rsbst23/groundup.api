@@ -1,0 +1,6 @@
+@GroundUp_Sample_HostAddress = http://localhost:5123
+
+GET {{GroundUp_Sample_HostAddress}}/swagger/index.html
+Accept: text/html
+
+###

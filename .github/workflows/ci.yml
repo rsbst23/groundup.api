@@ -27,10 +27,10 @@ jobs:
           dotnet-version: '8.0.404'
 
       - name: Restore Dependencies
-        run: dotnet restore
+        run: dotnet restore ./GroundUp.api.sln
 
       - name: Build Solution (Once)
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build ./GroundUp.api.sln --configuration Release --no-restore
 
       - name: Cache Build Output
         uses: actions/cache@v3
@@ -58,7 +58,7 @@ jobs:
           key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
 
       - name: Run Unit Tests (Parallel)
-        run: dotnet test GroundUp.api.Tests.Unit --configuration Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test ./GroundUp.Api.Tests.Unit/GroundUp.Api.Tests.Unit.csproj --configuration Release --no-build --logger trx --results-directory TestResults
 
   integration-tests:
     needs: build
@@ -92,4 +92,4 @@ jobs:
           key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
 
       - name: Run Integration Tests (Sequential)
-        run: dotnet test GroundUp.api.Tests.Integration --configuration Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test ./GroundUp.Api.Tests.Integration/GroundUp.Api.Tests.Integration.csproj --configuration Release --no-build --logger trx --results-directory TestResults

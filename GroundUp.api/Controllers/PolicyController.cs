@@ -1,27 +1,26 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/policies")]
     [ApiController]
     public class PolicyController : ControllerBase
     {
-        private readonly IPolicyRepository _policyRepository;
+        private readonly IPolicyService _policyService;
 
-        public PolicyController(IPolicyRepository policyRepository)
+        public PolicyController(IPolicyService policyService)
         {
-            _policyRepository = policyRepository;
+            _policyService = policyService;
         }
 
         // GET: api/policies (Paginated)
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<PolicyDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _policyRepository.GetAllAsync(filterParams);
+            var result = await _policyService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -29,7 +28,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ApiResponse<PolicyDto>>> GetById(int id)
         {
-            var result = await _policyRepository.GetByIdAsync(id);
+            var result = await _policyService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -49,7 +48,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _policyRepository.AddAsync(policyDto);
+            var result = await _policyService.AddAsync(policyDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -81,7 +80,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _policyRepository.UpdateAsync(id, policyDto);
+            var result = await _policyService.UpdateAsync(id, policyDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -89,7 +88,7 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _policyRepository.DeleteAsync(id);
+            var result = await _policyService.DeleteAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -97,7 +96,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("{id:int}/permissions")]
         public async Task<ActionResult<ApiResponse<List<PermissionDto>>>> GetPolicyPermissions(int id)
         {
-            var result = await _policyRepository.GetPolicyPermissionsAsync(id);
+            var result = await _policyService.GetPolicyPermissionsAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -105,7 +104,7 @@ namespace GroundUp.api.Controllers
         [HttpPost("{id:int}/permissions")]
         public async Task<ActionResult<ApiResponse<bool>>> AssignPermissionsToPolicy(int id, [FromBody] List<int> permissionIds)
         {
-            var result = await _policyRepository.AssignPermissionsToPolicyAsync(id, permissionIds);
+            var result = await _policyService.AssignPermissionsToPolicyAsync(id, permissionIds);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -113,7 +112,7 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id:int}/permissions/{permissionId:int}")]
         public async Task<ActionResult<ApiResponse<bool>>> RemovePermissionFromPolicy(int id, int permissionId)
         {
-            var result = await _policyRepository.RemovePermissionFromPolicyAsync(id, permissionId);
+            var result = await _policyService.RemovePermissionFromPolicyAsync(id, permissionId);
             return StatusCode(result.StatusCode, result);
         }
     }

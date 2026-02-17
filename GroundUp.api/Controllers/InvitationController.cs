@@ -4,73 +4,45 @@ using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
-    /// <summary>
-    /// Unified controller for all invitation operations
-    /// Handles both tenant-scoped admin operations and cross-tenant user operations
-    /// Authorization enforced via repository layer
-    /// </summary>
     [Route("api/invitations")]
     [ApiController]
     public class InvitationController : ControllerBase
     {
-        private readonly ITenantInvitationRepository _invitationRepo;
-        private readonly IUserTenantRepository _userTenantRepo;
+        private readonly IInvitationService _invitationService;
         private readonly ILoggingService _logger;
-        private readonly IConfiguration _configuration;
         private readonly IAuthUrlBuilderService _authUrlBuilder;
 
         public InvitationController(
-            ITenantInvitationRepository invitationRepo,
-            IUserTenantRepository userTenantRepo,
+            IInvitationService invitationService,
             ILoggingService logger,
-            IConfiguration configuration,
             IAuthUrlBuilderService authUrlBuilder)
         {
-            _invitationRepo = invitationRepo;
-            _userTenantRepo = userTenantRepo;
+            _invitationService = invitationService;
             _logger = logger;
-            _configuration = configuration;
             _authUrlBuilder = authUrlBuilder;
         }
 
         #region Tenant-Scoped Admin Operations
 
-        /// <summary>
-        /// Get all invitations for the current tenant (paginated)
-        /// GET /api/invitations
-        /// Tenant is automatically determined from ITenantContext
-        /// </summary>
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<PaginatedData<TenantInvitationDto>>>> Get(
-            [FromQuery] FilterParams filterParams)
+        public async Task<ActionResult<ApiResponse<PaginatedData<TenantInvitationDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _invitationRepo.GetAllAsync(filterParams);
+            var result = await _invitationService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get invitation by ID (tenant-scoped)
-        /// GET /api/invitations/{id}
-        /// </summary>
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ApiResponse<TenantInvitationDto>>> GetById(int id)
         {
-            var result = await _invitationRepo.GetByIdAsync(id);
+            var result = await _invitationService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Create a new invitation
-        /// POST /api/invitations
-        /// </summary>
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<TenantInvitationDto>>> Create(
-            [FromBody] CreateTenantInvitationDto dto)
+        public async Task<ActionResult<ApiResponse<TenantInvitationDto>>> Create([FromBody] CreateTenantInvitationDto dto)
         {
             if (dto == null)
             {
@@ -101,18 +73,12 @@ namespace GroundUp.api.Controllers
 
             _logger.LogInformation($"Creating invitation with CreatedByUserId: {userId}");
 
-            var result = await _invitationRepo.AddAsync(dto, userId);
+            var result = await _invitationService.CreateAsync(dto, userId);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Update an invitation
-        /// PUT /api/invitations/{id}
-        /// </summary>
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<ApiResponse<TenantInvitationDto>>> Update(
-            int id,
-            [FromBody] UpdateTenantInvitationDto dto)
+        public async Task<ActionResult<ApiResponse<TenantInvitationDto>>> Update(int id, [FromBody] UpdateTenantInvitationDto dto)
         {
             if (dto == null)
             {
@@ -138,40 +104,28 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _invitationRepo.UpdateAsync(id, dto);
+            var result = await _invitationService.UpdateAsync(id, dto);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Delete an invitation
-        /// DELETE /api/invitations/{id}
-        /// </summary>
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _invitationRepo.DeleteAsync(id);
+            var result = await _invitationService.DeleteAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get pending invitations for current tenant
-        /// GET /api/invitations/pending
-        /// </summary>
         [HttpGet("pending")]
         public async Task<ActionResult<ApiResponse<List<TenantInvitationDto>>>> GetPending()
         {
-            var result = await _invitationRepo.GetPendingInvitationsAsync();
+            var result = await _invitationService.GetPendingAsync();
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Resend an invitation
-        /// POST /api/invitations/{id}/resend
-        /// </summary>
         [HttpPost("{id:int}/resend")]
         public async Task<ActionResult<ApiResponse<bool>>> Resend(int id, [FromQuery] int expirationDays = 7)
         {
-            var result = await _invitationRepo.ResendInvitationAsync(id, expirationDays);
+            var result = await _invitationService.ResendAsync(id, expirationDays);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -179,10 +133,6 @@ namespace GroundUp.api.Controllers
 
         #region Cross-Tenant User Operations
 
-        /// <summary>
-        /// Get invitations for the current user's email across all tenants
-        /// GET /api/invitations/me
-        /// </summary>
         [HttpGet("me")]
         public async Task<ActionResult<ApiResponse<List<TenantInvitationDto>>>> GetMyInvitations()
         {
@@ -199,14 +149,10 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _invitationRepo.GetInvitationsForEmailAsync(emailClaim);
+            var result = await _invitationService.GetMyInvitationsAsync(emailClaim);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Accept an invitation to join a tenant
-        /// POST /api/invitations/accept
-        /// </summary>
         [HttpPost("accept")]
         public async Task<ActionResult<ApiResponse<bool>>> AcceptInvitation([FromBody] AcceptInvitationDto dto)
         {
@@ -235,15 +181,10 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _invitationRepo.AcceptInvitationAsync(dto.InvitationToken, userId);
+            var result = await _invitationService.AcceptInvitationAsync(dto.InvitationToken, userId);
             return StatusCode(result.StatusCode, result);
         }
 
-        /// <summary>
-        /// Get invitation details by token (for preview before accepting)
-        /// GET /api/invitations/token/{token}
-        /// No authentication required - users need to see this before registering
-        /// </summary>
         [HttpGet("token/{token}")]
         [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<TenantInvitationDto>>> GetByToken(string token)
@@ -260,7 +201,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _invitationRepo.GetByTokenAsync(token);
+            var result = await _invitationService.GetByTokenAsync(token);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -268,17 +209,6 @@ namespace GroundUp.api.Controllers
 
         #region Public Invitation Flow Endpoint
 
-        /// <summary>
-        /// PUBLIC ENDPOINT: Validate invitation and return Keycloak registration URL
-        /// GET /api/invitations/invite/{invitationToken}
-        /// Works for both standard (shared realm) and enterprise (dedicated realm) invitations
-        /// Realm is determined from the invitation's RealmName property
-        /// 
-        /// For NEW users: Returns registration URL
-        /// For EXISTING users: Returns login URL
-        /// 
-        /// Client should redirect user to the returned AuthUrl
-        /// </summary>
         [HttpGet("invite/{invitationToken}")]
         [AllowAnonymous]
         public async Task<ActionResult<ApiResponse<AuthUrlResponseDto>>> InviteRedirect(string invitationToken)
@@ -287,7 +217,7 @@ namespace GroundUp.api.Controllers
             {
                 _logger.LogInformation($"Processing invite redirect for token: {invitationToken}");
 
-                var invitationResult = await _invitationRepo.GetByTokenAsync(invitationToken);
+                var invitationResult = await _invitationService.GetByTokenAsync(invitationToken);
                 if (!invitationResult.Success || invitationResult.Data == null)
                 {
                     _logger.LogWarning($"Invalid invitation token: {invitationToken}");
@@ -351,7 +281,7 @@ namespace GroundUp.api.Controllers
 
                 if (loginUrl.StartsWith("ERROR:"))
                 {
-                    var errorMessage = loginUrl.Substring(6);
+                    var errorMessage = loginUrl[6..];
                     return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<AuthUrlResponseDto>(
                         null,
                         false,
@@ -361,8 +291,6 @@ namespace GroundUp.api.Controllers
                         "CONFIG_ERROR"
                     ));
                 }
-
-                _logger.LogInformation($"Generated login URL with login_hint for Keycloak realm {invitation.RealmName} for invitation {invitationToken}");
 
                 var response = new ApiResponse<AuthUrlResponseDto>(
                     new AuthUrlResponseDto

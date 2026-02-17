@@ -3,7 +3,7 @@ using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     /// <summary>
     /// Controller for user management
@@ -30,11 +30,11 @@ namespace GroundUp.api.Controllers
     [ApiController]
     public class UserController : ControllerBase
     {
-        private readonly IUserRepository _userRepository;
+        private readonly IUserService _userService;
 
-        public UserController(IUserRepository userRepository)
+        public UserController(IUserService userService)
         {
-            _userRepository = userRepository;
+            _userService = userService;
         }
 
         #region User Query Operations
@@ -46,7 +46,7 @@ namespace GroundUp.api.Controllers
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<UserSummaryDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _userRepository.GetAllAsync(filterParams);
+            var result = await _userService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -57,7 +57,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("{userId}")]
         public async Task<ActionResult<ApiResponse<UserDetailsDto>>> GetById(string userId)
         {
-            var result = await _userRepository.GetByIdAsync(userId);
+            var result = await _userService.GetByIdAsync(userId);
             return StatusCode(result.StatusCode, result);
         }
 
