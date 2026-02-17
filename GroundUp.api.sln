@@ -14,7 +14,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Services.Inventory
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Services.Core", "GroundUp.Services.Core\GroundUp.Services.Core.csproj", "{4FD7546B-7429-4E9F-B392-8A763448DDFE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Core_temp2", "GroundUp.Core\GroundUp.Core_temp2.csproj", "{4FADBC82-06DA-4293-B366-AC3F514A70E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Core", "GroundUp.Core\GroundUp.Core.csproj", "{4FADBC82-06DA-4293-B366-AC3F514A70E1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Sample", "GroundUp.Sample\GroundUp.Sample.csproj", "{0AC98B31-2C7C-4FD1-8E95-896EF392CA3E}"
 EndProject
