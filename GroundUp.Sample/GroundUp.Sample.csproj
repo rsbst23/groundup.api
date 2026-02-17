@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GroundUp.Api\GroundUp.Api_temp.csproj" />
+    <ProjectReference Include="..\GroundUp.Api\GroundUp.Api.csproj" />
     <ProjectReference Include="..\GroundUp.Services.Core\GroundUp.Services.Core.csproj" />
     <ProjectReference Include="..\GroundUp.Data.Core\GroundUp.Data.Core.csproj" />
     <ProjectReference Include="..\GroundUp.Repositories.Inventory\GroundUp.Repositories.Inventory.csproj" />
