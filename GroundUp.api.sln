@@ -14,7 +14,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Services.Inventory
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Services.Core", "GroundUp.Services.Core\GroundUp.Services.Core.csproj", "{4FD7546B-7429-4E9F-B392-8A763448DDFE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Core", "GroundUp.Core\GroundUp.Core.csproj", "{4FADBC82-06DA-4293-B366-AC3F514A70E1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Core_temp", "GroundUp.Core\GroundUp.Core_temp.csproj", "{4FADBC82-06DA-4293-B366-AC3F514A70E1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Sample", "GroundUp.Sample\GroundUp.Sample.csproj", "{0AC98B31-2C7C-4FD1-8E95-896EF392CA3E}"
 EndProject
@@ -22,11 +22,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Data.Abstractions"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Data.Core", "GroundUp.Data.Core\GroundUp.Data.Core.csproj", "{5ABD4FBC-0B34-4DE4-BD22-21B6EC58CABA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Api", "GroundUp.Api\GroundUp.Api.csproj", "{8B1E89E5-10FD-43D2-9B07-870EB9D24A46}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Api_temp", "GroundUp.Api\GroundUp.Api_temp.csproj", "{8B1E89E5-10FD-43D2-9B07-870EB9D24A46}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Api.Tests.Unit", "GroundUp.Api.Tests.Unit\GroundUp.Api.Tests.Unit.csproj", "{447196D2-47FF-4377-8B05-BF72C6374494}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Api.Tests.Unit_temp", "GroundUp.Api.Tests.Unit\GroundUp.Api.Tests.Unit_temp.csproj", "{447196D2-47FF-4377-8B05-BF72C6374494}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Api.Tests.Integration", "GroundUp.Api.Tests.Integration\GroundUp.Api.Tests.Integration.csproj", "{98638E40-22F2-4ED7-9048-7BD8CA165F3B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroundUp.Api.Tests.Integration_temp", "GroundUp.Api.Tests.Integration\GroundUp.Api.Tests.Integration_temp.csproj", "{98638E40-22F2-4ED7-9048-7BD8CA165F3B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
