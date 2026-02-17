@@ -1,8 +1,8 @@
 using AutoMapper;
 using GroundUp.core;
 using GroundUp.core.dtos;
-using GroundUp.core.entities;
 using GroundUp.core.interfaces;
+using GroundUp.Core.interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 

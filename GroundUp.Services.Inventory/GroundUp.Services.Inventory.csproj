@@ -7,8 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GroundUp.core\GroundUp.core.csproj" />
+    <ProjectReference Include="..\GroundUp.Core\GroundUp.Core.csproj" />
     <ProjectReference Include="..\GroundUp.Repositories.Inventory\GroundUp.Repositories.Inventory.csproj" />
+    <ProjectReference Include="..\GroundUp.Data.Abstractions\GroundUp.Data.Abstractions.csproj" />
+    <ProjectReference Include="..\GroundUp.Services.Core\GroundUp.Services.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

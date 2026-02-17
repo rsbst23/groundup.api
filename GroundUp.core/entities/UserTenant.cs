@@ -1,3 +1,4 @@
+using GroundUp.Core.interfaces;
 using System;
 using System.ComponentModel.DataAnnotations;
 

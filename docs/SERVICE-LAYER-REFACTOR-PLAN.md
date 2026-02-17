@@ -1,282 +1,259 @@
-# GroundUp Service Layer Refactor Plan (Option B)
+﻿# GroundUp Refactor + Packaging Plan (Service Layer + Target Project Structure)
 
-> **Goal**: Enforce a hard architecture rule:
+> **Single source of truth** for the GroundUp foundational refactor.
+> This merges:
+> 1) the **service-layer refactor plan** (controllers → services → data) and
+> 2) the **target solution structure** needed to run GroundUp as an application *and* later ship it as NuGet packages.
 >
-> - `Controllers` call **Services only**
-> - `Services` call **Repositories only** (no direct `DbContext`)
-> - `Repositories` do **database-only** work
-> - **Business logic** lives in Services
-> - **Authorization** is enforced at **Service method** boundary
+> **Guiding principles**
+> - API/Controller layer must not directly depend on the data projects.
+> - Business logic lives in services.
+> - Data layer is EF Core + migrations + repository implementations.
+> - Composition root (host) wires DI + connection strings + migrations.
 >
-> **Option B**: Move persistence entities into bounded-context repository projects (not in `GroundUp.core`).
+> **New hardening decision (important)**
+> - We will **not** keep repository interfaces in `GroundUp.Core`.
+> - We will introduce `GroundUp.Data.Abstractions` so `GroundUp.Api` cannot even *compile* against `I*Repository` / `IUnitOfWork`.
 
 ---
 
-## 1. Current state (observed)
+## 0. Architecture rules (hard boundaries)
 
-### Controllers call repositories directly
-Example: `GroundUp.api/Controllers/InventoryCategoryController.cs` injects `IInventoryCategoryRepository` and calls repository methods directly.
+**Goal**: enforce a hard architecture rule:
 
-### Service layer exists but is inconsistent
-Auth stack uses services (e.g., `IAuthFlowService`), but some service implementations (e.g., `AuthFlowService`) call `ApplicationDbContext` directly and are not consistently designed.
+- `Controllers` call **Services only**
+- `Services` call **Repositories only** (no direct `DbContext`)
+- `Repositories` do **database-only** work
+- **Business logic** lives in Services
+- **Authorization** is enforced at the **Service method boundary**
 
-### Permissions are repository-interface annotations
-Repository interfaces include `[RequiresPermission("...")]`. Enforcement happens via Castle DynamicProxy interceptors (`PermissionInterceptor`).
+**Compile-time enforcement**
+- `GroundUp.Api` must not reference `GroundUp.Data.Abstractions`.
+- Therefore controllers cannot reference `I*Repository` / `IUnitOfWork`.
 
 ---
 
-## 2. Target architecture (end-state)
+## 1. Target end-state: projects, responsibilities, and references
 
-### Layer boundaries
-- API layer (`GroundUp.api`): controllers, HTTP concerns only (status codes, cookies, headers).
-- Service layer (`GroundUp.Services.*`): orchestration + business logic; depends on repositories + other services; no EF access.
-- Repository layer (`GroundUp.Repositories.*`): EF Core + database interaction only; implements repository interfaces.
-- Shared contracts (`GroundUp.core`): DTOs, result primitives, interfaces, security attributes, validation, enums.
+> This section defines the stable target. We will migrate incrementally while keeping the solution buildable.
 
-### Authorization
-- `[RequiresPermission]` moves from **repository interfaces** to **service interfaces**.
+### 1.1 GroundUp projects (in this repo)
+
+| Project | Packaged? | Responsibility | References |
+|---|---:|---|---|
+| `GroundUp.Core` (currently `GroundUp.core`) | ✅ | **API-safe** shared contracts: DTOs, service interfaces (`I*Service`), attributes (`RequiresPermission`), enums, shared result primitives | None (or minimal) |
+| `GroundUp.Data.Abstractions` *(new)* | ✅ | **Data-boundary contracts only**: repository interfaces (`I*Repository`), `IUnitOfWork`, other persistence abstractions | `GroundUp.Core` |
+| `GroundUp.Api` (currently `GroundUp.Api`) | ✅ | Controller layer + HTTP concerns (status codes, cookies, headers), middleware, swagger helpers | `GroundUp.Core`, `GroundUp.Services.Core` *(no data abstractions, no data impl)* |
+| `GroundUp.Services.Core` | ✅ | Core service layer (auth/tenant/roles/permissions/etc.). Orchestration + business logic. Depends on **repository interfaces** only. | `GroundUp.Core`, `GroundUp.Data.Abstractions` |
+| `GroundUp.Data.Core` (currently `GroundUp.Repositories.Core`) | ✅ | EF Core persistence for core domain: `ApplicationDbContext`, migrations, `UnitOfWork` implementation, repository implementations | `GroundUp.Core`, `GroundUp.Data.Abstractions` + EF packages |
+| `GroundUp.Sample` | ❌ | Runnable host/composition root for this repo: DI wiring, connection strings, running migrations, hosting swagger/UI | `GroundUp.Api`, `GroundUp.Services.Core`, `GroundUp.Data.Core` |
+
+> Inventory projects are **temporary** and will later be **removed or moved** into a sample app.
+
+#### Notes on naming
+- We are standardizing on **`Data`** naming for the EF/persistence implementation project: `GroundUp.Data.Core`.
+- `GroundUp.Data.Abstractions` is named explicitly to communicate the boundary and prevent accidental API references.
+
+### 1.2 FutureApp structure (consumer)
+
+| FutureApp project | Uses | References |
+|---|---|---|
+| `FutureApp.Api` (host) | Hosts GroundUp endpoints + config + optionally runs migrations | NuGets: `GroundUp.Api`, `GroundUp.Services.Core`, `GroundUp.Data.Core` |
+| `FutureApp.Services` | App-specific services; can call GroundUp services | `GroundUp.Core` (and optionally `GroundUp.Services.Core`) |
+| `FutureApp.Data` | App-specific persistence | Independent (or integrates with GroundUp DB by choice) |
+
+**Key point**:
+- `GroundUp.Services.Core` does **not** reference `GroundUp.Data.Core`.
+- `GroundUp.Api` does **not** reference `GroundUp.Data.Abstractions` or `GroundUp.Data.Core`.
+- The host wires concrete implementations via DI.
+
+---
+
+## 2. Composition root strategy (how things get wired)
+
+### 2.1 Why we need `GroundUp.Sample`
+We want:
+- `GroundUp.Api` to be repo-free (prevents future controller misuse)
+- **but** still be able to run GroundUp locally (Swagger/UI) and apply migrations.
+
+Therefore:
+- `GroundUp.Sample` is the startup project for the repo.
+- It references `GroundUp.Data.Core` and calls data/service registration methods.
+- It loads controllers from `GroundUp.Api` (MVC application parts) and hosts Swagger.
+
+### 2.2 How services talk to repositories without a project reference to the EF project
+
+- `GroundUp.Data.Abstractions` defines `IUserRepository`, `ITenantRepository`, `IUnitOfWork`, etc.
+- `GroundUp.Services.Core` constructors take those interfaces.
+- `GroundUp.Data.Core` provides concrete implementations (e.g., `UserRepository : IUserRepository`).
+- The host (`GroundUp.Sample` / `FutureApp.Api`) registers:
+  - `services.AddScoped<IUserRepository, UserRepository>();`
+  - `services.AddScoped<IUserService, UserService>();`
+
+At runtime, DI injects the concrete repo implementation into the service via the interface.
+
+### 2.3 Packaging expectation (NuGet consumption)
+It is normal for a consuming app to do a small amount of startup wiring. The packages should provide *thin* integration entry points.
+
+- `GroundUp.Data.Core` should expose `IServiceCollection` extensions to register:
+  - `DbContext`
+  - repository implementations
+  - `UnitOfWork`
+- `GroundUp.Services.Core` should expose `IServiceCollection` extensions to register services.
+- `GroundUp.Data.Core` may expose an **optional** migration helper (e.g., `app.MigrateGroundUpCoreDatabase()`), but hosts may choose CI/CD migrations instead.
+
+---
+
+## 3. Current state (observed problems)
+
+### 3.1 Controllers calling repositories directly
+Example: `InventoryCategoryController` historically injected repositories directly.
+
+### 3.2 Service layer exists but is inconsistent
+Auth stack uses services (e.g., `IAuthFlowService`), but some services historically used `DbContext` directly.
+
+### 3.3 Permissions enforced at repository layer
+Repository interfaces/implementations contain `[RequiresPermission]` and are proxied.
+
+---
+
+## 4. Authorization model (target)
+
+- Move `[RequiresPermission]` from repository boundary to **service boundary**.
 - Services are proxied/intercepted for permission enforcement.
 - Repository methods become permission-agnostic.
 
-### Consistent results
-- Adopt a single cross-layer result type (recommended): `OperationResult<T>` in `GroundUp.core`.
-- Repositories return `OperationResult<T>`; Services return `OperationResult<T>`; Controllers map to `ApiResponse<T>`.
-  - (You *can* also migrate controllers to return `OperationResult<T>` directly, but keeping `ApiResponse<T>` at HTTP boundary is typical.)
+---
 
-### No `DbContext` in Services
-Transaction and retry logic is provided via `IUnitOfWork` in core, implemented in repository layer.
+## 5. Result shape model (target)
+
+- Prefer a single cross-layer result type: `OperationResult<T>` in `GroundUp.Core`.
+- Repositories return `OperationResult<T>`.
+- Services return `OperationResult<T>`.
+- Controllers map `OperationResult<T>` → `ApiResponse<T>`.
 
 ---
 
-## 3. Proposed bounded contexts (initial)
+## 6. EF + transactions (target)
 
-You indicated:
-- **Core service context**: Auth / Identity / Tenant (foundational to the app)
-- **Inventory context**: sample reference implementation
-
-Start with these two to establish the pattern:
-
-1) `Core` context
-- Auth flows (callback handling, tenant selection, enterprise signup)
-- Identity provider integration (Keycloak)
-- Tenant setup / SSO settings
-
-2) `Inventory` context
-- Inventory categories
-- Inventory items
-
-Later contexts can be split out when needed (roles/policies/permissions could be part of Core initially).
+- No EF usage in services.
+- Transaction/retry logic provided via `IUnitOfWork` (**in `GroundUp.Data.Abstractions`**), implemented in `GroundUp.Data.Core`.
 
 ---
 
-## 4. New solution/project structure
+## 7. Execution roadmap (incremental, keep build runnable)
 
-### Keep
-- `GroundUp.api` (API)
-- `GroundUp.core` (shared contracts)
+> We will migrate in small slices and keep the solution compiling/runnable after each step.
 
-### Add (initial)
-- `GroundUp.Services.Core` (services: auth/tenant/identity)
-- `GroundUp.Services.Inventory`
-- `GroundUp.Repositories.Core`
-- `GroundUp.Repositories.Inventory`
-
-### Database decision (CONFIRMED)
-? **Single database + single EF Core `DbContext`**.
-
-- `ApplicationDbContext` and EF migrations will live in **one** repository project: **`GroundUp.Repositories.Core`**.
-- Other repository projects (e.g., `GroundUp.Repositories.Inventory`) will:
-  - reference `GroundUp.Repositories.Core` (to access `ApplicationDbContext`)
-  - add their entity types and configure mappings via `IEntityTypeConfiguration<T>` and/or `DbContext` model-building hooks.
-
-> This gives you modular repository projects while keeping migrations and DB configuration centralized.
-
----
-
-## 5. Entity ownership (Option B)
-
-### Entity placement
-- Inventory entities (`InventoryCategory`, `InventoryItem`, etc.) move out of `GroundUp.core/entities` into `GroundUp.Repositories.Inventory/Entities`.
-- Core entities (Tenant, User, Role, Policy, Permission, etc.) move into `GroundUp.Repositories.Core/Entities`.
-
-### Who references entities?
-- Repositories: yes.
-- Services: ideally no (prefer DTOs). If needed, only via repository return types (but the goal is DTO boundary).
-- Controllers: no.
-
-### EF Core ownership rule
-- `ApplicationDbContext` (in `GroundUp.Repositories.Core`) must reference *all* entity CLR types.
-- Entities living in other projects (like Inventory) is fine as long as:
-  - `GroundUp.Repositories.Core` references those projects, or
-  - `ApplicationDbContext` discovers configurations via assembly scanning.
-
----
-
-## 6. Key technical decisions to implement
-
-### 6.1 Introduce `OperationResult<T>`
-Create in `GroundUp.core`:
-- `GroundUp.core/dtos/OperationResult.cs` (or a `core/results` folder)
-- Mimic the fields you already use in `ApiResponse<T>`: `Success`, `Message`, `Errors`, `StatusCode`, `ErrorCode`, and `Data`.
-
-### 6.2 Add `IUnitOfWork`
-Create in `GroundUp.core/interfaces`:
-- `IUnitOfWork` exposing `ExecuteInTransactionAsync`.
-
-Implement in repository project using EF:
-- Use `DbContext.Database.CreateExecutionStrategy()` and `BeginTransactionAsync()`.
-
-### 6.3 Service interfaces + implementations
-- Service interfaces in `GroundUp.core/interfaces` (keeps API layer depending only on core) **or** in each service project.
-- Implementations in `GroundUp.Services.*`.
-
-### 6.4 Permission enforcement at service boundary
-- Move `[RequiresPermission]` attributes to service interfaces.
-- Update DI to proxy services (Castle) with `PermissionInterceptor`.
-- Remove/stop proxying repositories for permission enforcement.
-
----
-
-## 7. Phased migration plan (execution)
-
-### Phase 1 � Create project skeletons and wire DI
-**Deliverables**
-- New projects: `GroundUp.Services.Core`, `GroundUp.Services.Inventory`, `GroundUp.Repositories.Core`, `GroundUp.Repositories.Inventory`.
-- Project references updated:
-  - `GroundUp.api` references `GroundUp.core` and service projects.
-  - Service projects reference `GroundUp.core` and corresponding repository projects.
-  - Repository projects reference `GroundUp.core` and EF dependencies.
-
-**DI changes**
-- Move service registrations out of `GroundUp.infrastructure/extensions/ServiceCollectionExtensions.cs` into a new registration surface in service/repository projects (or create new extension methods) so API can call something like:
-  - `AddCoreServices()`
-  - `AddInventoryServices()`
-  - `AddCoreRepositories()`
-  - `AddInventoryRepositories()`
-
-### Phase 2 � Inventory as the reference implementation (establish the pattern)
-**Goal**: migrate inventory end-to-end first.
-
-**Work items**
-1) Create `IInventoryCategoryService`, `IInventoryItemService` in core.
-   - Mirror current controller surface.
-   - Add `[RequiresPermission]` attributes on service methods.
-2) Implement services in `GroundUp.Services.Inventory`.
-   - Pure orchestration, mostly pass-through for CRUD.
-3) Move inventory repositories into `GroundUp.Repositories.Inventory`.
-4) Move inventory entities into `GroundUp.Repositories.Inventory/Entities`.
-5) Update `ApplicationDbContext` (now in `GroundUp.Repositories.Core`) to include inventory entities/configurations.
-   - Prefer `ApplyConfigurationsFromAssembly(...)` for the inventory repo assembly.
-6) Update controllers:
-   - `InventoryCategoryController` injects `IInventoryCategoryService` only.
-   - `InventoryItemController` injects `IInventoryItemService` only.
-7) Update integration tests to use the API unchanged (ideally no test changes beyond DI wiring).
+### Phase A — Establish the final project *shape* (minimal behavior change)
+1) Add `GroundUp.Sample` (startup project for the repo)
+   - Owns `Program.cs`, connection strings, migrations, swagger host
+   - Loads controllers from `GroundUp.Api`
+2) Ensure `GroundUp.Api` has **no reference** to `GroundUp.Data.Abstractions` or `GroundUp.Data.Core`
+3) Introduce `GroundUp.Data.Abstractions`
+   - Move `I*Repository` and `IUnitOfWork` out of `GroundUp.Core`
+4) Ensure DI registrations live on the correct side:
+   - `GroundUp.Services.Core` registers services
+   - `GroundUp.Data.Core` registers DbContext + repos + UoW implementations
+   - `GroundUp.Sample` composes both
 
 **Exit criteria**
-- Build succeeds.
-- Inventory integration tests pass.
-- No controller references any `*Repository` interface.
+- Build succeeds
+- Running `GroundUp.Sample` exposes swagger and endpoints
 
-### Phase 3 � Core context (Auth/Identity/Tenant)
-**Goal**: normalize services and remove direct `DbContext` usage.
+### Phase B — Finish controller-to-service boundary
+- Audit controllers: ensure no controller injects any `*Repository`
+- Add/adjust service interfaces as needed
 
-**Work items**
-1) Create coherent service API:
-   - `IAuthFlowService` (already exists�may need redesign)
-   - `IAuthSessionService` (new: `SetTenant`, token issuance)
-   - `ITenantService`/`ITenantSsoService` (normalize)
-   - `IEnterpriseSignupService` (exists)
-2) Update implementations in `GroundUp.Services.Core`.
-3) Refactor `AuthFlowService`:
-   - Replace direct `_dbContext` usage with repository calls + `IUnitOfWork` transactions.
-   - Push any EF-specific queries into repositories.
-4) Move relevant entities and repositories into `GroundUp.Repositories.Core`.
-5) Move permissions annotations to service methods.
+### Phase C — Inventory reference implementation (temporary)
+- Keep inventory as the pattern reference until we remove it
+- Later: move inventory into a sample app or delete
 
-### Phase 4 � Permissions/roles/policies
-Depending on desired boundaries:
-- Keep in Core bounded context initially.
-- Move repository code to `GroundUp.Repositories.Core` and service code to `GroundUp.Services.Core`.
+### Phase D — Core context (Auth/Identity/Tenant)
+- Refactor services to remove any direct DbContext usage
+- Use repositories + `IUnitOfWork` for multi-step flows
 
-### Phase 5 � Remove `GroundUp.infrastructure` project
-Once all code is migrated:
-- Delete or repurpose `GroundUp.infrastructure`.
-- Ensure all DI extension methods live in service/repository projects.
+### Phase E — Permission enforcement finalization
+- Move `[RequiresPermission]` to service methods only
+- Stop proxying repositories
+
+### Phase F — Cleanup and prep for packaging
+- Remove/disconnect `GroundUp.infrastructure` once fully migrated
+- Confirm package boundaries match the table in §1
 
 ---
 
 ## 8. Mechanical file-by-file inventory (initial focus)
 
-### Inventory (current files)
+### Inventory (temporary reference)
 
 Controllers:
-- `GroundUp.api/Controllers/InventoryCategoryController.cs`
-- `GroundUp.api/Controllers/InventoryItemController.cs`
+- `GroundUp.Api/Controllers/InventoryCategoryController.cs`
+- `GroundUp.Api/Controllers/InventoryItemController.cs`
 
 Core DTOs / Interfaces:
-- `GroundUp.core/dtos/InventoryCategoryDto.cs`
-- `GroundUp.core/dtos/InventoryItemDto.cs`
-- `GroundUp.core/interfaces/IInventoryCategoryRepository.cs`
-- `GroundUp.core/interfaces/IInventoryItemRepository.cs`
+- `GroundUp.Core/dtos/InventoryCategoryDto.cs`
+- `GroundUp.Core/dtos/InventoryItemDto.cs`
+- `GroundUp.Data.Abstractions/interfaces/IInventoryCategoryRepository.cs`
+- `GroundUp.Data.Abstractions/interfaces/IInventoryItemRepository.cs`
 
-Entities (move to inventory repo project under Option B):
-- `GroundUp.core/entities/InventoryCategory.cs`
-- `GroundUp.core/entities/InventoryItem.cs`
-
-Repository implementations:
-- `GroundUp.infrastructure/repositories/InventoryCategoryRepository.cs`
-- `GroundUp.infrastructure/repositories/InventoryItemRepository.cs`
-- `GroundUp.infrastructure/repositories/BaseRepository.cs`
-- `GroundUp.infrastructure/repositories/BaseTenantRepository.cs`
-
-Data:
-- `GroundUp.infrastructure/data/ApplicationDbContext.cs`
-
-Integration tests:
-- `GroundUp.api.Tests.Integration/InventoryCategoryIntegrationTest.cs`
-- `GroundUp.api.Tests.Integration/InventoryItemIntegrationTests.cs`
+Entities (Option B):
+- Move inventory entities out of `GroundUp.Core/entities` into inventory data project (later, likely into a sample app).
 
 ---
 
-## 9. Open decisions (updated)
+## 9. Notes / decisions
 
-1) ? **Single DB context / migrations**
-   - Confirmed: One `ApplicationDbContext` and one migrations assembly in `GroundUp.Repositories.Core`.
+- Naming decision: **Data layer is `GroundUp.Data.Core`** (not `Repositories` / not `Persistence`).
+- New decision: **`GroundUp.Data.Abstractions` owns repository interfaces + `IUnitOfWork`** to enforce controller/service boundaries.
+- `GroundUp.Sample` is part of the repo for local validation and is **not** packaged.
+- Future consuming apps host GroundUp via their own `FutureApp.Api` startup project.
 
-2) **Where do repository interfaces live?**
-   - Keep in `GroundUp.core/interfaces` (API depends only on core; services depend on core; repositories implement core interfaces).
 
-3) **Result type naming**
-   - Use `OperationResult<T>` (recommended) and map to `ApiResponse<T>` in controllers.
+The following section explains what the project structure should be when we are done and how the layers should reference each other. This is the "target end state" that we will migrate towards incrementally.
 
-4) **Permission model**
-   - Attribute-driven interception at service interface boundary (recommended).
-
+GroundUp (this repo)
+GroundUp.Core
+•	What it is: API-safe shared contracts and primitives: DTOs, enums, ApiResponse<T>, OperationResult<T>, attributes like RequiresPermission.
+•	References: ideally none (or minimal framework deps only).
+•	Referenced by: everyone (GroundUp.Api, GroundUp.Services.Core, GroundUp.Data.Abstractions, GroundUp.Data.Core, FutureApp.*).
+GroundUp.Data.Abstractions (new)
+•	What it is: data boundary contracts: I*Repository, IUnitOfWork, repo-related abstractions only.
+•	References: GroundUp.Core.
+•	Referenced by: GroundUp.Services.Core, GroundUp.Data.Core (and any app-specific data implementations in the future).
+•	Not referenced by: GroundUp.Api (this is what enforces “controllers can’t use repos”).
+GroundUp.Services.Core
+•	What it is: business logic + orchestration. Enforces auth/permissions at service method boundary. Depends on repos via abstractions only.
+•	References: GroundUp.Core, GroundUp.Data.Abstractions.
+•	Referenced by: GroundUp.Api (controllers call services), GroundUp.Sample, FutureApp.Api, FutureApp.Services (optionally).
+GroundUp.Data.Core
+•	What it is: EF Core implementation: DbContext, migrations, repository implementations, UnitOfWork implementation, data-layer DI registration.
+•	References: GroundUp.Core, GroundUp.Data.Abstractions, EF Core packages/provider.
+•	Referenced by: GroundUp.Sample (repo host), FutureApp.Api (consumer host).
+•	Not referenced by: GroundUp.Api, GroundUp.Services.Core.
+GroundUp.Api
+•	What it is: controllers + HTTP-only concerns (middleware, swagger helpers, model binding). No database knowledge.
+•	References: GroundUp.Core, GroundUp.Services.Core (no data abstractions, no data core).
+•	Referenced by: GroundUp.Sample (loads controllers via application parts), FutureApp.Api (hosts endpoints either by reference or via NuGet).
+GroundUp.Sample (not packaged)
+•	What it is: runnable composition root for this repo: wiring DI, reading config/connection strings, running migrations, hosting Swagger/UI.
+•	References: GroundUp.Api, GroundUp.Services.Core, GroundUp.Data.Core (and temporary inventory projects while they exist).
+•	Referenced by: nothing (it’s the executable host used for local/dev validation).
+Temporary bounded contexts in this repo right now:
+•	GroundUp.Repositories.Inventory / GroundUp.Services.Inventory follow the same pattern but are “temporary”; long-term they move to a sample app or get removed.
 ---
-
-## 10. Immediate next step after this plan is approved
-
-Implement **Phase 1 + Phase 2 (Inventory)** first:
-- Create new projects
-- Add `OperationResult<T>` + `IUnitOfWork`
-- Create inventory services
-- Move inventory entities and repos
-- Move `ApplicationDbContext` (+ migrations) into `GroundUp.Repositories.Core`
-- Update DI + controllers
-- Run build + integration tests
-
----
-
-## Appendix: Why policies/handlers are "bigger change" (informational)
-
-ASP.NET authorization policies/handlers typically mean:
-- Define permissions as policies: `options.AddPolicy("inventory.view", policy => policy.Requirements.Add(new PermissionRequirement("inventory.view")))`
-- Implement `IAuthorizationHandler` to check DB-backed permissions.
-- Enforce via `[Authorize(Policy = "inventory.view")]` on controllers/actions or by calling `IAuthorizationService.AuthorizeAsync()` from services.
-
-Pros:
-- Standard ASP.NET Core pipeline integration.
-
-Cons (relative to your desired architecture):
-- Ties permissions to HTTP layer unless you manually invoke authorization from services.
-- Your current attribute+interceptor approach cleanly enforces at the service boundary without MVC coupling.
+FutureApp (consumer)
+FutureApp.Api (the host)
+•	What it is: your real application’s composition root. Hosts GroundUp endpoints + runs GroundUp migrations (or triggers them via CI).
+•	References: NuGets/projects: GroundUp.Api, GroundUp.Services.Core, GroundUp.Data.Core.
+•	Referenced by: nothing (it’s the executable).
+FutureApp.Services
+•	What it is: app-specific business logic. May orchestrate its own workflows and optionally call GroundUp.Services.Core.
+•	References: GroundUp.Core (and optionally GroundUp.Services.Core).
+•	Referenced by: FutureApp.Api.
+FutureApp.Data
+•	What it is: app-specific persistence (your own DB, or extra tables, etc.). Can be independent or integrate alongside GroundUp DB.
+•	References: whatever the app needs (EF Core etc.). Typically does not need GroundUp packages unless you intentionally share types.
+•	Referenced by: FutureApp.Api, FutureApp.Services as needed.
+Key enforcement rule in this layout:
+•	Controllers can’t compile against repositories because FutureApp.Api/GroundUp.Api don’t reference GroundUp.Data.Abstractions. Only GroundUp.Services.Core can see repositories.

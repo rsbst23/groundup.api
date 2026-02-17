@@ -1,8 +1,8 @@
 ﻿using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Services.Inventory.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/inventory-items")]
     [ApiController]

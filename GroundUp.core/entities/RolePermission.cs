@@ -1,3 +1,5 @@
+using GroundUp.Core.interfaces;
+
 namespace GroundUp.core.entities
 {
     public class RolePermission : ITenantEntity

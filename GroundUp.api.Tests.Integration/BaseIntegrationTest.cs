@@ -1,6 +1,6 @@
 ﻿using System.Net.Http;
 using Xunit;
-using GroundUp.Repositories.Core.Data;
+using GroundUp.Data.Core.Data;
 using GroundUp.Repositories.Inventory.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

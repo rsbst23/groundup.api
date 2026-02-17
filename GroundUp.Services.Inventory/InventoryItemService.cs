@@ -1,5 +1,6 @@
+using GroundUp.Data.Abstractions.Interfaces;
 using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Services.Inventory.Interfaces;
 
 namespace GroundUp.Services.Inventory;
 

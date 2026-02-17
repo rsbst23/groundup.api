@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using GroundUp.core.entities;
+using GroundUp.Core.interfaces;
 
 namespace GroundUp.Repositories.Inventory.Entities;
 

@@ -1,4 +1,6 @@
-﻿namespace GroundUp.core.entities
+﻿using GroundUp.Core.interfaces;
+
+namespace GroundUp.core.entities
 {
     public class UserRole : ITenantEntity
     {

@@ -1,4 +1,4 @@
-using GroundUp.core.interfaces;
+using GroundUp.Data.Abstractions.Interfaces;
 using GroundUp.Repositories.Inventory.Data;
 using GroundUp.Repositories.Inventory.Repositories;
 using Microsoft.EntityFrameworkCore;

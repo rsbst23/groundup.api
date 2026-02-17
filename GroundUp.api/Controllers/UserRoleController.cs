@@ -1,31 +1,26 @@
-﻿using GroundUp.core.dtos;
+﻿using GroundUp.core;
+using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
-using GroundUp.core.security;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/user-roles")]
     [ApiController]
     public class UserRoleController : ControllerBase
     {
-        private readonly IUserRoleRepository _userRoleRepository;
-        private readonly ILoggingService _logger;
+        private readonly IUserRoleService _userRoleService;
 
-        public UserRoleController(
-            IUserRoleRepository userRoleRepository,
-            ILoggingService logger)
+        public UserRoleController(IUserRoleService userRoleService)
         {
-            _userRoleRepository = userRoleRepository;
-            _logger = logger;
+            _userRoleService = userRoleService;
         }
 
         // GET: api/user-roles
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<UserRoleDto>>>> GetAll([FromQuery] FilterParams filterParams)
         {
-            var result = await _userRoleRepository.GetAllAsync(filterParams);
+            var result = await _userRoleService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -33,7 +28,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ApiResponse<UserRoleDto>>> GetById(int id)
         {
-            var result = await _userRoleRepository.GetByIdAsync(id);
+            var result = await _userRoleService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -41,7 +36,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("by-name/{name}")]
         public async Task<ActionResult<ApiResponse<UserRoleDto>>> GetByName(string name)
         {
-            var result = await _userRoleRepository.GetByNameAsync(name);
+            var result = await _userRoleService.GetByNameAsync(name);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -49,7 +44,7 @@ namespace GroundUp.api.Controllers
         [HttpPost]
         public async Task<ActionResult<ApiResponse<UserRoleDto>>> Add([FromBody] UserRoleDto userRoleDto)
         {
-            var result = await _userRoleRepository.AddAsync(userRoleDto);
+            var result = await _userRoleService.AddAsync(userRoleDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -57,7 +52,7 @@ namespace GroundUp.api.Controllers
         [HttpPut("{id:int}")]
         public async Task<ActionResult<ApiResponse<UserRoleDto>>> Update(int id, [FromBody] UserRoleDto userRoleDto)
         {
-            var result = await _userRoleRepository.UpdateAsync(id, userRoleDto);
+            var result = await _userRoleService.UpdateAsync(id, userRoleDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -65,7 +60,7 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _userRoleRepository.DeleteAsync(id);
+            var result = await _userRoleService.DeleteAsync(id);
             return StatusCode(result.StatusCode, result);
         }
     }

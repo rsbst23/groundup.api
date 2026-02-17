@@ -3,8 +3,9 @@ using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/permissions")]
     [ApiController]
@@ -12,10 +13,53 @@ namespace GroundUp.api.Controllers
     public class PermissionController : ControllerBase
     {
         private readonly IPermissionAdminService _permissionService;
+        private readonly IPermissionService _permissionQueryService;
+        private readonly ILoggingService _logger;
 
-        public PermissionController(IPermissionAdminService permissionService)
+        public PermissionController(
+            IPermissionAdminService permissionService,
+            IPermissionService permissionQueryService,
+            ILoggingService logger)
         {
             _permissionService = permissionService;
+            _permissionQueryService = permissionQueryService;
+            _logger = logger;
+        }
+
+        // GET: api/permissions/me
+        [HttpGet("me")]
+        public async Task<ActionResult<ApiResponse<UserPermissionsDto>>> GetMyPermissions()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse<UserPermissionsDto>(
+                    new UserPermissionsDto(),
+                    false,
+                    "User ID not found",
+                    null,
+                    StatusCodes.Status401Unauthorized,
+                    ErrorCodes.Unauthorized
+                ));
+            }
+
+            // Get roles from claims
+            var roles = User.Claims
+                .Where(c => c.Type == ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList();
+
+            // Get permissions from service
+            var permissions = await _permissionQueryService.GetUserPermissions(userId);
+
+            var result = new UserPermissionsDto
+            {
+                UserId = userId,
+                Roles = roles,
+                Permissions = permissions.ToList()
+            };
+
+            return Ok(new ApiResponse<UserPermissionsDto>(result));
         }
 
         // GET: api/permissions (Paginated)

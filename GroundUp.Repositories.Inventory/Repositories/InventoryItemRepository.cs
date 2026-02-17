@@ -1,4 +1,5 @@
 using AutoMapper;
+using GroundUp.Data.Abstractions.Interfaces;
 using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
 using GroundUp.Repositories.Inventory.Data;
