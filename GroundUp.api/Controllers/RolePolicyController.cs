@@ -1,27 +1,26 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
 using GroundUp.core.interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/role-policies")]
     [ApiController]
     public class RolePolicyController : ControllerBase
     {
-        private readonly IRolePolicyRepository _rolePolicyRepository;
+        private readonly IRolePolicyService _rolePolicyService;
 
-        public RolePolicyController(IRolePolicyRepository rolePolicyRepository)
+        public RolePolicyController(IRolePolicyService rolePolicyService)
         {
-            _rolePolicyRepository = rolePolicyRepository;
+            _rolePolicyService = rolePolicyService;
         }
 
         // GET: api/role-policies (Paginated)
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PaginatedData<RolePolicyDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _rolePolicyRepository.GetAllAsync(filterParams);
+            var result = await _rolePolicyService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -29,7 +28,7 @@ namespace GroundUp.api.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ApiResponse<RolePolicyDto>>> GetById(int id)
         {
-            var result = await _rolePolicyRepository.GetByIdAsync(id);
+            var result = await _rolePolicyService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -49,7 +48,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _rolePolicyRepository.AddAsync(rolePolicyDto);
+            var result = await _rolePolicyService.AddAsync(rolePolicyDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -81,7 +80,7 @@ namespace GroundUp.api.Controllers
                 ));
             }
 
-            var result = await _rolePolicyRepository.UpdateAsync(id, rolePolicyDto);
+            var result = await _rolePolicyService.UpdateAsync(id, rolePolicyDto);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -89,7 +88,7 @@ namespace GroundUp.api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _rolePolicyRepository.DeleteAsync(id);
+            var result = await _rolePolicyService.DeleteAsync(id);
             return StatusCode(result.StatusCode, result);
         }
     }

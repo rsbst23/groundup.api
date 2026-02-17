@@ -1,4 +1,4 @@
-namespace GroundUp.api.Tests.Unit;
+namespace GroundUp.Api.Tests.Unit;
 
 public class ExampleUnitTest
 {

@@ -4,18 +4,18 @@ using GroundUp.core.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GroundUp.api.Controllers
+namespace GroundUp.Api.Controllers
 {
     [Route("api/feedback")]
     [ApiController]
     public class ErrorFeedbackController : ControllerBase
     {
-        private readonly IErrorFeedbackRepository _errorFeedbackRepository;
+        private readonly IErrorFeedbackService _errorFeedbackService;
         private readonly ILoggingService _logger;
 
-        public ErrorFeedbackController(IErrorFeedbackRepository errorFeedbackRepository, ILoggingService logger)
+        public ErrorFeedbackController(IErrorFeedbackService errorFeedbackService, ILoggingService logger)
         {
-            _errorFeedbackRepository = errorFeedbackRepository;
+            _errorFeedbackService = errorFeedbackService;
             _logger = logger;
         }
 
@@ -24,7 +24,7 @@ namespace GroundUp.api.Controllers
         //[Authorize]
         public async Task<ActionResult<ApiResponse<PaginatedData<ErrorFeedbackDto>>>> Get([FromQuery] FilterParams filterParams)
         {
-            var result = await _errorFeedbackRepository.GetAllAsync(filterParams);
+            var result = await _errorFeedbackService.GetAllAsync(filterParams);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -33,7 +33,7 @@ namespace GroundUp.api.Controllers
         //[Authorize]
         public async Task<ActionResult<ApiResponse<ErrorFeedbackDto>>> GetById(int id)
         {
-            var result = await _errorFeedbackRepository.GetByIdAsync(id);
+            var result = await _errorFeedbackService.GetByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -59,7 +59,7 @@ namespace GroundUp.api.Controllers
                 // Log the incoming error feedback
                 _logger.LogInformation($"Received error feedback: {errorFeedbackDto.Context} - {errorFeedbackDto.Error?.Message}");
 
-                var result = await _errorFeedbackRepository.AddAsync(errorFeedbackDto);
+                var result = await _errorFeedbackService.AddAsync(errorFeedbackDto);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -82,7 +82,7 @@ namespace GroundUp.api.Controllers
         //[Authorize]
         public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
         {
-            var result = await _errorFeedbackRepository.DeleteAsync(id);
+            var result = await _errorFeedbackService.DeleteAsync(id);
             return StatusCode(result.StatusCode, result);
         }
     }

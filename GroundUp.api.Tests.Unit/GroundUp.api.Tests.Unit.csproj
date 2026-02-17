@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GroundUp.api\GroundUp.api.csproj" />
+    <ProjectReference Include="..\GroundUp.Sample\GroundUp.Sample.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>groundup-sample</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GroundUp.Api\GroundUp.Api.csproj" />
+    <ProjectReference Include="..\GroundUp.Services.Core\GroundUp.Services.Core.csproj" />
+    <ProjectReference Include="..\GroundUp.Data.Core\GroundUp.Data.Core.csproj" />
+    <ProjectReference Include="..\GroundUp.Repositories.Inventory\GroundUp.Repositories.Inventory.csproj" />
+    <ProjectReference Include="..\GroundUp.Services.Inventory\GroundUp.Services.Inventory.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+</Project>

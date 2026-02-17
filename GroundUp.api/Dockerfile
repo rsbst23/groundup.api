@@ -10,24 +10,26 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copy only the main application project files (EXCLUDING TEST PROJECTS)
-COPY ["GroundUp.api/GroundUp.api.csproj", "GroundUp.api/"]
-COPY ["GroundUp.core/GroundUp.core.csproj", "GroundUp.core/"]
-COPY ["GroundUp.infrastructure/GroundUp.infrastructure.csproj", "GroundUp.infrastructure/"]
+# Copy only the project files needed for restore/publish
+COPY ["GroundUp.Sample/GroundUp.Sample.csproj", "GroundUp.Sample/"]
+COPY ["GroundUp.Api/GroundUp.Api.csproj", "GroundUp.Api/"]
+COPY ["GroundUp.Core/GroundUp.Core.csproj", "GroundUp.Core/"]
+COPY ["GroundUp.Data.Abstractions/GroundUp.Data.Abstractions.csproj", "GroundUp.Data.Abstractions/"]
+COPY ["GroundUp.Data.Core/GroundUp.Data.Core.csproj", "GroundUp.Data.Core/"]
+COPY ["GroundUp.Repositories.Inventory/GroundUp.Repositories.Inventory.csproj", "GroundUp.Repositories.Inventory/"]
+COPY ["GroundUp.Services.Core/GroundUp.Services.Core.csproj", "GroundUp.Services.Core/"]
+COPY ["GroundUp.Services.Inventory/GroundUp.Services.Inventory.csproj", "GroundUp.Services.Inventory/"]
 
-# Restore only the necessary dependencies (EXCLUDING TESTS)
-WORKDIR /src/GroundUp.api
-RUN dotnet restore "./GroundUp.api.csproj" --disable-parallel --ignore-failed-sources
+# Restore dependencies
+RUN dotnet restore "/src/GroundUp.Sample/GroundUp.Sample.csproj" --disable-parallel --ignore-failed-sources
 
-# Copy the entire application source code (EXCLUDING TESTS)
+# Copy the entire source (still remove tests to keep image lean)
 COPY . .
+RUN rm -rf /src/GroundUp.Api.Tests.Integration \
+           /src/GroundUp.Api.Tests.Unit
 
-# Remove any test projects from the workspace before building
-RUN rm -rf /src/GroundUp.api/GroundUp.api.Tests.Integration
-RUN rm -rf /src/GroundUp.api/GroundUp.api.Tests.Unit
-
-# Build & Publish the API project (EXCLUDES TEST PROJECTS)
-RUN dotnet publish "./GroundUp.api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# Build & Publish the runnable host (composition root)
+RUN dotnet publish "/src/GroundUp.Sample/GroundUp.Sample.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Final runtime image
 FROM base AS final
@@ -36,12 +38,11 @@ WORKDIR /app
 # Copy published output
 COPY --from=build /app/publish .
 
-# Copy startup script
-COPY ["GroundUp.api/startup.sh", "/app/startup.sh"]
+# Copy startup script (hosted in Sample)
+COPY ["GroundUp.Sample/startup.sh", "/app/startup.sh"]
 
 USER root
 RUN chmod +x /app/startup.sh
 USER app
 
-# Use `startup.sh` as the entrypoint instead of directly running the .NET app
 ENTRYPOINT ["/app/startup.sh"]

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using GroundUp.Core.interfaces;
+using System.ComponentModel.DataAnnotations;
 
 namespace GroundUp.core.entities
 {

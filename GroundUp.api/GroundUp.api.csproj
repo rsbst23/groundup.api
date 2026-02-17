@@ -1,46 +1,33 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>082b3fce-6653-4173-804b-34e8641ede87</UserSecretsId>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <UseAppHost>false</UseAppHost>
+    <OutputType>Library</OutputType>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AWS.Logger.SeriLog" Version="3.4.3" />
     <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.401.48" />
-    <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="8.0.13" />
-    <PackageReference Include="Microsoft.AspNetCore.RateLimiting" Version="7.0.0-rc.2.22476.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.13" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.13">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.13" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.6.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.5" />
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
-    <PackageReference Include="MySql.Data" Version="9.2.0" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
-    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
     <PackageReference Include="Serilog.Sinks.AwsCloudWatch" Version="4.3.37" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="models\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\GroundUp.core\GroundUp.core.csproj" />
-    <ProjectReference Include="..\GroundUp.infrastructure\GroundUp.infrastructure.csproj" />
+    <ProjectReference Include="..\GroundUp.Core\GroundUp.Core.csproj" />
+    <ProjectReference Include="..\GroundUp.Services.Core\GroundUp.Services.Core.csproj" />
+    <ProjectReference Include="..\GroundUp.Services.Inventory\GroundUp.Services.Inventory.csproj" />
   </ItemGroup>
 
 </Project>

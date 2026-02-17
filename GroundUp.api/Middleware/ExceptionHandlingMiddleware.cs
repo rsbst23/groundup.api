@@ -1,10 +1,11 @@
 ﻿using GroundUp.core;
 using GroundUp.core.dtos;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 using System.Net;
 using System.Text.Json;
 
-namespace GroundUp.api.Middleware
+namespace GroundUp.Api.Middleware
 {
     public class ExceptionHandlingMiddleware
     {

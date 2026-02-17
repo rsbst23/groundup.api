@@ -58,7 +58,7 @@ jobs:
           key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
 
       - name: Run Unit Tests (Parallel)
-        run: dotnet test GroundUp.api.Tests.Unit --configuration Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test GroundUp.Api.Tests.Unit --configuration Release --no-build --logger trx --results-directory TestResults
 
   integration-tests:
     needs: build
@@ -92,4 +92,4 @@ jobs:
           key: ${{ runner.os }}-dotnet-build-${{ github.sha }}
 
       - name: Run Integration Tests (Sequential)
-        run: dotnet test GroundUp.api.Tests.Integration --configuration Release --no-build --logger trx --results-directory TestResults
+        run: dotnet test GroundUp.Api.Tests.Integration --configuration Release --no-build --logger trx --results-directory TestResults
