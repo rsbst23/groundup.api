@@ -54,6 +54,9 @@ namespace GroundUp.Tests.Integration
                         services.Remove(inventoryDescriptor);
                     }
 
+                    // Note: Rate limiting is disabled for Testing environment in Program.cs
+                    // No need to remove services here as they are not added in the first place
+
                     // Add in-memory database for testing - SHARED DATABASES for all tests
                     services.AddDbContext<ApplicationDbContext>(options => 
                     {
