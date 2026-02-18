@@ -19,6 +19,9 @@ namespace GroundUp.Tests.Integration
         protected readonly IServiceScope _scope;
         protected readonly ApplicationDbContext _coreDbContext;
         protected readonly InventoryDbContext _inventoryDbContext;
+        
+        // Static lock to ensure database reset is atomic across all test instances
+        private static readonly SemaphoreSlim _resetLock = new SemaphoreSlim(1, 1);
 
         protected BaseIntegrationTest(CustomWebApplicationFactory factory)
         {
@@ -30,10 +33,19 @@ namespace GroundUp.Tests.Integration
 
         public async Task InitializeAsync()
         {
-            await ResetDatabaseAsync(_inventoryDbContext);
-            await ResetDatabaseAsync(_coreDbContext);
+            // Acquire lock to ensure only one test resets the database at a time
+            await _resetLock.WaitAsync();
+            try
+            {
+                await ResetDatabaseAsync(_inventoryDbContext);
+                await ResetDatabaseAsync(_coreDbContext);
 
-            await TestDataSeeder.SeedInventoryAsync(_inventoryDbContext);
+                await TestDataSeeder.SeedInventoryAsync(_inventoryDbContext);
+            }
+            finally
+            {
+                _resetLock.Release();
+            }
         }
 
         public Task DisposeAsync()
