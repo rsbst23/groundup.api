@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace GroundUp.Tests.Integration
 {
@@ -39,7 +40,7 @@ namespace GroundUp.Tests.Integration
 
             builder.ConfigureServices(services =>
             {
-                // Remove existing database context
+                // Remove existing database context options
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
                 if (descriptor != null)
                 {
@@ -54,9 +55,16 @@ namespace GroundUp.Tests.Integration
 
                 // Add in-memory database for testing - UNIQUE DATABASES per factory instance
                 services.AddDbContext<ApplicationDbContext>(options => 
-                    options.UseInMemoryDatabase(_coreDatabaseName));
+                {
+                    options.UseInMemoryDatabase(_coreDatabaseName);
+                    options.EnableSensitiveDataLogging();
+                });
+                
                 services.AddDbContext<InventoryDbContext>(options => 
-                    options.UseInMemoryDatabase(_inventoryDatabaseName));
+                {
+                    options.UseInMemoryDatabase(_inventoryDatabaseName);
+                    options.EnableSensitiveDataLogging();
+                });
 
                 services.AddAuthentication(options =>
                 {
@@ -77,12 +85,36 @@ namespace GroundUp.Tests.Integration
                 services.RemoveAll<IPermissionService>();
                 services.AddSingleton<IPermissionService, TestPermissionService>();
 
-                using var scope = services.BuildServiceProvider().CreateScope();
-                var coreDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                coreDb.Database.EnsureCreated();
+                // Suppress logging noise in tests
+                services.AddLogging(logging =>
+                {
+                    logging.ClearProviders();
+                    logging.SetMinimumLevel(LogLevel.Warning);
+                });
+            });
 
-                var inventoryDb = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-                inventoryDb.Database.EnsureCreated();
+            // Initialize databases after the host is built
+            builder.ConfigureServices((context, services) =>
+            {
+                var sp = services.BuildServiceProvider();
+                
+                using var scope = sp.CreateScope();
+                var scopedServices = scope.ServiceProvider;
+
+                try
+                {
+                    var coreDb = scopedServices.GetRequiredService<ApplicationDbContext>();
+                    coreDb.Database.EnsureCreated();
+
+                    var inventoryDb = scopedServices.GetRequiredService<InventoryDbContext>();
+                    inventoryDb.Database.EnsureCreated();
+                }
+                catch (Exception ex)
+                {
+                    var logger = scopedServices.GetRequiredService<ILogger<CustomWebApplicationFactory>>();
+                    logger.LogError(ex, "An error occurred initializing the test databases.");
+                    throw;
+                }
             });
         }
     }
