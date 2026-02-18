@@ -1,5 +1,5 @@
-using GroundUp.core.dtos;
-using GroundUp.core.security;
+using GroundUp.Core.dtos;
+using GroundUp.Core.security;
 
 namespace GroundUp.Services.Inventory.Interfaces;
 

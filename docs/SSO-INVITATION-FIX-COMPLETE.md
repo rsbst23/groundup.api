@@ -29,7 +29,7 @@ This is correct for **local accounts** (password-based), but **wrong for SSO** (
 
 ### 1. Added `IsLocalAccount` Flag
 
-**File**: `GroundUp.core/dtos/TenantInvitationDtos.cs`
+**File**: `GroundUp.Core/dtos/TenantInvitationDtos.cs`
 
 ```csharp
 public class CreateTenantInvitationDto
@@ -298,7 +298,7 @@ After deploying this fix:
 
 ## Files Changed
 
-1. ? `GroundUp.core/dtos/TenantInvitationDtos.cs` - Added `IsLocalAccount` flag
+1. ? `GroundUp.Core/dtos/TenantInvitationDtos.cs` - Added `IsLocalAccount` flag
 2. ? `GroundUp.infrastructure/repositories/TenantInvitationRepository.cs` - Updated invitation logic
 
 ---

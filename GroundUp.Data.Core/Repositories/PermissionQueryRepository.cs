@@ -1,7 +1,7 @@
 using GroundUp.Data.Abstractions.Interfaces;
-using GroundUp.core;
-using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
+using GroundUp.Core.interfaces;
 using GroundUp.Data.Core.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;

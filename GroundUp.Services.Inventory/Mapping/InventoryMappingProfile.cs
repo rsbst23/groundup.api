@@ -1,5 +1,5 @@
 using AutoMapper;
-using GroundUp.core.dtos;
+using GroundUp.Core.dtos;
 using GroundUp.Repositories.Inventory.Entities;
 
 namespace GroundUp.Services.Inventory.Mapping;

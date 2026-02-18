@@ -1,0 +1,16 @@
+﻿using GroundUp.Core.entities;
+
+namespace GroundUp.Core.dtos
+{
+    public class UserTenantDto
+    {
+        public int Id { get; set; }
+        public Guid UserId { get; set; }
+        public int TenantId { get; set; }
+        public string? Role { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsAdmin { get; set; }
+        public DateTime JoinedAt { get; set; }
+        public Tenant Tenant { get; set; }
+    }
+}

@@ -1,9 +1,9 @@
 using AutoMapper;
 using GroundUp.Data.Abstractions.Interfaces;
-using GroundUp.core;
-using GroundUp.core.dtos;
-using GroundUp.core.entities;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
+using GroundUp.Core.entities;
+using GroundUp.Core.interfaces;
 using GroundUp.Data.Core.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -106,7 +106,7 @@ public class TenantInvitationRepository : BaseTenantRepository<TenantInvitation,
 
             // FOR LOCAL ACCOUNT INVITATIONS ONLY: Create Keycloak user and send execute actions email
             // FOR SSO INVITATIONS: Skip user creation - let the SSO provider (Google, Azure AD, etc.) create the user
-            if (dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise && !string.IsNullOrEmpty(tenant.RealmName))
+            if (dto.IsLocalAccount && tenant.TenantType == GroundUp.Core.enums.TenantType.Enterprise && !string.IsNullOrEmpty(tenant.RealmName))
             {
                 _logger.LogInformation($"Processing LOCAL ACCOUNT invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName}");
 
@@ -222,7 +222,7 @@ public class TenantInvitationRepository : BaseTenantRepository<TenantInvitation,
                     }
                 }
             }
-            else if (!dto.IsLocalAccount && tenant.TenantType == core.enums.TenantType.Enterprise)
+            else if (!dto.IsLocalAccount && tenant.TenantType == GroundUp.Core.enums.TenantType.Enterprise)
             {
                 _logger.LogInformation($"Processing SSO invitation for enterprise tenant {tenant.Name} in realm {tenant.RealmName ?? "N/A"}");
                 _logger.LogInformation("Skipping Keycloak user creation - user will authenticate via SSO (Google, Azure AD, etc.)");

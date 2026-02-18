@@ -1,6 +1,6 @@
 using Castle.DynamicProxy;
-using GroundUp.core.interfaces;
-using GroundUp.core.security;
+using GroundUp.Core.interfaces;
+using GroundUp.Core.security;
 using Microsoft.AspNetCore.Http;
 using System.Reflection;
 using System.Security.Claims;

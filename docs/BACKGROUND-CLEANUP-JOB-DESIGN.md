@@ -236,7 +236,7 @@ RecurringJob.AddOrUpdate<ICleanupService>(
 
 **ICleanupService.cs**
 ```csharp
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     public interface ICleanupService
     {

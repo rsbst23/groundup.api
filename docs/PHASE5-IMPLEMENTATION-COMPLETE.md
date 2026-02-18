@@ -114,13 +114,13 @@ User logged into enterprise tenant!
 ## ?? Files Created/Modified
 
 ### **Created:**
-- `GroundUp.core/dtos/EnterpriseSignupDtos.cs` - Request/Response DTOs
+- `GroundUp.Core/dtos/EnterpriseSignupDtos.cs` - Request/Response DTOs
 - `GroundUp.infrastructure/Migrations/20251201030035_AddKeycloakRealmColumn.cs` - Migration
 
 ### **Modified:**
-- `GroundUp.core/dtos/RealmDtos.cs` - Enhanced `CreateRealmDto`
-- `GroundUp.core/interfaces/IIdentityProviderAdminService .cs` - Updated signature
-- `GroundUp.core/entities/Tenant.cs` - `KeycloakRealm` now a stored field
+- `GroundUp.Core/dtos/RealmDtos.cs` - Enhanced `CreateRealmDto`
+- `GroundUp.Core/interfaces/IIdentityProviderAdminService .cs` - Updated signature
+- `GroundUp.Core/entities/Tenant.cs` - `KeycloakRealm` now a stored field
 - `GroundUp.infrastructure/services/IdentityProviderAdminService.cs` - Implemented `CreateRealmAsync`
 - `GroundUp.infrastructure/repositories/TenantRepository.cs` - Fixed return type handling
 - `GroundUp.api/Controllers/TenantController.cs` - Added enterprise signup endpoint

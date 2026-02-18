@@ -262,7 +262,7 @@ WHERE CustomDomain IS NOT NULL AND IsActive = 1;
 
 ## Related Files
 - `GroundUp.api/Controllers/AuthController.cs` - Main implementation
-- `GroundUp.core/entities/Tenant.cs` - Tenant model with CustomDomain and RealmName
+- `GroundUp.Core/entities/Tenant.cs` - Tenant model with CustomDomain and RealmName
 - `docs/groundup-manual-test-plan.md` - Updated test procedures
 - `GroundUp.api/.env` - Environment variables (KEYCLOAK_AUTH_SERVER_URL, etc.)
 

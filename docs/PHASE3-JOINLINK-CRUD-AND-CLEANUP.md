@@ -93,12 +93,12 @@ Response 200:
 
 #### Step 1: Create DTOs
 
-**File**: `GroundUp.core/dtos/TenantJoinLinkDtos.cs`
+**File**: `GroundUp.Core/dtos/TenantJoinLinkDtos.cs`
 
 ```csharp
 using System.ComponentModel.DataAnnotations;
 
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     /// <summary>
     /// DTO for creating a new join link
@@ -134,12 +134,12 @@ namespace GroundUp.core.dtos
 
 #### Step 2: Create Repository Interface
 
-**File**: `GroundUp.core/interfaces/ITenantJoinLinkRepository.cs`
+**File**: `GroundUp.Core/interfaces/ITenantJoinLinkRepository.cs`
 
 ```csharp
-using GroundUp.core.dtos;
+using GroundUp.Core.dtos;
 
-namespace GroundUp.core.interfaces
+namespace GroundUp.Core.interfaces
 {
     public interface ITenantJoinLinkRepository
     {
@@ -161,10 +161,10 @@ namespace GroundUp.core.interfaces
 
 ```csharp
 using AutoMapper;
-using GroundUp.core;
-using GroundUp.core.dtos;
-using GroundUp.core.entities;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
+using GroundUp.Core.entities;
+using GroundUp.Core.interfaces;
 using GroundUp.infrastructure.data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -376,9 +376,9 @@ namespace GroundUp.infrastructure.repositories
 **File**: `GroundUp.api/Controllers/TenantJoinLinkController.cs`
 
 ```csharp
-using GroundUp.core;
-using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.dtos;
+using GroundUp.Core.interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -481,10 +481,10 @@ services.AddScoped<ITenantJoinLinkRepository, TenantJoinLinkRepository>();
 **Goal**: Clean up unused UserKeycloakIdentity code now that we use `UserTenant.ExternalUserId`
 
 #### Files to Delete:
-1. `GroundUp.core/entities/UserKeycloakIdentity.cs`
-2. `GroundUp.core/interfaces/IUserKeycloakIdentityRepository.cs`
+1. `GroundUp.Core/entities/UserKeycloakIdentity.cs`
+2. `GroundUp.Core/interfaces/IUserKeycloakIdentityRepository.cs`
 3. `GroundUp.infrastructure/repositories/UserKeycloakIdentityRepository.cs`
-4. `GroundUp.core/entities/AccountLinkToken.cs` (if not needed)
+4. `GroundUp.Core/entities/AccountLinkToken.cs` (if not needed)
 
 #### Files to Update:
 

@@ -35,7 +35,7 @@ After analysis, we determined:
 
 #### 2a. Update Interface ?
 
-**File:** `GroundUp.core/interfaces/IIdentityProviderAdminService.cs`
+**File:** `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs`
 
 **Status:** ? COMPLETED
 

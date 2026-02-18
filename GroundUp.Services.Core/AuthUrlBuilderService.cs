@@ -1,6 +1,6 @@
 using GroundUp.Data.Abstractions.Interfaces;
-using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Core.dtos;
+using GroundUp.Core.interfaces;
 using Microsoft.Extensions.Configuration;
 using System.Text;
 using System.Text.Json;

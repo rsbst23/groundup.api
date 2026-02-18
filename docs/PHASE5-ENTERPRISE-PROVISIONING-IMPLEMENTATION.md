@@ -77,10 +77,10 @@ Response:
 
 ### **Step 1: Create DTOs**
 
-**File:** `GroundUp.core/dtos/EnterpriseSignupDtos.cs`
+**File:** `GroundUp.Core/dtos/EnterpriseSignupDtos.cs`
 
 ```csharp
-namespace GroundUp.core.dtos
+namespace GroundUp.Core.dtos
 {
     /// <summary>
     /// Request DTO for enterprise tenant signup
@@ -153,7 +153,7 @@ namespace GroundUp.core.dtos
 
 ### **Step 2: Update IIdentityProviderAdminService**
 
-**File:** `GroundUp.core/interfaces/IIdentityProviderAdminService.cs`
+**File:** `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs`
 
 Add method:
 ```csharp

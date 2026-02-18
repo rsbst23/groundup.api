@@ -1,7 +1,7 @@
 using AutoMapper;
-using GroundUp.core.dtos;
-using GroundUp.core.dtos.tenants;
-using GroundUp.core.entities;
+using GroundUp.Core.dtos;
+using GroundUp.Core.dtos.tenants;
+using GroundUp.Core.entities;
 
 namespace GroundUp.Data.Core.Mapping;
 

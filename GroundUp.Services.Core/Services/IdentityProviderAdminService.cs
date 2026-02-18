@@ -1,7 +1,7 @@
-using GroundUp.core;
-using GroundUp.core.configuration;
-using GroundUp.core.dtos;
-using GroundUp.core.interfaces;
+using GroundUp.Core;
+using GroundUp.Core.configuration;
+using GroundUp.Core.dtos;
+using GroundUp.Core.interfaces;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;

@@ -75,7 +75,7 @@
 
 ## Files Changed
 
-1. `GroundUp.core/dtos/TenantInvitationDtos.cs`
+1. `GroundUp.Core/dtos/TenantInvitationDtos.cs`
 2. `GroundUp.infrastructure/repositories/TenantInvitationRepository.cs`
 
 ---

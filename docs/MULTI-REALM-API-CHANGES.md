@@ -79,7 +79,7 @@ CREATE UNIQUE INDEX IX_Tenants_RealmUrl ON Tenants(RealmUrl) WHERE RealmUrl IS N
 
 ### **Entity Update**
 
-**File:** `GroundUp.core/entities/Tenant.cs`
+**File:** `GroundUp.Core/entities/Tenant.cs`
 
 ```csharp
 public class Tenant
@@ -128,7 +128,7 @@ public class Tenant
 
 ## ?? **DTO Updates**
 
-### **File:** `GroundUp.core/dtos/TenantDto.cs`
+### **File:** `GroundUp.Core/dtos/TenantDto.cs`
 
 ```csharp
 public class TenantDto
@@ -166,10 +166,10 @@ public class UpdateTenantDto
 }
 ```
 
-### **File:** `GroundUp.core/dtos/RealmDtos.cs` (NEW)
+### **File:** `GroundUp.Core/dtos/RealmDtos.cs` (NEW)
 
 ```csharp
-namespace GroundUp.core.dtos;
+namespace GroundUp.Core.dtos;
 
 /// <summary>
 /// DTO for realm resolution request
@@ -231,7 +231,7 @@ public class RealmDto
 }
 ```
 
-### **File:** `GroundUp.core/dtos/AuthCallbackDtos.cs`
+### **File:** `GroundUp.Core/dtos/AuthCallbackDtos.cs`
 
 ```csharp
 public class AuthCallbackState
@@ -247,7 +247,7 @@ public class AuthCallbackState
 
 ## ?? **Interface Updates**
 
-### **File:** `GroundUp.core/interfaces/ITenantRepository.cs`
+### **File:** `GroundUp.Core/interfaces/ITenantRepository.cs`
 
 Add realm resolution method:
 
@@ -263,7 +263,7 @@ public interface ITenantRepository
 }
 ```
 
-### **File:** `GroundUp.core/interfaces/IIdentityProviderService.cs`
+### **File:** `GroundUp.Core/interfaces/IIdentityProviderService.cs`
 
 ```csharp
 public interface IIdentityProviderService
@@ -280,7 +280,7 @@ public interface IIdentityProviderService
 }
 ```
 
-### **File:** `GroundUp.core/interfaces/IIdentityProviderAdminService.cs`
+### **File:** `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs`
 
 ```csharp
 public interface IIdentityProviderAdminService

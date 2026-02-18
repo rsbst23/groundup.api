@@ -1,8 +1,8 @@
-using GroundUp.core.dtos;
-using GroundUp.core.dtos.auth;
-using GroundUp.core.dtos.tenants;
+using GroundUp.Core.dtos;
+using GroundUp.Core.dtos.auth;
+using GroundUp.Core.dtos.tenants;
 
-namespace GroundUp.core.interfaces;
+namespace GroundUp.Core.interfaces;
 
 /// <summary>
 /// Service boundary for session/tenant selection actions.

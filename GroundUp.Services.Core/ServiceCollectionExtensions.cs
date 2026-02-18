@@ -1,5 +1,5 @@
 using Castle.DynamicProxy;
-using GroundUp.core.interfaces;
+using GroundUp.Core.interfaces;
 using GroundUp.Services.Core.Interceptors;
 using GroundUp.Services.Core.Services;
 using Microsoft.Extensions.DependencyInjection;

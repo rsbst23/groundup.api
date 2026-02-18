@@ -97,10 +97,10 @@ public partial class AddSsoAutoJoinToTenants : Migration
 
 ### 2.1 Add Enum: `AuthProviderPolicy`
 
-File: `GroundUp.core/enums/TenantEnums.cs`
+File: `GroundUp.Core/enums/TenantEnums.cs`
 
 ```csharp
-namespace GroundUp.core.enums
+namespace GroundUp.Core.enums
 {
     /// <summary>
     /// Defines which authentication providers are allowed for a tenant
@@ -133,7 +133,7 @@ namespace GroundUp.core.enums
 
 ### 2.2 Update `Tenant` Entity
 
-File: `GroundUp.core/entities/Tenant.cs`
+File: `GroundUp.Core/entities/Tenant.cs`
 
 Add these properties:
 
@@ -215,7 +215,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 ### 3.1 Update `TenantDto`
 
-File: `GroundUp.core/dtos/TenantDto.cs`
+File: `GroundUp.Core/dtos/TenantDto.cs`
 
 ```csharp
 public class TenantDto
@@ -656,7 +656,7 @@ public async Task<ActionResult<ApiResponse<TenantDto>>> ConfigureSsoSettings(
 
 ### 5.2 Create DTO
 
-File: `GroundUp.core/dtos/TenantDto.cs` (add new DTO):
+File: `GroundUp.Core/dtos/TenantDto.cs` (add new DTO):
 
 ```csharp
 public class ConfigureSsoSettingsDto

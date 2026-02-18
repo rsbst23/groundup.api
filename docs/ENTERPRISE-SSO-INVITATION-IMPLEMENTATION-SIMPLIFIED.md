@@ -109,7 +109,7 @@ public partial class AddSsoAutoJoinToTenants : Migration
 
 ### 2.1 Update `Tenant` Entity
 
-File: `GroundUp.core/entities/Tenant.cs`
+File: `GroundUp.Core/entities/Tenant.cs`
 
 Add these properties to the existing `Tenant` class:
 
@@ -187,7 +187,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 ### 3.1 Update `TenantDto`
 
-File: `GroundUp.core/dtos/TenantDto.cs`
+File: `GroundUp.Core/dtos/TenantDto.cs`
 
 Add these properties:
 
@@ -224,7 +224,7 @@ public int? SsoAutoJoinRoleId { get; set; }
 
 ### 3.3 Create `ConfigureSsoSettingsDto`
 
-File: `GroundUp.core/dtos/TenantDto.cs` (add to existing file)
+File: `GroundUp.Core/dtos/TenantDto.cs` (add to existing file)
 
 ```csharp
 /// <summary>

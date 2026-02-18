@@ -71,7 +71,7 @@ Add optional `realm` parameter to all `IIdentityProviderAdminService` methods th
 ## Implementation Status
 
 ### ? Interface Updated
-`GroundUp.core/interfaces/IIdentityProviderAdminService .cs`
+`GroundUp.Core/interfaces/IIdentityProviderAdminService .cs`
 
 ### ? AuthController Updated
 `GroundUp.api/Controllers/AuthController.cs` - Line 84 now passes `realm` parameter

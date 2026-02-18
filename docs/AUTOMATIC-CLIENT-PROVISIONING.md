@@ -51,7 +51,7 @@ PRODUCTION_API_URL=https://api.yourdomain.com
 
 ### **2. New DTO: `CreateClientDto`**
 
-Location: `GroundUp.core/dtos/RealmDtos.cs`
+Location: `GroundUp.Core/dtos/RealmDtos.cs`
 
 ```csharp
 public class CreateClientDto
@@ -69,7 +69,7 @@ public class CreateClientDto
 
 ### **3. New Interface Method**
 
-Location: `GroundUp.core/interfaces/IIdentityProviderAdminService.cs`
+Location: `GroundUp.Core/interfaces/IIdentityProviderAdminService.cs`
 
 ```csharp
 Task<ApiResponse<bool>> CreateClientInRealmAsync(string realmName, CreateClientDto dto);
