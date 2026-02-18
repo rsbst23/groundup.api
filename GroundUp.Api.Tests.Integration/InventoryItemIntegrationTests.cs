@@ -6,7 +6,7 @@ using Xunit;
 
 namespace GroundUp.Tests.Integration
 {
-    [Collection("InventoryItemTests")]
+    [Collection("IntegrationTests")]
     public class InventoryItemIntegrationTests : BaseIntegrationTest
     {
         public InventoryItemIntegrationTests(CustomWebApplicationFactory factory) : base(factory) { }

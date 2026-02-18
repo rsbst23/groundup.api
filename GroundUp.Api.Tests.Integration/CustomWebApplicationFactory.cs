@@ -16,26 +16,13 @@ namespace GroundUp.Tests.Integration
 {
     public class CustomWebApplicationFactory : WebApplicationFactory<GroundUp.Sample.Program>
     {
-        // Static counter to ensure unique database names across all test instances
-        private static int _databaseCounter = 0;
-        private static readonly object _counterLock = new object();
-        
-        private readonly string _coreDatabaseName;
-        private readonly string _inventoryDatabaseName;
+        // Single set of database names for the entire test run
+        private readonly string _coreDatabaseName = $"TestCoreDb_{Guid.NewGuid():N}";
+        private readonly string _inventoryDatabaseName = $"TestInventoryDb_{Guid.NewGuid():N}";
 
         public CustomWebApplicationFactory()
         {
-            // Generate unique database names per factory instance
-            int counter;
-            lock (_counterLock)
-            {
-                counter = ++_databaseCounter;
-            }
-            
-            _coreDatabaseName = $"TestCoreDb_{counter}_{Guid.NewGuid():N}";
-            _inventoryDatabaseName = $"TestInventoryDb_{counter}_{Guid.NewGuid():N}";
-            
-            Console.WriteLine($"[Factory {counter}] Created with databases: {_coreDatabaseName}, {_inventoryDatabaseName}");
+            Console.WriteLine($"[Factory] Created with databases: {_coreDatabaseName}, {_inventoryDatabaseName}");
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -67,7 +54,7 @@ namespace GroundUp.Tests.Integration
                         services.Remove(inventoryDescriptor);
                     }
 
-                    // Add in-memory database for testing - UNIQUE DATABASES per factory instance
+                    // Add in-memory database for testing - SHARED DATABASES for all tests
                     services.AddDbContext<ApplicationDbContext>(options => 
                     {
                         options.UseInMemoryDatabase(_coreDatabaseName);
@@ -101,7 +88,7 @@ namespace GroundUp.Tests.Integration
                     services.RemoveAll<IPermissionService>();
                     services.AddSingleton<IPermissionService, TestPermissionService>();
 
-                    Console.WriteLine($"[Factory] Services configured for databases: {_coreDatabaseName}, {_inventoryDatabaseName}");
+                    Console.WriteLine($"[Factory] Services configured successfully");
                 }
                 catch (Exception ex)
                 {
@@ -123,11 +110,11 @@ namespace GroundUp.Tests.Integration
 
                     var coreDb = scopedServices.GetRequiredService<ApplicationDbContext>();
                     coreDb.Database.EnsureCreated();
-                    Console.WriteLine($"[Factory] Core database initialized: {_coreDatabaseName}");
+                    Console.WriteLine($"[Factory] Core database initialized");
 
                     var inventoryDb = scopedServices.GetRequiredService<InventoryDbContext>();
                     inventoryDb.Database.EnsureCreated();
-                    Console.WriteLine($"[Factory] Inventory database initialized: {_inventoryDatabaseName}");
+                    Console.WriteLine($"[Factory] Inventory database initialized");
                 }
                 catch (Exception ex)
                 {
