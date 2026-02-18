@@ -156,8 +156,11 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Rate limiting (opt-in policies in GroundUp.Api)
-builder.Services.AddGroundUpRateLimiting();
+// Rate limiting (opt-in policies in GroundUp.Api) - Skip in Testing environment
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddGroundUpRateLimiting();
+}
 
 var app = builder.Build();
 
@@ -190,8 +193,11 @@ app.UseSwaggerUI(c =>
     c.EnableFilter();
 });
 
-// Apply rate limiting middleware (opt-in)
-app.UseGroundUpRateLimiting();
+// Apply rate limiting middleware (opt-in) - Skip in Testing environment
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseGroundUpRateLimiting();
+}
 
 app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
