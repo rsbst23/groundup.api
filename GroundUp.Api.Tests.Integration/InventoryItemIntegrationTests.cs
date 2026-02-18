@@ -2,9 +2,11 @@
 using GroundUp.Core.dtos;
 using Newtonsoft.Json;
 using System.Text;
+using Xunit;
 
 namespace GroundUp.Tests.Integration
 {
+    [Collection("InventoryItemTests")]
     public class InventoryItemIntegrationTests : BaseIntegrationTest
     {
         public InventoryItemIntegrationTests(CustomWebApplicationFactory factory) : base(factory) { }

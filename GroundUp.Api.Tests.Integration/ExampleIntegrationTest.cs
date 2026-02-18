@@ -2,9 +2,11 @@ using FluentAssertions;
 using GroundUp.Tests.Integration;
 using Newtonsoft.Json;
 using System.Text;
+using Xunit;
 
 namespace GroundUp.Api.Tests.Integration
 {
+    [Collection("ExampleTests")]
     public class ExampleIntegrationTest : BaseIntegrationTest
     {
         public ExampleIntegrationTest(CustomWebApplicationFactory factory) : base(factory) { }
