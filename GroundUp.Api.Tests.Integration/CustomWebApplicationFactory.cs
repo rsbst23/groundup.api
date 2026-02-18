@@ -13,8 +13,25 @@ namespace GroundUp.Tests.Integration
 {
     public class CustomWebApplicationFactory : WebApplicationFactory<GroundUp.Sample.Program>
     {
-        private readonly string _coreDatabaseName = $"TestCoreDb_{Guid.NewGuid():N}";
-        private readonly string _inventoryDatabaseName = $"TestInventoryDb_{Guid.NewGuid():N}";
+        // Static counter to ensure unique database names across all test instances
+        private static int _databaseCounter = 0;
+        private static readonly object _counterLock = new object();
+        
+        private readonly string _coreDatabaseName;
+        private readonly string _inventoryDatabaseName;
+
+        public CustomWebApplicationFactory()
+        {
+            // Generate unique database names per factory instance
+            int counter;
+            lock (_counterLock)
+            {
+                counter = ++_databaseCounter;
+            }
+            
+            _coreDatabaseName = $"TestCoreDb_{counter}_{Guid.NewGuid():N}";
+            _inventoryDatabaseName = $"TestInventoryDb_{counter}_{Guid.NewGuid():N}";
+        }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -35,9 +52,11 @@ namespace GroundUp.Tests.Integration
                     services.Remove(inventoryDescriptor);
                 }
 
-                // Add in-memory database for testing - SEPARATE DATABASES for each context
-                services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(_coreDatabaseName));
-                services.AddDbContext<InventoryDbContext>(options => options.UseInMemoryDatabase(_inventoryDatabaseName));
+                // Add in-memory database for testing - UNIQUE DATABASES per factory instance
+                services.AddDbContext<ApplicationDbContext>(options => 
+                    options.UseInMemoryDatabase(_coreDatabaseName));
+                services.AddDbContext<InventoryDbContext>(options => 
+                    options.UseInMemoryDatabase(_inventoryDatabaseName));
 
                 services.AddAuthentication(options =>
                 {

@@ -12,16 +12,13 @@ using System.Reflection;
 
 namespace GroundUp.Tests.Integration
 {
-    [Collection("DatabaseTests")] // Ensures tests run sequentially within this collection
-    public abstract class BaseIntegrationTest : IAsyncLifetime
+    // Removed [Collection] attribute - tests can now run in parallel safely
+    public abstract class BaseIntegrationTest : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
     {
         protected readonly HttpClient _client;
         protected readonly IServiceScope _scope;
         protected readonly ApplicationDbContext _coreDbContext;
         protected readonly InventoryDbContext _inventoryDbContext;
-        
-        // Static lock to ensure database reset is atomic across all test instances
-        private static readonly SemaphoreSlim _resetLock = new SemaphoreSlim(1, 1);
 
         protected BaseIntegrationTest(CustomWebApplicationFactory factory)
         {
@@ -33,19 +30,11 @@ namespace GroundUp.Tests.Integration
 
         public async Task InitializeAsync()
         {
-            // Acquire lock to ensure only one test resets the database at a time
-            await _resetLock.WaitAsync();
-            try
-            {
-                await ResetDatabaseAsync(_inventoryDbContext);
-                await ResetDatabaseAsync(_coreDbContext);
+            // No lock needed - each test has its own isolated databases
+            await ResetDatabaseAsync(_inventoryDbContext);
+            await ResetDatabaseAsync(_coreDbContext);
 
-                await TestDataSeeder.SeedInventoryAsync(_inventoryDbContext);
-            }
-            finally
-            {
-                _resetLock.Release();
-            }
+            await TestDataSeeder.SeedInventoryAsync(_inventoryDbContext);
         }
 
         public Task DisposeAsync()
@@ -59,10 +48,8 @@ namespace GroundUp.Tests.Integration
         {
             // IMPORTANT:
             // Integration tests use EF Core InMemory (see CustomWebApplicationFactory).
-            // EnsureDeleted/EnsureCreated is not reliable here when multiple DbContext instances exist
-            // (test context vs API request contexts created per HTTP request).
-            //
-            // Instead, delete all rows from all mapped entity sets using EF metadata.
+            // Each test gets its own uniquely-named in-memory database, so we could skip this reset.
+            // However, we keep it for consistency and in case we switch to a shared database model.
 
             dbContext.ChangeTracker.Clear();
 
