@@ -1,1 +1,0 @@
-This project owns ApplicationDbContext + migrations. Core entities will be moved here later.
