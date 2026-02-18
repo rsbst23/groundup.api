@@ -9,42 +9,21 @@ namespace GroundUp.Tests.Integration
         public static async Task SeedInventoryAsync(InventoryDbContext inventoryDb)
         {
             // Idempotent seed to keep tests stable.
-            if (await inventoryDb.InventoryCategories.AsNoTracking().AnyAsync())
+            if (!inventoryDb.InventoryCategories.Any())
             {
-                return;
+                await inventoryDb.InventoryCategories.AddRangeAsync(
+                    new InventoryCategory { Id = 1, Name = "Electronics", CreatedDate = DateTime.UtcNow, TenantId = 1 },
+                    new InventoryCategory { Id = 2, Name = "Books", CreatedDate = DateTime.UtcNow, TenantId = 1 }
+                );
             }
 
-            var category = new InventoryCategory
+            if (!inventoryDb.InventoryItems.Any())
             {
-                Name = "Seed Category",
-                CreatedDate = DateTime.UtcNow,
-                TenantId = 1
-            };
-
-            inventoryDb.InventoryCategories.Add(category);
-            await inventoryDb.SaveChangesAsync();
-
-            var item = new InventoryItem
-            {
-                Name = "Seed Item",
-                InventoryCategoryId = category.Id,
-                PurchasePrice = 9.99m,
-                Condition = "New",
-                PurchaseDate = DateTime.UtcNow.Date,
-                TenantId = 1
-            };
-
-            inventoryDb.InventoryItems.Add(item);
-
-            var attr = new InventoryAttribute
-            {
-                InventoryItem = item,
-                FieldName = "color",
-                FieldValue = "blue",
-                TenantId = 1
-            };
-
-            inventoryDb.InventoryAttributes.Add(attr);
+                await inventoryDb.InventoryItems.AddRangeAsync(
+                    new InventoryItem { Id = 1, Name = "Laptop", PurchasePrice = 999.99m, Condition = "New", InventoryCategoryId = 1, PurchaseDate = DateTime.UtcNow, TenantId = 1 },
+                    new InventoryItem { Id = 2, Name = "The Great Gatsby", PurchasePrice = 12.99m, Condition = "Used", InventoryCategoryId = 2, PurchaseDate = DateTime.UtcNow, TenantId = 1 }
+                );
+            }
 
             await inventoryDb.SaveChangesAsync();
         }

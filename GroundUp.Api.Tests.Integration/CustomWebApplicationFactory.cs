@@ -13,7 +13,8 @@ namespace GroundUp.Tests.Integration
 {
     public class CustomWebApplicationFactory : WebApplicationFactory<GroundUp.Sample.Program>
     {
-        private readonly string _databaseName = $"TestDb_{Guid.NewGuid():N}";
+        private readonly string _coreDatabaseName = $"TestCoreDb_{Guid.NewGuid():N}";
+        private readonly string _inventoryDatabaseName = $"TestInventoryDb_{Guid.NewGuid():N}";
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -34,9 +35,9 @@ namespace GroundUp.Tests.Integration
                     services.Remove(inventoryDescriptor);
                 }
 
-                // Add in-memory database for testing (unique per factory instance)
-                services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(_databaseName));
-                services.AddDbContext<InventoryDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+                // Add in-memory database for testing - SEPARATE DATABASES for each context
+                services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(_coreDatabaseName));
+                services.AddDbContext<InventoryDbContext>(options => options.UseInMemoryDatabase(_inventoryDatabaseName));
 
                 services.AddAuthentication(options =>
                 {
